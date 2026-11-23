@@ -1,6 +1,8 @@
 package org.handtop.desktop
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -21,9 +23,12 @@ import androidx.annotation.StringRes
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import org.handtop.desktop.linux.LinuxEnv
+import org.handtop.desktop.linux.LinuxSetupContent
 import org.handtop.desktop.shell.AboutContent
 import org.handtop.desktop.shell.DesktopIcons
 import org.handtop.desktop.shell.Taskbar
+import org.handtop.desktop.term.ShellSpec
 import org.handtop.desktop.term.TermSessionHost
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.term.TerminalContent
@@ -57,7 +62,8 @@ class DesktopActivity : Activity() {
         area.listener = taskbar
 
         val icons = DesktopIcons(this).apply {
-            add(R.drawable.ic_terminal, R.string.app_terminal) { openTerminal() }
+            add(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
+            add(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
             add(R.drawable.ic_info, R.string.app_about) { openAbout() }
         }
         val desktop = FrameLayout(this).apply {
@@ -88,8 +94,19 @@ class DesktopActivity : Activity() {
         }
 
         // Re-attach sessions that survived an activity re-creation; otherwise start fresh.
-        if (TermSessions.hosts.isEmpty()) openTerminal()
-        else TermSessions.hosts.toList().forEach { openTerminal(it) }
+        if (TermSessions.hosts.isEmpty()) openLinuxTerminal()
+        else TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
+
+        requestNotificationPermission()
+    }
+
+    /** The "terminals are running" notification of the foreground service (Android 13+). */
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
     }
 
     override fun onDestroy() {
@@ -112,7 +129,8 @@ class DesktopActivity : Activity() {
         if (event.action == KeyEvent.ACTION_DOWN) {
             when {
                 event.isCtrlPressed && event.isAltPressed && event.keyCode == KeyEvent.KEYCODE_T -> {
-                    openTerminal(); return true
+                    if (LinuxEnv.isInstalled(this)) openLinuxTerminal() else openAndroidTerminal()
+                    return true
                 }
                 event.isAltPressed && event.keyCode == KeyEvent.KEYCODE_F4 -> {
                     area.activeWindow?.close(); return true
@@ -124,10 +142,23 @@ class DesktopActivity : Activity() {
 
     // ---- apps ----
 
-    fun openTerminal(existing: TermSessionHost? = null) {
-        val host = existing ?: TermSessions.create(this)
-        val content = TerminalContent(this, host) { openTerminal() }
-        area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_terminal), R.drawable.ic_terminal))
+    /** Debian shell through proot, or the installer window if Linux isn't installed yet. */
+    private fun openLinuxTerminal() {
+        if (LinuxEnv.isInstalled(this)) openTerminalWindow(TermSessions.create(this, LinuxEnv.shellSpec(this)))
+        else openLinuxSetup()
+    }
+
+    private fun openAndroidTerminal() = openTerminalWindow(TermSessions.create(this, ShellSpec.android(this)))
+
+    private fun openTerminalWindow(host: TermSessionHost) {
+        val content = TerminalContent(this, host) { openTerminalWindow(TermSessions.create(this, host.spec)) }
+        area.addWindow(DesktopWindow(this, area, content, host.spec.title, host.spec.icon))
+    }
+
+    private fun openLinuxSetup() {
+        area.windows.firstOrNull { it.content is LinuxSetupContent }?.let { area.activate(it); return }
+        val content = LinuxSetupContent(this) { openLinuxTerminal() }
+        area.addWindow(DesktopWindow(this, area, content, getString(R.string.linux_setup_title), R.drawable.ic_linux))
     }
 
     private fun openAbout() {
@@ -137,7 +168,7 @@ class DesktopActivity : Activity() {
 
     private fun exitAll() {
         area.windows.toList().forEach { area.closeWindow(it) }
-        TermSessions.hosts.toList().forEach { it.session.finishIfRunning(); TermSessions.remove(it) }
+        TermSessions.hosts.toList().forEach { it.session.finishIfRunning(); TermSessions.remove(this, it) }
         finishAndRemoveTask()
     }
 
@@ -160,7 +191,8 @@ class DesktopActivity : Activity() {
         fun item(@DrawableRes icon: Int, @StringRes label: Int, enabled: Boolean = true, action: () -> Unit = {}) {
             panel.addView(menuItem(icon, label, enabled) { popup.dismiss(); action() })
         }
-        item(R.drawable.ic_terminal, R.string.app_terminal) { openTerminal() }
+        item(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
+        item(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
         item(R.drawable.ic_apps, R.string.app_linux_soon, enabled = false)
         item(R.drawable.ic_info, R.string.app_about) { openAbout() }
         panel.addView(View(this).apply { setBackgroundColor(Palette.MENU_DIVIDER) },

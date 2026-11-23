@@ -7,6 +7,7 @@ android {
     compileSdk {
         version = release(libs.versions.compileSdk.get().toInt())
     }
+    ndkVersion = libs.versions.ndk.get()
 
     defaultConfig {
         applicationId = "org.handtop.desktop"
@@ -30,6 +31,32 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            // Extract native libs to nativeLibraryDir on install: proot and its loader are
+            // executables shipped as lib*.so, and that directory is the only place an app
+            // may execve() from (W^X, targetSdk >= 29).
+            useLegacyPackaging = true
+        }
+    }
+}
+
+// proot + loader for the Linux environment, built from native/ with the NDK.
+val buildProot = tasks.register<BuildProotTask>("buildProot") {
+    prootSourceDir.set(rootProject.layout.projectDirectory.dir("native/proot/src"))
+    tallocSourceDir.set(rootProject.layout.projectDirectory.dir("native/talloc"))
+    ndkVersion.set(libs.versions.ndk)
+    ndkDirectory.set(androidComponents.sdkComponents.sdkDirectory.map { it.dir("ndk/${libs.versions.ndk.get()}") })
+    minSdk.set(libs.versions.minSdk.map { it.toInt() })
+    prootVersion.set("5.1.107-handtop")
+    outputDirectory.set(layout.buildDirectory.dir("generated/proot/jniLibs"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(buildProot, BuildProotTask::outputDirectory)
     }
 }
 

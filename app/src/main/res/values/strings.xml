@@ -2,7 +2,8 @@
 <resources>
     <string name="app_name">HandTop</string>
     <string name="start_menu">Start</string>
-    <string name="app_terminal">Terminal</string>
+    <string name="app_terminal_linux">Linux Terminal</string>
+    <string name="app_terminal_android">Android Terminal</string>
     <string name="app_linux_soon">Linux apps (coming soon)</string>
     <string name="app_about">About</string>
     <string name="action_minimize">Minimize</string>
@@ -15,5 +16,24 @@
     <string name="action_keyboard">Keyboard</string>
     <string name="action_exit">Exit (close all)</string>
     <string name="terminal_finished">%1$s — finished</string>
-    <string name="about_text">HandTop %1$s\nDesktop in your hand.\n\nA desktop for Android: windows, a taskbar and a terminal. Linux apps are coming next.\n\nCurrent stage: 1 — desktop shell and Android terminal.\n\nLicense: GNU GPL v3.\nThe terminal emulator is based on Termux (Apache 2.0).\n\nShortcuts:\nCtrl+Alt+T — new terminal\nAlt+F4 — close window\nCtrl+Shift+C / V — copy / paste\nCtrl+Plus / Ctrl+Minus — font size</string>
+
+    <string name="linux_setup_title">Install Linux</string>
+    <string name="linux_setup_heading">Debian 13 for HandTop</string>
+    <string name="linux_setup_intro">HandTop will download the official Debian 13 (trixie) image from Docker Hub (about 30 MB) and unpack it on the phone (about 100 MB). You get a real Linux terminal with apt — no root needed.</string>
+    <string name="linux_setup_install">Install</string>
+    <string name="linux_setup_retry">Retry</string>
+    <string name="linux_setup_open">Open Linux Terminal</string>
+    <string name="linux_phase_resolving">Looking up the image…</string>
+    <string name="linux_phase_downloading">Downloading: %1$s of %2$s</string>
+    <string name="linux_phase_extracting">Unpacking: %1$d%%</string>
+    <string name="linux_phase_configuring">Configuring…</string>
+    <string name="linux_phase_done">Debian is installed.</string>
+    <string name="linux_phase_failed">Installation failed: %1$s</string>
+
+    <string name="notif_channel">Running sessions</string>
+    <string name="notif_title">HandTop is running</string>
+    <string name="notif_sessions">Open terminals: %1$d</string>
+    <string name="notif_installing">Installing Debian…</string>
+
+    <string name="about_text">HandTop %1$s\nDesktop in your hand.\n\nA desktop for Android: windows, a taskbar and terminals — Android shell and real Debian Linux (through proot, no root needed).\n\nCurrent stage: 2 — Linux environment.\n\nLicense: GNU GPL v3.\nThe terminal emulator is based on Termux (Apache 2.0); proot is the Termux fork (GPL v2+), talloc is LGPL v3+.\n\nShortcuts:\nCtrl+Alt+T — new terminal\nAlt+F4 — close window\nCtrl+Shift+C / V — copy / paste\nCtrl+Plus / Ctrl+Minus — font size</string>
 </resources>

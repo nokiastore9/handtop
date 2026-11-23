@@ -36,7 +36,7 @@ class TerminalContent(
     val terminalView = TerminalView(context, null)
     private val extraKeys = ExtraKeysBar(context) { onExtraKey(it) }
     private var host: WindowHost? = null
-    private val defaultTitle = context.getString(R.string.app_terminal)
+    private val defaultTitle = term.spec.title
     private val minFontPx = dpi(6)
     private val maxFontPx = dpi(32)
     private var fontPx = dpi(11)
@@ -55,7 +55,7 @@ class TerminalContent(
     override fun onClosed() {
         term.session.finishIfRunning()
         if (term.ui === this) term.ui = null
-        TermSessions.remove(term)
+        TermSessions.remove(context, term)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

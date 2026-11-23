@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="start_menu">Пуск</string>
-    <string name="app_terminal">Терминал</string>
+    <string name="app_terminal_linux">Терминал Linux</string>
+    <string name="app_terminal_android">Терминал Android</string>
     <string name="app_linux_soon">Linux-приложения (скоро)</string>
     <string name="app_about">О программе</string>
     <string name="action_minimize">Свернуть</string>
@@ -14,5 +15,24 @@
     <string name="action_keyboard">Клавиатура</string>
     <string name="action_exit">Выход (закрыть всё)</string>
     <string name="terminal_finished">%1$s — завершён</string>
-    <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминал. Следующий шаг — Linux-приложения.\n\nТекущий этап: 1 — рабочий стол и терминал Android.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0).\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
+
+    <string name="linux_setup_title">Установка Linux</string>
+    <string name="linux_setup_heading">Debian 13 для HandTop</string>
+    <string name="linux_setup_intro">HandTop скачает официальный образ Debian 13 (trixie) с Docker Hub (около 30 МБ) и распакует его на телефоне (около 100 МБ). Вы получите настоящий терминал Linux с apt — root не нужен.</string>
+    <string name="linux_setup_install">Установить</string>
+    <string name="linux_setup_retry">Повторить</string>
+    <string name="linux_setup_open">Открыть терминал Linux</string>
+    <string name="linux_phase_resolving">Поиск образа…</string>
+    <string name="linux_phase_downloading">Загрузка: %1$s из %2$s</string>
+    <string name="linux_phase_extracting">Распаковка: %1$d%%</string>
+    <string name="linux_phase_configuring">Настройка…</string>
+    <string name="linux_phase_done">Debian установлен.</string>
+    <string name="linux_phase_failed">Ошибка установки: %1$s</string>
+
+    <string name="notif_channel">Работающие сессии</string>
+    <string name="notif_title">HandTop работает</string>
+    <string name="notif_sessions">Открыто терминалов: %1$d</string>
+    <string name="notif_installing">Установка Debian…</string>
+
+    <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Debian Linux (через proot, без root).\n\nТекущий этап: 2 — Linux-окружение.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
 </resources>

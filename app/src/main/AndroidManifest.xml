@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Downloading the Linux root filesystem; network access for Linux programs. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Keep terminals and Linux processes alive in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -33,5 +40,14 @@
                 android:minWidth="360dp"
                 android:minHeight="320dp" />
         </activity>
+
+        <service
+            android:name=".service.SessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps terminal sessions and Linux processes started by the user running" />
+        </service>
     </application>
 </manifest>

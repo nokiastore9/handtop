@@ -7,7 +7,7 @@ import android.util.Log
 import android.view.HapticFeedbackConstants
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
-import java.io.File
+import org.handtop.desktop.service.SessionService
 
 /**
  * Process-wide registry of terminal sessions. Sessions outlive the activity (e.g. when
@@ -16,47 +16,35 @@ import java.io.File
 object TermSessions {
     val hosts = ArrayList<TermSessionHost>()
 
-    fun create(context: Context): TermSessionHost =
-        TermSessionHost(context.applicationContext).also { hosts += it }
+    fun create(context: Context, spec: ShellSpec): TermSessionHost {
+        val host = TermSessionHost(context.applicationContext, spec)
+        hosts += host
+        SessionService.update(context)
+        return host
+    }
 
-    fun remove(host: TermSessionHost) {
-        hosts -= host
+    fun remove(context: Context, host: TermSessionHost) {
+        if (hosts.remove(host)) SessionService.update(context)
     }
 }
 
 /**
- * Owns one [TerminalSession] (a shell process on a pty) and forwards its callbacks to
- * whatever window currently shows it.
+ * Owns one [TerminalSession] (a process on a pty) and forwards its callbacks to whatever
+ * window currently shows it.
  */
-class TermSessionHost(private val app: Context) : TerminalSessionClient {
+class TermSessionHost(private val app: Context, val spec: ShellSpec) : TerminalSessionClient {
 
     /** The window content currently displaying this session, if any. */
     var ui: TerminalContent? = null
 
-    val session: TerminalSession
-
-    init {
-        val home = File(app.filesDir, "home").apply { mkdirs() }
-        session = TerminalSession(
-            SHELL,
-            home.absolutePath,
-            arrayOf("-sh"), // argv[0] with a leading dash = login shell
-            buildEnvironment(home),
-            TRANSCRIPT_ROWS,
-            this,
-        )
-    }
-
-    private fun buildEnvironment(home: File): Array<String> {
-        val env = LinkedHashMap(System.getenv())
-        env["HOME"] = home.absolutePath
-        env["TMPDIR"] = app.cacheDir.absolutePath
-        env["TERM"] = "xterm-256color"
-        env["COLORTERM"] = "truecolor"
-        env["LANG"] = "en_US.UTF-8"
-        if (env["PATH"].isNullOrEmpty()) env["PATH"] = "/system/bin:/system/xbin:/vendor/bin"
-        return env.map { (k, v) -> "$k=$v" }.toTypedArray()
-    }
+    val session = TerminalSession(
+        spec.executable,
+        spec.cwd,
+        spec.args.toTypedArray(),
+        spec.env.map { (k, v) -> "$k=$v" }.toTypedArray(),
+        TRANSCRIPT_ROWS,
+        this,
+    )
 
     // ---- TerminalSessionClient ----
 
@@ -106,8 +94,7 @@ class TermSessionHost(private val app: Context) : TerminalSessionClient {
     override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) { Log.e(tag, message.orEmpty(), e) }
     override fun logStackTrace(tag: String?, e: Exception?) { Log.e(tag, "Error", e) }
 
-    companion object {
-        const val SHELL = "/system/bin/sh"
+    private companion object {
         const val TRANSCRIPT_ROWS = 3000
     }
 }
