@@ -47,6 +47,12 @@
     <string name="linux_phase_removing">Removing…</string>
     <string name="linux_phase_failed">Failed: %1$s</string>
 
+    <string name="settings_scale_title">Interface scale</string>
+    <string name="settings_scale_text">Smaller means more room for windows. Saved separately for the phone screen and for DeX / a monitor. Under each option: the screen size in points, like a desktop resolution. Applies at once; terminals and Linux programs stay open.</string>
+    <string name="settings_scale_status">This screen (%1$s): %2$d%%. Linux programs: scale ×%3$d.</string>
+    <string name="settings_scale_phone">phone</string>
+    <string name="settings_scale_desktop">DeX / monitor</string>
+    <string name="settings_scale_size">%1$d×%2$d</string>
     <string name="settings_storage_title">Phone storage</string>
     <string name="settings_storage_text">Let Linux see your files: they appear as /sdcard. Android asks for “All files access”. Open a new Linux terminal after granting it.</string>
     <string name="settings_storage_grant">Allow access</string>

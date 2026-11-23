@@ -8,8 +8,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -18,15 +20,22 @@ import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxInstaller
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.UiScale
+import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBars
+import org.handtop.desktop.ui.roundedRect
+import org.handtop.desktop.ui.selectableBackground
+import kotlin.math.roundToInt
 import org.handtop.desktop.wm.WindowContent
 
-/** HandTop settings: phone storage for Linux, Android's process limit, the Linux system. */
+/** HandTop settings: interface scale, phone storage for Linux, Android's process limit, Linux. */
 @SuppressLint("ViewConstructor")
 class SettingsContent(
     context: Context,
     private val openLinuxSetup: () -> Unit,
+    /** Saves a new interface scale (percent) and rebuilds the desktop with it. */
+    private val setScale: (Int) -> Unit,
 ) : ScrollView(context), WindowContent {
 
     override val view: View get() = this
@@ -38,12 +47,25 @@ class SettingsContent(
     private val removeButton = Button(context)
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
 
+    // Interface scale of the screen this window is on (declared before init, which uses them).
+    private val onDesktop = UiScale.isDesktop(context)
+    private val currentScale = UiScale.percent(context, onDesktop)
+    private val systemDpi = UiScale.systemDpi(context)
+
     init {
         setBackgroundColor(0xFF0F1420.toInt())
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dpi(22), dpi(14), dpi(22), dpi(20))
         }
+
+        // Interface scale: first, it is what a phone screen needs most.
+        column.addView(heading(R.string.settings_scale_title))
+        column.addView(body(R.string.settings_scale_text))
+        column.addView(scaleStatus().styled())
+        column.addView(scaleChoices(), LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { bottomMargin = dpi(6) })
 
         // Phone storage.
         column.addView(heading(R.string.settings_storage_title))
@@ -165,6 +187,60 @@ class SettingsContent(
             .create()
             .apply { window?.hideSystemBars() } // stay full screen while the dialog is open
             .show()
+    }
+
+    // ---- interface scale ----
+
+    private fun scaleStatus() = TextView(context).apply {
+        val dpi = UiScale.scaledDpi(systemDpi, currentScale)
+        text = context.getString(
+            R.string.settings_scale_status,
+            context.getString(if (onDesktop) R.string.settings_scale_desktop else R.string.settings_scale_phone),
+            currentScale,
+            UiScale.waylandScale(dpi / 160f),
+        )
+    }
+
+    /** One chip per choice: the percent and the screen size it gives, in points. */
+    private fun scaleChoices(): View {
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        val metrics = context.resources.displayMetrics
+        for (percent in UiScale.CHOICES) {
+            val points = 160f / UiScale.scaledDpi(systemDpi, percent)
+            val selected = percent == currentScale
+            val chip = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dpi(12), dpi(6), dpi(12), dpi(6))
+                background = roundedRect(if (selected) Palette.ACCENT else Palette.CHIP, dp(10f))
+                foreground = context.selectableBackground()
+                isSelected = selected
+                setOnClickListener { if (!selected) setScale(percent) }
+            }
+            chip.addView(TextView(context).apply {
+                text = context.getString(R.string.status_percent, percent)
+                textSize = 15f
+                setTextColor(Palette.TEXT)
+                gravity = Gravity.CENTER
+            })
+            chip.addView(TextView(context).apply {
+                text = context.getString(
+                    R.string.settings_scale_size,
+                    (metrics.widthPixels * points).roundToInt(),
+                    (metrics.heightPixels * points).roundToInt(),
+                )
+                textSize = 11f
+                setTextColor(if (selected) Palette.TEXT else Palette.TEXT_DIM)
+                gravity = Gravity.CENTER
+            })
+            row.addView(chip, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { marginEnd = dpi(6) })
+        }
+        return HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(row)
+        }
     }
 
     private fun heading(text: Int) = TextView(context).apply {

@@ -2,7 +2,9 @@ package org.handtop.desktop
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -35,6 +37,7 @@ import org.handtop.desktop.term.TermSessionHost
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBars
@@ -59,6 +62,41 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private lateinit var area: DesktopArea
     private lateinit var taskbar: Taskbar
     private var startMenu: PopupWindow? = null
+
+    /** System density and display kind this activity's interface scale was computed for. */
+    private var systemDpi = 0
+    private var onDesktopDisplay = false
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        // The interface scale from Settings: shrink / grow every dp and sp of the shell.
+        systemDpi = UiScale.systemDpi(newBase)
+        onDesktopDisplay = UiScale.isDesktop(newBase)
+        UiScale.override(newBase, onDesktopDisplay)?.let { applyOverrideConfiguration(it) }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Moved between the phone and DeX, or the system density changed: the scale override
+        // was computed for the old screen, so build the desktop again (sessions survive).
+        if (UiScale.systemDpi(this) != systemDpi || UiScale.isDesktop(baseContext) != onDesktopDisplay) {
+            recreate()
+            return
+        }
+        WaylandServer.get(this).updateDisplay(resources.displayMetrics)
+    }
+
+    /** Settings → interface scale. */
+    fun setInterfaceScale(percent: Int) {
+        if (percent == UiScale.percent(this, onDesktopDisplay)) return
+        UiScale.setPercent(this, onDesktopDisplay, percent)
+        recreate()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_SETTINGS_OPEN, area.windows.any { it.content is SettingsContent })
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,8 +161,11 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
         // Linux GUI windows: same for toplevels that are already on screen.
         val wayland = WaylandServer.get(this)
+        wayland.updateDisplay(resources.displayMetrics) // after the interface scale
         wayland.host = this
         wayland.mappedToplevels().forEach { toplevelMapped(it) }
+        // Re-created after changing the scale: keep the Settings window where the user was.
+        if (savedInstanceState?.getBoolean(STATE_SETTINGS_OPEN) == true) openSettings()
 
         requestNotificationPermission()
     }
@@ -248,7 +289,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     private fun openSettings() {
         area.windows.firstOrNull { it.content is SettingsContent }?.let { area.activate(it); return }
-        area.addWindow(DesktopWindow(this, area, SettingsContent(this) { openLinuxSetup() }, getString(R.string.app_settings), R.drawable.ic_settings))
+        area.addWindow(DesktopWindow(this, area, SettingsContent(this, openLinuxSetup = { openLinuxSetup() }, setScale = { setInterfaceScale(it) }), getString(R.string.app_settings), R.drawable.ic_settings))
     }
 
     private fun openAbout() {
@@ -324,4 +365,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             })
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dpi(46))
         }
+
+    private companion object {
+        const val STATE_SETTINGS_OPEN = "settings_open"
+    }
 }

@@ -55,7 +55,8 @@ class WaylandWindowContent(
     override val view: View get() = this
 
     private val server = toplevel.client.server
-    private val scale = server.scale
+    /** Follows the server: the interface scale can change while the window is open. */
+    private val scale get() = server.scale
     private var host: WindowHost? = null
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val src = Rect()

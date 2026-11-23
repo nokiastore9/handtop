@@ -4,10 +4,11 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.system.Os
+import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Choreographer
+import org.handtop.desktop.ui.UiScale
 import java.io.File
-import kotlin.math.floor
 
 /**
  * HandTop's Wayland compositor: a Unix socket inside the Linux root filesystem
@@ -35,19 +36,43 @@ class WaylandServer private constructor(private val app: Context) {
     val keymap: ByteArray = app.assets.open("keymap-us.xkb").use { it.readBytes() } + byteArrayOf(0)
 
     /** Integer output scale: client buffers are this many pixels per logical unit. */
-    val scale: Int
-    val outputWidth: Int
-    val outputHeight: Int
-    val outputWidthMm: Int
-    val outputHeightMm: Int
+    var scale = 1
+        private set
+    var outputWidth = 0
+        private set
+    var outputHeight = 0
+        private set
+    var outputWidthMm = 0
+        private set
+    var outputHeightMm = 0
+        private set
 
     init {
-        val dm = app.resources.displayMetrics
-        scale = floor(dm.density + 0.25f).toInt().coerceIn(1, 3)
+        applyDisplay(app.resources.displayMetrics)
+    }
+
+    /**
+     * The desktop's screen: physical size and the density after the user's interface scale
+     * (Settings). Bound wl_outputs get the new geometry / scale, so programs re-render.
+     */
+    fun updateDisplay(metrics: DisplayMetrics) {
+        if (!applyDisplay(metrics)) return
+        Log.i(TAG, "output ${outputWidth}x$outputHeight, scale $scale")
+        for (client in clients.toList()) {
+            client.resources().filterIsInstance<WlOutput>().forEach { it.sendInfo() }
+            client.flush()
+        }
+    }
+
+    private fun applyDisplay(dm: DisplayMetrics): Boolean {
+        val newScale = UiScale.waylandScale(dm.density)
+        if (newScale == scale && dm.widthPixels == outputWidth && dm.heightPixels == outputHeight) return false
+        scale = newScale
         outputWidth = dm.widthPixels
         outputHeight = dm.heightPixels
         outputWidthMm = (dm.widthPixels / dm.xdpi * 25.4f).toInt()
         outputHeightMm = (dm.heightPixels / dm.ydpi * 25.4f).toInt()
+        return true
     }
 
     val globals = listOf(

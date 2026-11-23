@@ -83,6 +83,7 @@ object Palette {
     const val TEXT = 0xFFE6EAF2.toInt()
     const val TEXT_DIM = 0xFF8A94A8.toInt()
     const val STATUS_ICON_OFF = 0x55E6EAF2
+    const val CHIP = 0x22FFFFFF
     const val BATTERY_LOW = 0xFFE5484D.toInt()
     const val BATTERY_CHARGING = 0xFF46C46E.toInt()
     const val KEY_BAR_BG = 0xFF161B26.toInt()
