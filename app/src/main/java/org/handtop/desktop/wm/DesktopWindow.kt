@@ -134,8 +134,32 @@ class DesktopWindow(
     }
 
     /** Outer window size for a content area of [contentWidth] x [contentHeight] pixels. */
-    fun frameSizeFor(contentWidth: Int, contentHeight: Int): Pair<Int, Int> =
-        (contentWidth + 2 * border) to (contentHeight + dpi(TITLE_HEIGHT_DP) + 2 * border)
+    fun frameSizeFor(contentWidth: Int, contentHeight: Int): Pair<Int, Int> {
+        val title = if (decorated) dpi(TITLE_HEIGHT_DP) else 0
+        return (contentWidth + 2 * border) to (contentHeight + title + 2 * border)
+    }
+
+    /**
+     * Whether HandTop draws the title bar. Off for programs that draw their own
+     * (client-side decorations); the thin frame stays for resizing.
+     */
+    var decorated = true
+        set(value) {
+            if (field == value) return
+            field = value
+            titleBar.visibility = if (value) VISIBLE else GONE
+            area.requestLayout()
+        }
+
+    /**
+     * Off for fixed-size windows (dialogs): no resizing by the frame, no maximizing.
+     */
+    var resizable = true
+        set(value) {
+            field = value
+            maximizeButton.visibility = if (value) VISIBLE else GONE
+            if (!value && mode != Mode.NORMAL) setMode(Mode.NORMAL)
+        }
 
     // ---- state ----
 
@@ -216,7 +240,7 @@ class DesktopWindow(
 
     /** Which frame edges are under (x, y). Thin zones for a mouse, wider ones for fingers. */
     private fun edgesAt(x: Float, y: Float, mouse: Boolean): Int {
-        if (mode != Mode.NORMAL) return 0
+        if (mode != Mode.NORMAL || !resizable) return 0
         val w = width
         val h = height
         val zone = if (mouse) dpi(6) else dpi(12)

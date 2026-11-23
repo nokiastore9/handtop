@@ -85,9 +85,15 @@ class DesktopArea(context: Context) : ViewGroup(context) {
 
     /**
      * Shows [window]. With [contentWidth] / [contentHeight] (pixels) the floating window is
-     * sized around that content, e.g. the size a Linux program asked for.
+     * sized around that content, e.g. the size a Linux program asked for. A window with a
+     * [parent] (a dialog) opens centered over it and stays floating even on a phone.
      */
-    fun addWindow(window: DesktopWindow, contentWidth: Int = 0, contentHeight: Int = 0) {
+    fun addWindow(
+        window: DesktopWindow,
+        contentWidth: Int = 0,
+        contentHeight: Int = 0,
+        parent: DesktopWindow? = null,
+    ) {
         val aw = if (width > 0) width else resources.displayMetrics.widthPixels
         val ah = if (height > 0) height else resources.displayMetrics.heightPixels
         var ww = max(min(aw, dpi(380)), (aw * 0.6f).toInt())
@@ -103,8 +109,16 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         var top = dpi(24) + offset
         if (left + ww > aw) left = max(0, aw - ww)
         if (top + wh > ah) top = max(0, ah - wh)
+        val dialog = parent != null || !window.resizable
+        if (dialog) {
+            cascadeStep-- // dialogs don't shift the cascade of normal windows
+            val over = Rect()
+            if (parent != null && !parent.minimized) frameOf(parent, aw, ah, over) else over.set(0, 0, aw, ah)
+            left = (over.centerX() - ww / 2).coerceIn(0, max(0, aw - ww))
+            top = (over.centerY() - wh / 2).coerceIn(0, max(0, ah - wh))
+        }
         window.bounds.set(left, top, left + ww, top + wh)
-        if (isCompact) window.setMode(Mode.MAXIMIZED)
+        if (isCompact && !dialog) window.setMode(Mode.MAXIMIZED)
 
         openOrder += window
         addView(window)
@@ -152,6 +166,7 @@ class DesktopArea(context: Context) : ViewGroup(context) {
     }
 
     fun toggleMaximize(window: DesktopWindow) {
+        if (!window.resizable) return
         window.setMode(if (window.mode == Mode.MAXIMIZED) Mode.NORMAL else Mode.MAXIMIZED)
     }
 

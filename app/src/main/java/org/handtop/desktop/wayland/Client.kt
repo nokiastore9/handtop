@@ -74,7 +74,8 @@ class Client(val server: WaylandServer, private val fd: Int, private val main: H
 
         var pos = 0
         try {
-            while (pending.size - pos >= 8) {
+            // A failed send while handling a request may disconnect the client mid-chunk.
+            while (connected && pending.size - pos >= 8) {
                 val objectId = readInt(pending, pos)
                 val sizeOpcode = readInt(pending, pos + 4)
                 val size = sizeOpcode ushr 16
@@ -91,6 +92,7 @@ class Client(val server: WaylandServer, private val fd: Int, private val main: H
                 pos += size
             }
         } catch (e: ProtocolError) {
+            if (!connected) return
             Log.w(WaylandServer.TAG, "protocol error: ${e.message}")
             display.error(e.objectId, e.code, e.message ?: "error")
             flush()
@@ -103,6 +105,7 @@ class Client(val server: WaylandServer, private val fd: Int, private val main: H
             disconnect()
             return
         }
+        if (!connected) return
         pending = if (pos == pending.size) ByteArray(0) else pending.copyOfRange(pos, pending.size)
         flush()
     }

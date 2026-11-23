@@ -10,6 +10,10 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_BOTTOM
+import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_LEFT
+import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_RIGHT
+import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_TOP
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
 
@@ -24,14 +28,29 @@ class WaylandWindowContent(
     private val windowControl: WindowControl,
 ) : View(context), WindowContent, ToplevelView {
 
-    /** What the content may ask from its desktop window beyond [WindowHost]. */
+    /** What the content may ask from its desktop window beyond [WindowHost]. Raw = screen pixels. */
     interface WindowControl {
-        fun startMove()
+        fun beginMove(rawX: Float, rawY: Float)
+        fun moveTo(rawX: Float, rawY: Float)
+        fun endMove(rawX: Float, rawY: Float, cancelled: Boolean)
+        /** [edges]: DesktopWindow.EDGE_* flags. */
+        fun beginResize(edges: Int, rawX: Float, rawY: Float)
+        fun resizeTo(rawX: Float, rawY: Float)
+        fun endResize()
+        fun setDecorated(decorated: Boolean)
         fun setMaximized(maximized: Boolean)
         fun minimize()
         fun isMaximized(): Boolean
         fun isActive(): Boolean
     }
+
+    /** A move or resize the program started from its own title bar / border. */
+    private enum class Grab { NONE, MOVE, RESIZE }
+
+    private var grab = Grab.NONE
+    private var pressed = false
+    private var lastRawX = 0f
+    private var lastRawY = 0f
 
     override val view: View get() = this
 
@@ -86,9 +105,48 @@ class WaylandWindowContent(
     }
 
     override fun contentChanged() = invalidate()
-    override fun startMove() = windowControl.startMove()
     override fun setMaximized(maximized: Boolean) = windowControl.setMaximized(maximized)
     override fun minimize() = windowControl.minimize()
+
+    override fun decorationsChanged() = windowControl.setDecorated(toplevel.serverSideDecorations)
+
+    override fun startMove() {
+        if (!pressed || grab != Grab.NONE) return
+        grab = Grab.MOVE
+        server.seat.pointerLeave() // the window manager owns the pointer until release
+        windowControl.beginMove(lastRawX, lastRawY)
+    }
+
+    override fun startResize(edges: Int) {
+        if (!pressed || grab != Grab.NONE) return
+        var flags = 0
+        if (edges and XDG_EDGE_TOP != 0) flags = flags or EDGE_TOP
+        if (edges and XDG_EDGE_BOTTOM != 0) flags = flags or EDGE_BOTTOM
+        if (edges and XDG_EDGE_LEFT != 0) flags = flags or EDGE_LEFT
+        if (edges and XDG_EDGE_RIGHT != 0) flags = flags or EDGE_RIGHT
+        if (flags == 0) return
+        grab = Grab.RESIZE
+        server.seat.pointerLeave()
+        windowControl.beginResize(flags, lastRawX, lastRawY)
+    }
+
+    /** Feeds a grabbed gesture to the window manager; true while a grab is active. */
+    private fun handleGrab(event: MotionEvent): Boolean {
+        if (grab == Grab.NONE) return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_MOVE ->
+                if (grab == Grab.MOVE) windowControl.moveTo(event.rawX, event.rawY)
+                else windowControl.resizeTo(event.rawX, event.rawY)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // CANCEL: e.g. the system took the touch for the notification shade.
+                val cancelled = event.actionMasked == MotionEvent.ACTION_CANCEL
+                if (grab == Grab.MOVE) windowControl.endMove(event.rawX, event.rawY, cancelled) else windowControl.endResize()
+                grab = Grab.NONE
+                pressed = false
+            }
+        }
+        return true
+    }
 
     /** Tells the client our size and state (after layout changes or activation). */
     fun sendState() {
@@ -140,10 +198,19 @@ class WaylandWindowContent(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        lastRawX = event.rawX
+        lastRawY = event.rawY
+        if (handleGrab(event)) return true
         val seat = server.seat
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                pressed = true
                 requestFocus()
+                // Alt + drag moves any Linux window, even one without a title bar.
+                if (event.metaState and KeyEvent.META_ALT_ON != 0) {
+                    startMove()
+                    return true
+                }
                 // A click outside the open popups closes them, like on a desktop.
                 val target = hit(event.x, event.y)
                 if (target != null && target.first === toplevel.xdg.surface && toplevel.popups.isNotEmpty()) {
@@ -154,10 +221,14 @@ class WaylandWindowContent(
             }
             MotionEvent.ACTION_MOVE -> motion(event)
             MotionEvent.ACTION_UP -> {
+                pressed = false
                 motion(event)
                 seat.pointerButton(lastButton, false)
             }
-            MotionEvent.ACTION_CANCEL -> seat.pointerButton(lastButton, false)
+            MotionEvent.ACTION_CANCEL -> {
+                pressed = false
+                seat.pointerButton(lastButton, false)
+            }
         }
         return true
     }
@@ -202,6 +273,12 @@ class WaylandWindowContent(
         server.seat.key(event) || super.onKeyUp(keyCode, event)
 
     private companion object {
+        // xdg_toplevel.resize_edge bits
+        const val XDG_EDGE_TOP = 1
+        const val XDG_EDGE_BOTTOM = 2
+        const val XDG_EDGE_LEFT = 4
+        const val XDG_EDGE_RIGHT = 8
+
         const val BTN_LEFT = 0x110
         const val BTN_RIGHT = 0x111
         const val BTN_MIDDLE = 0x112

@@ -151,7 +151,32 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) : 
         private set
     var mapped = false
         private set
+
+    /** Owner window for dialogs (xdg_toplevel.set_parent). */
+    var parent: XdgToplevel? = null
+        private set
+
+    /** Size limits in logical pixels; 0 = no limit. */
+    var minWidth = 0
+        private set
+    var minHeight = 0
+        private set
+    var maxWidth = 0
+        private set
+    var maxHeight = 0
+        private set
+
+    /** Dialogs and the like: the program allows exactly one size. */
+    val fixedSize: Boolean
+        get() = maxWidth > 0 && maxHeight > 0 && minWidth == maxWidth && minHeight == maxHeight
+
+    /** Negotiated through xdg-decoration; otherwise the program draws its own title bar. */
     var serverSideDecorations = false
+        set(value) {
+            if (field == value) return
+            field = value
+            view?.decorationsChanged()
+        }
     val popups = ArrayList<XdgPopup>()
 
     /** Window shown on the desktop; set by the host when it maps the toplevel. */
@@ -166,13 +191,14 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) : 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
             0 -> destroy()
-            1 -> r.obj() // set_parent
+            1 -> parent = client.optional<XdgToplevel>(r.obj())
             2 -> { title = r.string() ?: ""; view?.titleChanged() }
             3 -> appId = r.string() ?: ""
             4 -> { r.obj(); r.uint(); r.int(); r.int() } // show_window_menu
             5 -> { r.obj(); r.uint(); view?.startMove() } // move(seat, serial)
-            6 -> { r.obj(); r.uint(); r.uint() } // resize
-            7, 8 -> { r.int(); r.int() } // set_max_size / set_min_size
+            6 -> { r.obj(); r.uint(); view?.startResize(r.uint()) } // resize(seat, serial, edges)
+            7 -> { maxWidth = r.int(); maxHeight = r.int() }
+            8 -> { minWidth = r.int(); minHeight = r.int() }
             9 -> view?.setMaximized(true)
             10 -> view?.setMaximized(false)
             11 -> r.obj() // set_fullscreen
@@ -326,7 +352,11 @@ class XdgPopup(
 interface ToplevelView {
     fun titleChanged()
     fun contentChanged()
+    fun decorationsChanged()
+
+    /** Interactive move / resize, requested while a pointer button is held (client title bar). */
     fun startMove()
+    fun startResize(edges: Int)
     fun setMaximized(maximized: Boolean)
     fun minimize()
 }

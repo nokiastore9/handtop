@@ -185,19 +185,36 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         if (area.windows.any { (it.content as? WaylandWindowContent)?.toplevel === toplevel }) return
         lateinit var window: DesktopWindow
         val control = object : WaylandWindowContent.WindowControl {
-            override fun startMove() = Unit // client-side title bars: not supported yet
-            override fun setMaximized(maximized: Boolean) =
-                window.setMode(if (maximized) DesktopWindow.Mode.MAXIMIZED else DesktopWindow.Mode.NORMAL)
+            override fun beginMove(rawX: Float, rawY: Float) = area.beginMove(window, rawX, rawY)
+            override fun moveTo(rawX: Float, rawY: Float) = area.moveTo(window, rawX, rawY)
+            override fun endMove(rawX: Float, rawY: Float, cancelled: Boolean) = area.endMove(window, rawX, rawY, cancelled)
+            override fun beginResize(edges: Int, rawX: Float, rawY: Float) = area.beginResize(window, edges, rawX, rawY)
+            override fun resizeTo(rawX: Float, rawY: Float) = area.resizeTo(window, rawX, rawY)
+            override fun endResize() = area.endResize(window)
+            override fun setDecorated(decorated: Boolean) {
+                window.decorated = decorated
+            }
+            override fun setMaximized(maximized: Boolean) {
+                if (maximized) area.activate(window)
+                if (window.resizable) window.setMode(if (maximized) DesktopWindow.Mode.MAXIMIZED else DesktopWindow.Mode.NORMAL)
+            }
             override fun minimize() = area.minimize(window)
             override fun isMaximized() = window.mode == DesktopWindow.Mode.MAXIMIZED
             override fun isActive() = window.isActiveWindow
         }
         val content = WaylandWindowContent(this, toplevel, control)
         window = DesktopWindow(this, area, content, toplevel.title.ifEmpty { "Linux" }, R.drawable.ic_apps)
+        // Programs without server-side decorations draw their own title bar.
+        window.decorated = toplevel.serverSideDecorations
+        window.resizable = !toplevel.fixedSize
+        // Dialogs open over the window they belong to.
+        val parent = toplevel.parent?.let { p ->
+            area.windows.firstOrNull { (it.content as? WaylandWindowContent)?.toplevel === p }
+        }
         // Size the window around what the program drew (in view pixels).
         val g = toplevel.xdg.visibleGeometry()
         val s = toplevel.client.server.scale
-        area.addWindow(window, g.width() * s, g.height() * s)
+        area.addWindow(window, g.width() * s, g.height() * s, parent)
     }
 
     override fun toplevelUnmapped(toplevel: XdgToplevel) {
