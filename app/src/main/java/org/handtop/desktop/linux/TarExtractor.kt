@@ -15,12 +15,18 @@ import java.nio.file.Files
  *  - hard links become copies (link(2) is denied to apps),
  *  - device nodes and FIFOs are skipped (mknod is denied; proot binds the host /dev),
  *  - ownership is ignored (proot fakes root), the owner always keeps read/write access,
- *  - entries can't escape [root] ("../" or absolute names are rejected).
+ *  - entries can't escape [root] ("../" or absolute names are rejected),
+ *  - OCI whiteouts (".wh.name", ".wh..wh..opq") remove content of lower layers.
+ *
+ * Use one instance per layer, applying layers bottom to top.
  */
 class TarExtractor(private val root: File, private val onProgress: (entries: Int) -> Unit) {
 
     private val directoryModes = ArrayList<Pair<File, Int>>()
     private var entries = 0
+
+    /** Paths written by this layer: an opaque whiteout must not remove them. */
+    private val layerPaths = HashSet<String>()
 
     fun extract(input: InputStream) {
         val header = ByteArray(BLOCK)
@@ -63,6 +69,13 @@ class TarExtractor(private val root: File, private val onProgress: (entries: Int
             skip(input, padded(size))
             return
         }
+        val base = target.name
+        if (base.startsWith(WHITEOUT)) {
+            applyWhiteout(target.parentFile ?: root, base)
+            skip(input, padded(size))
+            return
+        }
+        layerPaths += target.path
         when (type) {
             '5' -> { // directory
                 if (isSymlink(target)) target.delete()
@@ -94,6 +107,15 @@ class TarExtractor(private val root: File, private val onProgress: (entries: Int
         }
     }
 
+    /** ".wh.name" deletes name from lower layers; ".wh..wh..opq" empties the directory of them. */
+    private fun applyWhiteout(dir: File, marker: String) {
+        if (marker == OPAQUE_WHITEOUT) {
+            dir.listFiles()?.forEach { if (it.path !in layerPaths) FileTrees.delete(it) }
+        } else {
+            FileTrees.delete(File(dir, marker.removePrefix(WHITEOUT)))
+        }
+    }
+
     /** [name] inside [root], or null if it would escape it. Purely lexical: no symlink resolving. */
     private fun resolve(name: String): File? {
         val parts = ArrayList<String>()
@@ -109,8 +131,9 @@ class TarExtractor(private val root: File, private val onProgress: (entries: Int
 
     private fun isSymlink(f: File) = Files.isSymbolicLink(f.toPath())
 
+    /** Whatever a lower layer left at [f] (file, link or whole directory) gets replaced. */
     private fun removeExisting(f: File) {
-        if (isSymlink(f) || f.isFile) f.delete()
+        if (isSymlink(f) || f.exists()) FileTrees.delete(f)
     }
 
     private fun chmod(f: File, mode: Int) {
@@ -226,5 +249,7 @@ class TarExtractor(private val root: File, private val onProgress: (entries: Int
         const val MAX_HEADER_DATA = 1L shl 20
         const val OWNER_RW = 0x180   // 0600
         const val OWNER_RWX = 0x1C0  // 0700
+        const val WHITEOUT = ".wh."
+        const val OPAQUE_WHITEOUT = ".wh..wh..opq"
     }
 }

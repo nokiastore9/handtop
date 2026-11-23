@@ -13,8 +13,11 @@ No root required. Built for phones, tablets and Samsung DeX.
 - Desktop with wallpaper and shortcuts, taskbar with clock, start menu
 - Windows: drag, resize (mouse cursors on the frame), minimize, maximize,
   snap to the left / right half or full screen by dragging to the edge
-- **Linux Terminal**: Debian 13 (trixie, arm64) through proot as fake root — `apt install` works.
-  Installed in one tap from the official Docker Hub image (≈30 MB download, sha256-verified)
+- **Linux Terminal** through proot as fake root, no root needed. One-tap install of an official
+  Docker Hub image (sha256-verified): **Debian 13**, **Ubuntu 26.04 LTS**, **Alpine**, **Fedora** —
+  with their package managers (`apt`, `apk`, `dnf`). Switch or remove it in Settings
+- Phone storage in Linux as `/sdcard` (optional "All files access")
+- Settings: storage access, Android's background process limit, Linux management
 - Android Terminal (the system shell), several terminals at once
 - Terminals keep running in the background (foreground service) and survive DeX switches
 - Extra keys row (Esc, Tab, Ctrl, Alt, arrows…) — hidden when a hardware keyboard is attached
@@ -26,7 +29,7 @@ No root required. Built for phones, tablets and Samsung DeX.
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 1. Desktop shell + terminal ✔
-2. Linux userland: Debian arm64 via proot ✔ (optional chroot with root — to do)
+2. Linux userland via proot: Debian / Ubuntu / Alpine / Fedora ✔ (optional chroot with root — to do)
 3. Own Wayland compositor: every Linux app is a separate window on the desktop ← **next**
 4. Xwayland, clipboard, file sharing, sound
 5. GPU acceleration (Turnip + Zink on Snapdragon), DeX polish, box64 / Wine

@@ -26,6 +26,9 @@ object TermSessions {
     fun remove(context: Context, host: TermSessionHost) {
         if (hosts.remove(host)) SessionService.update(context)
     }
+
+    /** Linux terminals still open: the root filesystem must not be replaced under them. */
+    fun linuxSessionCount() = hosts.count { it.spec.linux }
 }
 
 /**

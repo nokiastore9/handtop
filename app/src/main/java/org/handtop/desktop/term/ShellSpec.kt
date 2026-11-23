@@ -13,6 +13,8 @@ data class ShellSpec(
     val env: Map<String, String>,
     val title: String,
     @param:DrawableRes val icon: Int,
+    /** Runs inside the Linux root filesystem (must be closed before it is replaced). */
+    val linux: Boolean = false,
 ) {
     companion object {
         /** The plain Android shell (/system/bin/sh) in the app's home directory. */

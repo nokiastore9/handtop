@@ -26,6 +26,7 @@ import androidx.core.view.WindowInsetsCompat
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxSetupContent
 import org.handtop.desktop.shell.AboutContent
+import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.DesktopIcons
 import org.handtop.desktop.shell.Taskbar
 import org.handtop.desktop.term.ShellSpec
@@ -56,6 +57,7 @@ class DesktopActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        LinuxEnv.migrate(this)
 
         area = DesktopArea(this)
         taskbar = Taskbar(this, area, onStart = { toggleStartMenu() }, onKeyboard = { area.activeWindow?.content?.requestKeyboard() })
@@ -64,6 +66,7 @@ class DesktopActivity : Activity() {
         val icons = DesktopIcons(this).apply {
             add(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
             add(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
+            add(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
             add(R.drawable.ic_info, R.string.app_about) { openAbout() }
         }
         val desktop = FrameLayout(this).apply {
@@ -107,6 +110,12 @@ class DesktopActivity : Activity() {
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Back from Android settings (e.g. storage permission): show the new state.
+        area.windows.forEach { (it.content as? SettingsContent)?.refresh() }
     }
 
     override fun onDestroy() {
@@ -161,6 +170,11 @@ class DesktopActivity : Activity() {
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.linux_setup_title), R.drawable.ic_linux))
     }
 
+    private fun openSettings() {
+        area.windows.firstOrNull { it.content is SettingsContent }?.let { area.activate(it); return }
+        area.addWindow(DesktopWindow(this, area, SettingsContent(this) { openLinuxSetup() }, getString(R.string.app_settings), R.drawable.ic_settings))
+    }
+
     private fun openAbout() {
         area.windows.firstOrNull { it.content is AboutContent }?.let { area.activate(it); return }
         area.addWindow(DesktopWindow(this, area, AboutContent(this), getString(R.string.app_about), R.drawable.ic_info))
@@ -194,6 +208,7 @@ class DesktopActivity : Activity() {
         item(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
         item(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
         item(R.drawable.ic_apps, R.string.app_linux_soon, enabled = false)
+        item(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
         item(R.drawable.ic_info, R.string.app_about) { openAbout() }
         panel.addView(View(this).apply { setBackgroundColor(Palette.MENU_DIVIDER) },
             LinearLayout.LayoutParams(MATCH_PARENT, dpi(1)).apply { setMargins(dpi(8), dpi(6), dpi(8), dpi(6)) })

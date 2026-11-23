@@ -4,6 +4,7 @@
     <string name="app_terminal_linux">Терминал Linux</string>
     <string name="app_terminal_android">Терминал Android</string>
     <string name="app_linux_soon">Linux-приложения (скоро)</string>
+    <string name="app_settings">Настройки</string>
     <string name="app_about">О программе</string>
     <string name="action_minimize">Свернуть</string>
     <string name="action_maximize">Развернуть</string>
@@ -15,24 +16,52 @@
     <string name="action_keyboard">Клавиатура</string>
     <string name="action_exit">Выход (закрыть всё)</string>
     <string name="terminal_finished">%1$s — завершён</string>
+    <string name="terminal_linux_title">Терминал %1$s</string>
 
-    <string name="linux_setup_title">Установка Linux</string>
-    <string name="linux_setup_heading">Debian 13 для HandTop</string>
-    <string name="linux_setup_intro">HandTop скачает официальный образ Debian 13 (trixie) с Docker Hub (около 30 МБ) и распакует его на телефоне (около 100 МБ). Вы получите настоящий терминал Linux с apt — root не нужен.</string>
+    <string name="linux_setup_title">Система Linux</string>
+    <string name="linux_setup_heading">Linux для HandTop</string>
+    <string name="linux_setup_intro">HandTop скачивает официальный образ выбранного дистрибутива с Docker Hub, проверяет его и распаковывает на телефоне. Вы получаете настоящий терминал Linux с менеджером пакетов — root не нужен.</string>
+    <string name="linux_setup_choose">Выберите дистрибутив:</string>
+    <string name="linux_setup_change">Сменить дистрибутив:</string>
+    <string name="linux_distro_option">%1$s — около %2$d МБ</string>
+    <string name="linux_installed">Установлено: %1$s</string>
+    <string name="linux_close_terminals">Сначала закройте терминалы Linux (открыто: %1$d).</string>
+    <string name="linux_replace_warning">Переустановка удалит %1$s со всеми файлами и пакетами.</string>
     <string name="linux_setup_install">Установить</string>
+    <string name="linux_setup_reinstall">Установить заново</string>
     <string name="linux_setup_retry">Повторить</string>
     <string name="linux_setup_open">Открыть терминал Linux</string>
     <string name="linux_phase_resolving">Поиск образа…</string>
     <string name="linux_phase_downloading">Загрузка: %1$s из %2$s</string>
     <string name="linux_phase_extracting">Распаковка: %1$d%%</string>
     <string name="linux_phase_configuring">Настройка…</string>
-    <string name="linux_phase_done">Debian установлен.</string>
-    <string name="linux_phase_failed">Ошибка установки: %1$s</string>
+    <string name="linux_phase_removing">Удаление…</string>
+    <string name="linux_phase_failed">Ошибка: %1$s</string>
+
+    <string name="settings_storage_title">Память телефона</string>
+    <string name="settings_storage_text">Дайте Linux доступ к вашим файлам: они появятся в /sdcard. Android попросит разрешение «Доступ ко всем файлам». После этого откройте новый терминал Linux.</string>
+    <string name="settings_storage_grant">Разрешить доступ</string>
+    <string name="settings_storage_granted">✓ Доступ есть — в Linux это /sdcard</string>
+    <string name="settings_storage_denied">Нет доступа</string>
+    <string name="settings_processes_title">Фоновые процессы</string>
+    <string name="settings_processes_text">Android 12+ может завершать процессы, если у приложений их больше 32 в сумме («phantom process killer»). Тяжёлая работа в Linux — сборка программ, серверы — может упереться в этот лимит.</string>
+    <string name="settings_processes_on">Ограничение включено — Android может завершать процессы Linux</string>
+    <string name="settings_processes_off">✓ Ограничение отключено</string>
+    <string name="settings_processes_unknown">На этой версии Android состояние прочитать нельзя.</string>
+    <string name="settings_processes_how_14">Как отключить: Параметры разработчика → «Отключить ограничения дочерних процессов».</string>
+    <string name="settings_processes_open">Открыть параметры разработчика</string>
+    <string name="settings_processes_how_12">Чтобы отключить, выполните один раз с компьютера:</string>
+    <string name="settings_linux_title">Система Linux</string>
+    <string name="settings_linux_none">Не установлена</string>
+    <string name="settings_linux_busy">Идёт работа…</string>
+    <string name="settings_linux_manage">Установить или сменить…</string>
+    <string name="settings_linux_remove">Удалить Linux</string>
+    <string name="settings_linux_remove_confirm">Удалить %1$s со всеми файлами и установленными пакетами?</string>
 
     <string name="notif_channel">Работающие сессии</string>
     <string name="notif_title">HandTop работает</string>
     <string name="notif_sessions">Открыто терминалов: %1$d</string>
-    <string name="notif_installing">Установка Debian…</string>
+    <string name="notif_installing">Настройка Linux…</string>
 
-    <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Debian Linux (через proot, без root).\n\nТекущий этап: 2 — Linux-окружение.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
+    <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Linux (Debian, Ubuntu, Alpine или Fedora через proot, без root).\n\nТекущий этап: 2 — Linux-окружение.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
 </resources>

@@ -5,6 +5,7 @@
     <string name="app_terminal_linux">Linux Terminal</string>
     <string name="app_terminal_android">Android Terminal</string>
     <string name="app_linux_soon">Linux apps (coming soon)</string>
+    <string name="app_settings">Settings</string>
     <string name="app_about">About</string>
     <string name="action_minimize">Minimize</string>
     <string name="action_maximize">Maximize</string>
@@ -16,24 +17,52 @@
     <string name="action_keyboard">Keyboard</string>
     <string name="action_exit">Exit (close all)</string>
     <string name="terminal_finished">%1$s — finished</string>
+    <string name="terminal_linux_title">%1$s Terminal</string>
 
-    <string name="linux_setup_title">Install Linux</string>
-    <string name="linux_setup_heading">Debian 13 for HandTop</string>
-    <string name="linux_setup_intro">HandTop will download the official Debian 13 (trixie) image from Docker Hub (about 30 MB) and unpack it on the phone (about 100 MB). You get a real Linux terminal with apt — no root needed.</string>
+    <string name="linux_setup_title">Linux System</string>
+    <string name="linux_setup_heading">Linux for HandTop</string>
+    <string name="linux_setup_intro">HandTop downloads the official image of the chosen distribution from Docker Hub, verifies it and unpacks it on the phone. You get a real Linux terminal with its package manager — no root needed.</string>
+    <string name="linux_setup_choose">Choose a distribution:</string>
+    <string name="linux_setup_change">Change the distribution:</string>
+    <string name="linux_distro_option">%1$s — about %2$d MB</string>
+    <string name="linux_installed">Installed: %1$s</string>
+    <string name="linux_close_terminals">Close the Linux terminals first (open: %1$d).</string>
+    <string name="linux_replace_warning">Reinstalling deletes %1$s with all its files and packages.</string>
     <string name="linux_setup_install">Install</string>
+    <string name="linux_setup_reinstall">Reinstall</string>
     <string name="linux_setup_retry">Retry</string>
     <string name="linux_setup_open">Open Linux Terminal</string>
     <string name="linux_phase_resolving">Looking up the image…</string>
     <string name="linux_phase_downloading">Downloading: %1$s of %2$s</string>
     <string name="linux_phase_extracting">Unpacking: %1$d%%</string>
     <string name="linux_phase_configuring">Configuring…</string>
-    <string name="linux_phase_done">Debian is installed.</string>
-    <string name="linux_phase_failed">Installation failed: %1$s</string>
+    <string name="linux_phase_removing">Removing…</string>
+    <string name="linux_phase_failed">Failed: %1$s</string>
+
+    <string name="settings_storage_title">Phone storage</string>
+    <string name="settings_storage_text">Let Linux see your files: they appear as /sdcard. Android asks for “All files access”. Open a new Linux terminal after granting it.</string>
+    <string name="settings_storage_grant">Allow access</string>
+    <string name="settings_storage_granted">✓ Access granted — /sdcard in Linux</string>
+    <string name="settings_storage_denied">No access</string>
+    <string name="settings_processes_title">Background processes</string>
+    <string name="settings_processes_text">Android 12+ may stop processes when apps run more than 32 of them in total (the “phantom process killer”). Heavy Linux work — compiling, servers — can hit this limit.</string>
+    <string name="settings_processes_on">Limit is on — Android may stop Linux processes</string>
+    <string name="settings_processes_off">✓ Limit is off</string>
+    <string name="settings_processes_unknown">The state can’t be read on this Android version.</string>
+    <string name="settings_processes_how_14">To turn it off: Developer options → “Disable child process restrictions”.</string>
+    <string name="settings_processes_open">Open developer options</string>
+    <string name="settings_processes_how_12">To turn it off, run once from a computer:</string>
+    <string name="settings_linux_title">Linux system</string>
+    <string name="settings_linux_none">Not installed</string>
+    <string name="settings_linux_busy">Working…</string>
+    <string name="settings_linux_manage">Install or change…</string>
+    <string name="settings_linux_remove">Remove Linux</string>
+    <string name="settings_linux_remove_confirm">Delete %1$s with all its files and installed packages?</string>
 
     <string name="notif_channel">Running sessions</string>
     <string name="notif_title">HandTop is running</string>
     <string name="notif_sessions">Open terminals: %1$d</string>
-    <string name="notif_installing">Installing Debian…</string>
+    <string name="notif_installing">Setting up Linux…</string>
 
-    <string name="about_text">HandTop %1$s\nDesktop in your hand.\n\nA desktop for Android: windows, a taskbar and terminals — Android shell and real Debian Linux (through proot, no root needed).\n\nCurrent stage: 2 — Linux environment.\n\nLicense: GNU GPL v3.\nThe terminal emulator is based on Termux (Apache 2.0); proot is the Termux fork (GPL v2+), talloc is LGPL v3+.\n\nShortcuts:\nCtrl+Alt+T — new terminal\nAlt+F4 — close window\nCtrl+Shift+C / V — copy / paste\nCtrl+Plus / Ctrl+Minus — font size</string>
+    <string name="about_text">HandTop %1$s\nDesktop in your hand.\n\nA desktop for Android: windows, a taskbar and terminals — Android shell and real Linux (Debian, Ubuntu, Alpine or Fedora through proot, no root needed).\n\nCurrent stage: 2 — Linux environment.\n\nLicense: GNU GPL v3.\nThe terminal emulator is based on Termux (Apache 2.0); proot is the Termux fork (GPL v2+), talloc is LGPL v3+.\n\nShortcuts:\nCtrl+Alt+T — new terminal\nAlt+F4 — close window\nCtrl+Shift+C / V — copy / paste\nCtrl+Plus / Ctrl+Minus — font size</string>
 </resources>

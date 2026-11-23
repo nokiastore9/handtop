@@ -146,11 +146,13 @@ class DesktopArea(context: Context) : ViewGroup(context) {
     fun closeWindow(window: DesktopWindow) {
         if (!openOrder.remove(window)) return
         removeView(window)
+        // Release the content first (e.g. its terminal session), so the window activated
+        // next already sees the new state.
+        window.content.onClosed()
         if (activeWindow === window) {
             activeWindow = null
             activate(topmostVisible())
         }
-        window.content.onClosed()
         notifyWindowsChanged()
     }
 
