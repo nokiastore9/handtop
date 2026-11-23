@@ -81,6 +81,10 @@ class DesktopWindow(
         orientation = VERTICAL
         background = frameBackground
         clipToOutline = true
+        // The window itself can hold focus when its content has no focusable views.
+        isFocusable = true
+        isFocusableInTouchMode = true
+        descendantFocusability = FOCUS_AFTER_DESCENDANTS
 
         titleBar.orientation = HORIZONTAL
         titleBar.gravity = Gravity.CENTER_VERTICAL

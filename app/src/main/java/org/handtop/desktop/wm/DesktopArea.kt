@@ -31,6 +31,11 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         fun onWindowsChanged()
     }
 
+    companion object {
+        /** Width of the icon column on the wallpaper (see DesktopIcons) plus a gap. */
+        const val DESKTOP_ICONS_WIDTH_DP = 124
+    }
+
     var listener: Listener? = null
 
     private val openOrder = ArrayList<DesktopWindow>()
@@ -84,7 +89,8 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         val ww = max(min(aw, dpi(380)), (aw * 0.6f).toInt())
         val wh = max(min(ah, dpi(260)), (ah * 0.62f).toInt())
         val offset = dpi(32) * (cascadeStep++ % 6)
-        var left = dpi(56) + offset
+        // Start right of the desktop icon column so new windows don't cover the shortcuts.
+        var left = dpi(DESKTOP_ICONS_WIDTH_DP) + offset
         var top = dpi(24) + offset
         if (left + ww > aw) left = max(0, aw - ww)
         if (top + wh > ah) top = max(0, ah - wh)
@@ -116,6 +122,9 @@ class DesktopArea(context: Context) : ViewGroup(context) {
             changed = true
         }
         window?.content?.onActivated()
+        // Keyboard input must follow the active window, even if its content has nothing
+        // focusable — otherwise keys would keep going to a terminal in the background.
+        if (window != null && !window.hasFocus()) window.requestFocus()
         if (changed) notifyWindowsChanged()
     }
 
