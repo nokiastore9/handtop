@@ -12,7 +12,6 @@ import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextClock
 import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
@@ -22,7 +21,7 @@ import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
 
-/** Bottom panel: start button, one button per open window, keyboard button and clock. */
+/** Bottom panel: start button, one button per open window, keyboard button and status / clock. */
 @SuppressLint("ViewConstructor")
 class Taskbar(
     context: Context,
@@ -55,15 +54,8 @@ class Taskbar(
         addView(iconButton(R.drawable.ic_keyboard, R.string.action_keyboard) { onKeyboard() },
             LayoutParams(dpi(48), LayoutParams.MATCH_PARENT))
 
-        val clock = TextClock(context).apply {
-            format24Hour = "HH:mm"
-            format12Hour = "h:mm a"
-            setTextColor(Palette.TEXT)
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setPadding(dpi(12), 0, dpi(14), 0)
-        }
-        addView(clock, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+        // HandTop runs full screen: network, battery and clock live here instead of Android's status bar.
+        addView(StatusArea(context), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
     }
 
     override fun onWindowsChanged() {

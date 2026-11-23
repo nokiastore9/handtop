@@ -10,6 +10,7 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowManager
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout
@@ -36,6 +37,8 @@ import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
+import org.handtop.desktop.ui.hideSystemBars
+import org.handtop.desktop.ui.hideSystemBarsOfWindow
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.wayland.WaylandServer
@@ -60,6 +63,18 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Exclusive full screen, drawing under the camera cutout too: the taskbar replaces
+        // Android's status bar.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+        window.hideSystemBars()
         LinuxEnv.migrate(this)
 
         area = DesktopArea(this)
@@ -86,7 +101,10 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         setContentView(root)
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            // Hidden bars report no insets; the cutout is ignored on purpose (it only hides a
+            // few pixels of wallpaper or window frame). Bars only count if the system keeps
+            // them, e.g. in a freeform window.
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             column.setPadding(bars.left, bars.top, bars.right, if (imeVisible) ime.bottom else bars.bottom)
@@ -118,6 +136,12 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Back from Android settings, a permission dialog etc.: hide the bars again.
+        if (hasFocus) window.hideSystemBars()
     }
 
     override fun onResume() {
@@ -276,6 +300,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         taskbar.getLocationInWindow(loc)
         val fromBottom = root.height - loc[1] + dpi(6)
         popup.showAtLocation(root, Gravity.BOTTOM or Gravity.START, loc[0] + dpi(6), fromBottom)
+        panel.hideSystemBarsOfWindow()
         startMenu = popup
     }
 

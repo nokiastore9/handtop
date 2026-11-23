@@ -19,6 +19,7 @@ import org.handtop.desktop.linux.LinuxInstaller
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.dpi
+import org.handtop.desktop.ui.hideSystemBars
 import org.handtop.desktop.wm.WindowContent
 
 /** HandTop settings: phone storage for Linux, Android's process limit, the Linux system. */
@@ -161,6 +162,8 @@ class SettingsContent(
             .setMessage(context.getString(R.string.settings_linux_remove_confirm, distro.title))
             .setPositiveButton(R.string.settings_linux_remove) { _, _ -> LinuxInstaller.uninstall(context) }
             .setNegativeButton(android.R.string.cancel, null)
+            .create()
+            .apply { window?.hideSystemBars() } // stay full screen while the dialog is open
             .show()
     }
 

@@ -15,6 +15,14 @@
     <string name="action_new_window">New window</string>
     <string name="action_reset">Reset terminal</string>
     <string name="action_keyboard">Keyboard</string>
+    <string name="status_network">Network and internet</string>
+    <string name="status_no_network">No network</string>
+    <string name="status_airplane">Airplane mode</string>
+    <string name="status_percent">%1$d%%</string>
+    <string name="status_battery">Battery %1$d%%</string>
+    <string name="status_battery_charging">Battery %1$d%%, charging</string>
+    <string name="status_battery_settings">Battery</string>
+    <string name="status_calendar">Calendar</string>
     <string name="action_exit">Exit (close all)</string>
     <string name="terminal_finished">%1$s — finished</string>
     <string name="terminal_linux_title">%1$s Terminal</string>

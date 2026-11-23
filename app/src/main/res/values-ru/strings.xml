@@ -14,6 +14,13 @@
     <string name="action_new_window">Новое окно</string>
     <string name="action_reset">Сбросить терминал</string>
     <string name="action_keyboard">Клавиатура</string>
+    <string name="status_network">Сеть и интернет</string>
+    <string name="status_no_network">Нет сети</string>
+    <string name="status_airplane">Режим полёта</string>
+    <string name="status_battery">Батарея %1$d%%</string>
+    <string name="status_battery_charging">Батарея %1$d%%, заряжается</string>
+    <string name="status_battery_settings">Батарея</string>
+    <string name="status_calendar">Календарь</string>
     <string name="action_exit">Выход (закрыть всё)</string>
     <string name="terminal_finished">%1$s — завершён</string>
     <string name="terminal_linux_title">Терминал %1$s</string>

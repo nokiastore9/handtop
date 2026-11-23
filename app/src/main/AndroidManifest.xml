@@ -3,6 +3,8 @@
 
     <!-- Downloading the Linux root filesystem; network access for Linux programs. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Taskbar status (Wi-Fi / mobile / VPN icons); a normal, install-time permission. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Keep terminals and Linux processes alive in the background. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -27,6 +29,7 @@
             android:name=".DesktopActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
             android:resizeableActivity="true"
             android:windowSoftInputMode="adjustResize|stateHidden"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation|uiMode|fontScale|layoutDirection|locale|colorMode|touchscreen|mcc|mnc|fontWeightAdjustment|grammaticalGender">
