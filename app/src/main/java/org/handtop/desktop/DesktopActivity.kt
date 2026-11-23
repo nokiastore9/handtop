@@ -38,6 +38,9 @@ import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.wayland.WaylandServer
+import org.handtop.desktop.wayland.WaylandWindowContent
+import org.handtop.desktop.wayland.XdgToplevel
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
 
@@ -46,7 +49,7 @@ import org.handtop.desktop.wm.DesktopWindow
  * area and the taskbar. It handles every config change itself (rotation, DeX switch,
  * keyboard plug) so windows and shell sessions are never torn down.
  */
-class DesktopActivity : Activity() {
+class DesktopActivity : Activity(), WaylandServer.Host {
 
     private lateinit var root: FrameLayout
     private lateinit var column: LinearLayout
@@ -100,6 +103,11 @@ class DesktopActivity : Activity() {
         if (TermSessions.hosts.isEmpty()) openLinuxTerminal()
         else TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
 
+        // Linux GUI windows: same for toplevels that are already on screen.
+        val wayland = WaylandServer.get(this)
+        wayland.host = this
+        wayland.mappedToplevels().forEach { toplevelMapped(it) }
+
         requestNotificationPermission()
     }
 
@@ -119,6 +127,7 @@ class DesktopActivity : Activity() {
     }
 
     override fun onDestroy() {
+        WaylandServer.get(this).let { if (it.host === this) it.host = null }
         startMenu?.dismiss()
         // Sessions stay alive in TermSessions; just drop references to this activity's views.
         TermSessions.hosts.forEach { it.ui = null }
@@ -142,7 +151,7 @@ class DesktopActivity : Activity() {
                     return true
                 }
                 event.isAltPressed && event.keyCode == KeyEvent.KEYCODE_F4 -> {
-                    area.activeWindow?.close(); return true
+                    area.activeWindow?.requestClose(); return true
                 }
             }
         }
@@ -168,6 +177,32 @@ class DesktopActivity : Activity() {
         area.windows.firstOrNull { it.content is LinuxSetupContent }?.let { area.activate(it); return }
         val content = LinuxSetupContent(this) { openLinuxTerminal() }
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.linux_setup_title), R.drawable.ic_linux))
+    }
+
+    // ---- Linux GUI windows (WaylandServer.Host) ----
+
+    override fun toplevelMapped(toplevel: XdgToplevel) {
+        if (area.windows.any { (it.content as? WaylandWindowContent)?.toplevel === toplevel }) return
+        lateinit var window: DesktopWindow
+        val control = object : WaylandWindowContent.WindowControl {
+            override fun startMove() = Unit // client-side title bars: not supported yet
+            override fun setMaximized(maximized: Boolean) =
+                window.setMode(if (maximized) DesktopWindow.Mode.MAXIMIZED else DesktopWindow.Mode.NORMAL)
+            override fun minimize() = area.minimize(window)
+            override fun isMaximized() = window.mode == DesktopWindow.Mode.MAXIMIZED
+            override fun isActive() = window.isActiveWindow
+        }
+        val content = WaylandWindowContent(this, toplevel, control)
+        window = DesktopWindow(this, area, content, toplevel.title.ifEmpty { "Linux" }, R.drawable.ic_apps)
+        // Size the window around what the program drew (in view pixels).
+        val g = toplevel.xdg.visibleGeometry()
+        val s = toplevel.client.server.scale
+        area.addWindow(window, g.width() * s, g.height() * s)
+    }
+
+    override fun toplevelUnmapped(toplevel: XdgToplevel) {
+        area.windows.firstOrNull { (it.content as? WaylandWindowContent)?.toplevel === toplevel }
+            ?.let { area.closeWindow(it) }
     }
 
     private fun openSettings() {

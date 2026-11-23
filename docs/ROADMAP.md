@@ -78,11 +78,27 @@
   приложения, а не root (apt/`_apt` могут упереться в права), режимы proot и chroot не должны
   делить один rootfs без смены владельца.
 
-### 3. Свой Wayland-композитор
-- libwayland-server + EGL/GLES в NDK, сокет в общем каталоге с rootfs.
-- Протоколы: wl_compositor, wl_shm, xdg_shell, wl_seat (мышь/клавиатура/тач), wl_output.
-- Каждый xdg_toplevel = отдельное окно `DesktopWindow` (контент — TextureView/SurfaceView).
-- Первая цель: `weston-terminal`, затем GTK/Qt-приложения.
+### 3. Свой Wayland-композитор — первые окна работают
+Протокол реализован на Kotlin (`app/.../wayland/`), в C (`app/src/main/cpp/handtop.c`) — только
+сокеты с передачей fd, mmap общей памяти и копирование пикселей (BGRA → RGBA). libwayland и
+libffi собирать не пришлось. Сокет: `rootfs/tmp/.handtop-runtime/wayland-0`
+(в Linux: `XDG_RUNTIME_DIR=/tmp/.handtop-runtime`, `WAYLAND_DISPLAY=wayland-0`).
+
+Реализовано: wl_compositor 4, wl_shm (ARGB/XRGB8888), wl_output 3 (масштаб = плотность экрана,
+на S24 Ultra 3), wl_seat 5 (мышь, клавиатура с XKB-раскладкой us из `assets/`), xdg_wm_base 3
+(окна, всплывающие меню), zxdg_decoration (рамка всегда наша); wl_subcompositor и
+wl_data_device_manager — заглушки. Каждое окно Linux = отдельный `DesktopWindow`,
+закрытие окна — просьба программе (`xdg_toplevel.close`).
+
+Проверено 2026-11-24: `wayland-info`, `weston-simple-shm` (анимация 120 к/с без рывков),
+`weston-terminal` (чёткий текст в масштабе 3, ввод с клавиатуры с Shift).
+
+Дальше:
+- программы, рисующие свой заголовок (CSD: GTK, weston): прятать нашу рамку, поддержать
+  `xdg_toplevel.move/resize`;
+- скорость: копировать только изменённые области (damage), затем GPU / dmabuf;
+- GTK/Qt-приложения: подповерхности, меню, буфер обмена, курсоры;
+- экранная клавиатура в окнах Linux; масштаб при переходе телефон ↔ DeX.
 
 ### 4. Интеграция
 Xwayland (X11-приложения), общий буфер обмена, drag & drop файлов,

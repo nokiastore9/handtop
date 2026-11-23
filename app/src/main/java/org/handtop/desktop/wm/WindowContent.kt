@@ -15,6 +15,15 @@ interface WindowContent {
     /** The window became the active (focused) one. */
     fun onActivated() {}
 
+    /** Another window became active. */
+    fun onDeactivated() {}
+
+    /**
+     * The user asked to close the window (close button, Alt+F4). Return true to handle it
+     * yourself — e.g. ask a Linux program to quit — instead of closing immediately.
+     */
+    fun onCloseRequest(): Boolean = false
+
     /** The window was closed and removed from the desktop; release resources here. */
     fun onClosed() {}
 

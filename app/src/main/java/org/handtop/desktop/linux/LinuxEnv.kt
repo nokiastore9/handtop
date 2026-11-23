@@ -5,6 +5,7 @@ import android.os.Environment
 import android.system.Os
 import org.handtop.desktop.R
 import org.handtop.desktop.term.ShellSpec
+import org.handtop.desktop.wayland.WaylandServer
 import java.io.File
 import java.util.Locale
 import java.util.TimeZone
@@ -53,6 +54,9 @@ object LinuxEnv {
         val shell = if (File(rootfsDir, "bin/bash").exists()) listOf("/bin/bash", "--login") else listOf("/bin/sh", "-l")
         val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
 
+        // Linux GUI programs talk to HandTop's compositor through this socket.
+        WaylandServer.ensureRunning(context, rootfsDir)
+
         val storage = if (hasStorageAccess()) {
             listOf("-b", "/storage", "-b", "${Environment.getExternalStorageDirectory().absolutePath}:/sdcard")
         } else {
@@ -86,6 +90,14 @@ object LinuxEnv {
             "TZ=" + timeZone(rootfsDir),
             "TMPDIR=/tmp",
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            // Graphical programs: HandTop is the Wayland compositor.
+            "XDG_RUNTIME_DIR=/${WaylandServer.RUNTIME_DIR}",
+            "WAYLAND_DISPLAY=${WaylandServer.SOCKET_NAME}",
+            "XDG_SESSION_TYPE=wayland",
+            "GDK_BACKEND=wayland",
+            "QT_QPA_PLATFORM=wayland",
+            "SDL_VIDEODRIVER=wayland",
+            "MOZ_ENABLE_WAYLAND=1",
         ) + shell
 
         val env = LinkedHashMap(System.getenv())

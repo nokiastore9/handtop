@@ -1,0 +1,332 @@
+package org.handtop.desktop.wayland
+
+import android.graphics.Rect
+
+// xdg-shell (stable): windows and popups.
+
+class XdgWmBase(client: Client, id: Int, version: Int) : Resource(client, id, version) {
+    override val iface = "xdg_wm_base"
+
+    override fun dispatch(opcode: Int, r: MessageReader) {
+        when (opcode) {
+            0 -> destroy()
+            1 -> client.register(XdgPositioner(client, r.newId(), version))
+            2 -> { // get_xdg_surface(id, surface)
+                val newId = r.newId()
+                val surface = client.require<WlSurface>(r.obj())
+                val xdg = client.register(XdgSurface(client, newId, version, surface))
+                surface.role = SurfaceRole.Xdg(xdg)
+            }
+            3 -> r.uint() // pong
+            else -> super.dispatch(opcode, r)
+        }
+    }
+}
+
+class XdgPositioner(client: Client, id: Int, version: Int) : Resource(client, id, version) {
+    override val iface = "xdg_positioner"
+
+    var width = 1
+    var height = 1
+    val anchorRect = Rect()
+    var anchor = 0
+    var gravity = 0
+    var offsetX = 0
+    var offsetY = 0
+
+    override fun dispatch(opcode: Int, r: MessageReader) {
+        when (opcode) {
+            0 -> destroy()
+            1 -> { width = r.int(); height = r.int() }
+            2 -> { val x = r.int(); val y = r.int(); anchorRect.set(x, y, x + r.int(), y + r.int()) }
+            3 -> anchor = r.uint()
+            4 -> gravity = r.uint()
+            5 -> r.uint() // set_constraint_adjustment
+            6 -> { offsetX = r.int(); offsetY = r.int() }
+            7 -> Unit // set_reactive
+            8 -> { r.int(); r.int() } // set_parent_size
+            9 -> r.uint() // set_parent_configure
+            else -> super.dispatch(opcode, r)
+        }
+    }
+
+    /** Popup position relative to the parent's window geometry (no constraint adjustment yet). */
+    fun place(): Rect {
+        val ax = when (anchor) {
+            LEFT, TOP_LEFT, BOTTOM_LEFT -> anchorRect.left
+            RIGHT, TOP_RIGHT, BOTTOM_RIGHT -> anchorRect.right
+            else -> anchorRect.centerX()
+        }
+        val ay = when (anchor) {
+            TOP, TOP_LEFT, TOP_RIGHT -> anchorRect.top
+            BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT -> anchorRect.bottom
+            else -> anchorRect.centerY()
+        }
+        val x = when (gravity) {
+            LEFT, TOP_LEFT, BOTTOM_LEFT -> ax - width
+            RIGHT, TOP_RIGHT, BOTTOM_RIGHT -> ax
+            else -> ax - width / 2
+        } + offsetX
+        val y = when (gravity) {
+            TOP, TOP_LEFT, TOP_RIGHT -> ay - height
+            BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT -> ay
+            else -> ay - height / 2
+        } + offsetY
+        return Rect(x, y, x + width, y + height)
+    }
+
+    private companion object {
+        const val TOP = 1
+        const val BOTTOM = 2
+        const val LEFT = 3
+        const val RIGHT = 4
+        const val TOP_LEFT = 5
+        const val BOTTOM_LEFT = 6
+        const val TOP_RIGHT = 7
+        const val BOTTOM_RIGHT = 8
+    }
+}
+
+class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) : Resource(client, id, version) {
+    override val iface = "xdg_surface"
+
+    var toplevel: XdgToplevel? = null
+        private set
+    var popup: XdgPopup? = null
+        private set
+
+    /** Window geometry in surface coordinates (excludes client-side shadows). */
+    val geometry = Rect()
+    private var geometrySet = false
+    private var configured = false
+
+    override fun dispatch(opcode: Int, r: MessageReader) {
+        when (opcode) {
+            0 -> destroy()
+            1 -> toplevel = client.register(XdgToplevel(client, r.newId(), version, this))
+            2 -> { // get_popup(id, parent, positioner)
+                val newId = r.newId()
+                val parent = client.optional<XdgSurface>(r.obj())
+                val positioner = client.require<XdgPositioner>(r.obj())
+                popup = client.register(XdgPopup(client, newId, version, this, parent, positioner.place()))
+            }
+            3 -> { // set_window_geometry
+                val x = r.int(); val y = r.int()
+                geometry.set(x, y, x + r.int(), y + r.int())
+                geometrySet = true
+            }
+            4 -> { r.uint(); configured = true } // ack_configure
+            else -> super.dispatch(opcode, r)
+        }
+    }
+
+    /** Geometry to show: the declared window geometry, else the whole surface. */
+    fun visibleGeometry(): Rect =
+        if (geometrySet && !geometry.isEmpty) geometry else Rect(0, 0, surface.width, surface.height)
+
+    fun configure() = event(0) { uint(client.server.nextSerial()) }
+
+    fun surfaceCommitted() {
+        toplevel?.committed(configured)
+        popup?.committed(configured)
+    }
+
+    fun surfaceGone() {
+        toplevel?.unmap()
+        popup?.unmap()
+    }
+
+    override fun destroyed() {
+        toplevel?.unmap()
+        popup?.unmap()
+    }
+}
+
+class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) : Resource(client, id, version) {
+    override val iface = "xdg_toplevel"
+
+    var title = ""
+        private set
+    var appId = ""
+        private set
+    var mapped = false
+        private set
+    var serverSideDecorations = false
+    val popups = ArrayList<XdgPopup>()
+
+    /** Window shown on the desktop; set by the host when it maps the toplevel. */
+    var view: ToplevelView? = null
+
+    private var initialConfigureSent = false
+    private var configuredWidth = 0
+    private var configuredHeight = 0
+    private var activated = false
+    private var maximized = false
+
+    override fun dispatch(opcode: Int, r: MessageReader) {
+        when (opcode) {
+            0 -> destroy()
+            1 -> r.obj() // set_parent
+            2 -> { title = r.string() ?: ""; view?.titleChanged() }
+            3 -> appId = r.string() ?: ""
+            4 -> { r.obj(); r.uint(); r.int(); r.int() } // show_window_menu
+            5 -> { r.obj(); r.uint(); view?.startMove() } // move(seat, serial)
+            6 -> { r.obj(); r.uint(); r.uint() } // resize
+            7, 8 -> { r.int(); r.int() } // set_max_size / set_min_size
+            9 -> view?.setMaximized(true)
+            10 -> view?.setMaximized(false)
+            11 -> r.obj() // set_fullscreen
+            12 -> Unit
+            13 -> view?.minimize()
+            else -> super.dispatch(opcode, r)
+        }
+    }
+
+    fun committed(configured: Boolean) {
+        if (!initialConfigureSent) {
+            // First commit (no buffer yet): let the client pick its size.
+            initialConfigureSent = true
+            sendConfigure()
+            return
+        }
+        if (!mapped && configured && xdg.surface.bitmap != null) {
+            mapped = true
+            xdg.surface.enterOutputs()
+            client.server.host?.toplevelMapped(this)
+        } else if (mapped && xdg.surface.bitmap == null) {
+            unmap()
+        }
+    }
+
+    /** New size (logical pixels) and state requested by the window manager. */
+    fun requestState(width: Int, height: Int, activated: Boolean, maximized: Boolean) {
+        if (width == configuredWidth && height == configuredHeight &&
+            activated == this.activated && maximized == this.maximized
+        ) return
+        configuredWidth = width
+        configuredHeight = height
+        this.activated = activated
+        this.maximized = maximized
+        if (initialConfigureSent) {
+            sendConfigure()
+            client.flush()
+        }
+    }
+
+    fun scheduleConfigure() {
+        if (initialConfigureSent) sendConfigure()
+    }
+
+    private fun sendConfigure() {
+        val states = ArrayList<Int>()
+        if (maximized) states += STATE_MAXIMIZED
+        if (activated) states += STATE_ACTIVATED
+        event(0) { int(configuredWidth); int(configuredHeight); intArray(states.toIntArray()) }
+        xdg.configure()
+    }
+
+    /** The user pressed the window's close button. */
+    fun requestClose() {
+        event(1)
+        client.flush()
+    }
+
+    fun unmap() {
+        if (!mapped) return
+        mapped = false
+        popups.toList().forEach { it.dismiss() }
+        client.server.host?.toplevelUnmapped(this)
+    }
+
+    override fun destroyed() = unmap()
+
+    private companion object {
+        const val STATE_MAXIMIZED = 1
+        const val STATE_ACTIVATED = 4
+    }
+}
+
+class XdgPopup(
+    client: Client, id: Int, version: Int,
+    val xdg: XdgSurface,
+    private val parent: XdgSurface?,
+    /** Position relative to the parent's window geometry. */
+    val position: Rect,
+) : Resource(client, id, version) {
+    override val iface = "xdg_popup"
+
+    var mapped = false
+        private set
+    private var configureSent = false
+
+    /** The toplevel this popup (possibly nested) belongs to. */
+    val toplevel: XdgToplevel? = parent?.toplevel ?: parent?.popup?.toplevel
+
+    /** Offset of the popup's geometry origin from the toplevel's geometry origin. */
+    val originInToplevel: Rect
+        get() {
+            val parentOrigin = parent?.popup?.originInToplevel
+            val dx = (parentOrigin?.left ?: 0)
+            val dy = (parentOrigin?.top ?: 0)
+            return Rect(position).apply { offset(dx, dy) }
+        }
+
+    override fun dispatch(opcode: Int, r: MessageReader) {
+        when (opcode) {
+            0 -> destroy()
+            1 -> { r.obj(); r.uint() } // grab
+            2 -> { // reposition(positioner, token)
+                val positioner = client.require<XdgPositioner>(r.obj())
+                val token = r.uint()
+                position.set(positioner.place())
+                event(2) { uint(token) }
+                sendConfigure()
+            }
+            else -> super.dispatch(opcode, r)
+        }
+    }
+
+    private fun sendConfigure() {
+        event(0) { int(position.left); int(position.top); int(position.width()); int(position.height()) }
+        xdg.configure()
+    }
+
+    fun committed(configured: Boolean) {
+        if (!configureSent) {
+            configureSent = true
+            sendConfigure()
+            return
+        }
+        if (!mapped && configured && xdg.surface.bitmap != null) {
+            mapped = true
+            toplevel?.popups?.add(this)
+            xdg.surface.enterOutputs()
+        }
+        toplevel?.view?.contentChanged()
+    }
+
+    /** Closes the popup (click outside it): the client destroys it in response. */
+    fun dismiss() {
+        event(1)
+        unmap()
+        client.flush()
+    }
+
+    fun unmap() {
+        if (!mapped) return
+        mapped = false
+        toplevel?.popups?.remove(this)
+        toplevel?.view?.contentChanged()
+    }
+
+    override fun destroyed() = unmap()
+}
+
+/** What the window manager provides for a mapped toplevel. */
+interface ToplevelView {
+    fun titleChanged()
+    fun contentChanged()
+    fun startMove()
+    fun setMaximized(maximized: Boolean)
+    fun minimize()
+}

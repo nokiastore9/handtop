@@ -108,7 +108,7 @@ class DesktopWindow(
             area.toggleMaximize(this)
         }
         titleBar.addView(maximizeButton)
-        titleBar.addView(makeButton(R.drawable.ic_win_close, R.string.action_close, true) { close() })
+        titleBar.addView(makeButton(R.drawable.ic_win_close, R.string.action_close, true) { requestClose() })
 
         addView(titleBar, LayoutParams(LayoutParams.MATCH_PARENT, dpi(TITLE_HEIGHT_DP)))
         addView(content.view, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
@@ -127,6 +127,15 @@ class DesktopWindow(
     }
 
     override fun close() = area.closeWindow(this)
+
+    /** Close button / Alt+F4: the content may intercept it (see [WindowContent.onCloseRequest]). */
+    fun requestClose() {
+        if (!content.onCloseRequest()) close()
+    }
+
+    /** Outer window size for a content area of [contentWidth] x [contentHeight] pixels. */
+    fun frameSizeFor(contentWidth: Int, contentHeight: Int): Pair<Int, Int> =
+        (contentWidth + 2 * border) to (contentHeight + dpi(TITLE_HEIGHT_DP) + 2 * border)
 
     // ---- state ----
 

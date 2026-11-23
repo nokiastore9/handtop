@@ -83,11 +83,20 @@ class DesktopArea(context: Context) : ViewGroup(context) {
 
     // ---- window lifecycle ----
 
-    fun addWindow(window: DesktopWindow) {
+    /**
+     * Shows [window]. With [contentWidth] / [contentHeight] (pixels) the floating window is
+     * sized around that content, e.g. the size a Linux program asked for.
+     */
+    fun addWindow(window: DesktopWindow, contentWidth: Int = 0, contentHeight: Int = 0) {
         val aw = if (width > 0) width else resources.displayMetrics.widthPixels
         val ah = if (height > 0) height else resources.displayMetrics.heightPixels
-        val ww = max(min(aw, dpi(380)), (aw * 0.6f).toInt())
-        val wh = max(min(ah, dpi(260)), (ah * 0.62f).toInt())
+        var ww = max(min(aw, dpi(380)), (aw * 0.6f).toInt())
+        var wh = max(min(ah, dpi(260)), (ah * 0.62f).toInt())
+        if (contentWidth > 0 && contentHeight > 0) {
+            val (fw, fh) = window.frameSizeFor(contentWidth, contentHeight)
+            ww = min(fw, aw)
+            wh = min(fh, ah)
+        }
         val offset = dpi(32) * (cascadeStep++ % 6)
         // Start right of the desktop icon column so new windows don't cover the shortcuts.
         var left = dpi(DESKTOP_ICONS_WIDTH_DP) + offset
@@ -116,9 +125,11 @@ class DesktopArea(context: Context) : ViewGroup(context) {
             }
         }
         if (activeWindow !== window) {
-            activeWindow?.isActiveWindow = false
+            val previous = activeWindow
+            previous?.isActiveWindow = false
             activeWindow = window
             window?.isActiveWindow = true
+            previous?.content?.onDeactivated()
             changed = true
         }
         window?.content?.onActivated()
@@ -134,6 +145,7 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         if (activeWindow === window) {
             window.isActiveWindow = false
             activeWindow = null
+            window.content.onDeactivated()
             activate(topmostVisible())
         }
         notifyWindowsChanged()

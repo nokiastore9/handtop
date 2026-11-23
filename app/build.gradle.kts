@@ -33,6 +33,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Native helpers of the Wayland compositor (sockets with fd passing, shm, blits).
+    externalNativeBuild {
+        ndkBuild {
+            path = file("src/main/cpp/Android.mk")
+        }
+    }
+
     packaging {
         jniLibs {
             // Extract native libs to nativeLibraryDir on install: proot and its loader are
