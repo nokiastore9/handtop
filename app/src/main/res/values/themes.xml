@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="desktop_bg">#FF0B1023</color>
+    <color name="accent">#FF4F8CFF</color>
+    <color name="ic_launcher_bg">#FF1B2A6B</color>
+
+    <style name="Theme.HandTop" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/desktop_bg</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:colorPrimary">@color/desktop_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="start_menu">Пуск</string>
+    <string name="app_terminal">Терминал</string>
+    <string name="app_linux_soon">Linux-приложения (скоро)</string>
+    <string name="app_about">О программе</string>
+    <string name="action_minimize">Свернуть</string>
+    <string name="action_maximize">Развернуть</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_paste">Вставить</string>
+    <string name="action_copy_all">Копировать весь текст</string>
+    <string name="action_new_window">Новое окно</string>
+    <string name="action_reset">Сбросить терминал</string>
+    <string name="action_keyboard">Клавиатура</string>
+    <string name="action_exit">Выход (закрыть всё)</string>
+    <string name="terminal_finished">%1$s — завершён</string>
+    <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминал. Следующий шаг — Linux-приложения.\n\nТекущий этап: 1 — рабочий стол и терминал Android.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0).\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
+</resources>
