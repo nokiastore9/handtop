@@ -285,6 +285,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
             val view = win.toplevel?.view ?: return@getProperty
             when (atom) {
                 ATOM_WM_NAME, a("_NET_WM_NAME") -> view.titleChanged()
+                ATOM_WM_CLASS -> view.appIdChanged()
                 a("_MOTIF_WM_HINTS") -> view.decorationsChanged()
             }
         }

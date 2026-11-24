@@ -109,6 +109,14 @@ class DesktopWindow(
         titleView.ellipsize = TextUtils.TruncateAt.END
         titleBar.addView(titleView, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
 
+        for (action in content.titleActions) {
+            val button = makeButton(action.icon, action.label, false) { action.onClick() }
+            val normal = button.background
+            val refresh = { button.background = if (action.checked) ColorDrawable(Palette.CHIP) else normal }
+            action.onChange = refresh
+            refresh()
+            titleBar.addView(button)
+        }
         titleBar.addView(makeButton(R.drawable.ic_win_minimize, R.string.action_minimize, false) {
             area.minimize(this)
         })

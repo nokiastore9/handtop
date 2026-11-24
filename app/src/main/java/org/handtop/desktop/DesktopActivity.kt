@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.KeyEvent
@@ -276,13 +277,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             override fun minimize() = area.minimize(window)
             override fun isMaximized() = window.mode == DesktopWindow.Mode.MAXIMIZED
             override fun isActive() = window.isActiveWindow
+            override fun appIdChanged() = showLinuxIcon(window, toplevel)
         }
         val content = WaylandWindowContent(this, toplevel, control, popupLayer)
         window = DesktopWindow(this, area, content, toplevel.title.ifEmpty { "Linux" }, R.drawable.ic_apps)
         // Programs without server-side decorations draw their own title bar.
         window.decorated = toplevel.serverSideDecorations
-        // The program's own icon, from its menu entry (app id = desktop file id, usually).
-        LinuxApps.forAppId(this, toplevel.appId)?.let { app -> LinuxApps.icon(app, dpi(48))?.let { window.iconBitmap = it } }
+        showLinuxIcon(window, toplevel)
         window.resizable = !toplevel.fixedSize
         // Dialogs open over the window they belong to.
         val parent = toplevel.parent?.let { p ->
@@ -292,6 +293,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         val g = toplevel.visibleGeometry()
         val s = toplevel.client.server.scale
         area.addWindow(window, g.width() * s, g.height() * s, parent)
+    }
+
+    /** The program's own icon, from its menu entry (app id = desktop file id, usually). */
+    private fun showLinuxIcon(window: DesktopWindow, toplevel: Toplevel) {
+        val icon = LinuxApps.forAppId(this, toplevel.appId)?.let { LinuxApps.icon(it, dpi(48)) }
+        if (icon != null && icon !== window.iconBitmap) window.iconBitmap = icon
+        Log.d("HandTop", "linux window \"${toplevel.title}\" app id \"${toplevel.appId}\" icon ${icon != null}")
     }
 
     override fun toplevelUnmapped(toplevel: Toplevel) {

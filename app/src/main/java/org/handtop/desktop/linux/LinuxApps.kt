@@ -70,9 +70,13 @@ object LinuxApps {
             val file = File(rootfs, "$dir/$appId.desktop")
             if (file.exists() || Files.isSymbolicLink(file.toPath())) parse(rootfs, file)?.let { return it }
         }
-        return known.firstOrNull {
-            it.wmClass.equals(appId, ignoreCase = true) || it.id.substringAfterLast('.').equals(appId, ignoreCase = true)
+        // E.g. GTK started from a terminal says "mousepad", the menu entry is org.xfce.mousepad.
+        fun match(apps: List<LinuxApp>) = apps.firstOrNull {
+            it.wmClass.equals(appId, ignoreCase = true) ||
+                it.id.substringAfterLast('.').equals(appId, ignoreCase = true) ||
+                it.exec.substringBefore(' ').substringAfterLast('/').equals(appId, ignoreCase = true)
         }
+        return match(known) ?: match(scan(context)) // not known yet, or installed since the last scan
     }
 
     /** The app's icon at about [sizePx], or null (no PNG icon). */

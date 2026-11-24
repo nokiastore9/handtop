@@ -9,6 +9,7 @@ import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -150,8 +151,29 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         window?.content?.onActivated()
         // Keyboard input must follow the active window, even if its content has nothing
         // focusable — otherwise keys would keep going to a terminal in the background.
-        if (window != null && !window.hasFocus()) window.requestFocus()
+        if (window != null) {
+            setDesktopFocusable(false)
+            if (!window.hasFocus()) window.requestFocus()
+        } else {
+            focusDesktop()
+        }
         if (changed) notifyWindowsChanged()
+    }
+
+    /**
+     * No active window: the desktop itself holds the focus, so keys and the on-screen keyboard
+     * no longer go to the window that was active before, and the keyboard goes away.
+     */
+    private fun focusDesktop() {
+        setDesktopFocusable(true)
+        if (findFocus() !== this) requestFocus()
+        context.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(windowToken, 0)
+    }
+
+    /** Focusable only while no window is active: it must not take the focus from windows. */
+    private fun setDesktopFocusable(focusable: Boolean) {
+        isFocusable = focusable
+        isFocusableInTouchMode = focusable
     }
 
     fun minimize(window: DesktopWindow) {
@@ -212,7 +234,12 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         // Raise the touched window *before* children get the event, so z-order is
         // already correct while the touch is dispatched.
         if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            windowAt(ev.x, ev.y)?.let { if (it !== activeWindow || indexOfChild(it) != childCount - 1) activate(it) }
+            val window = windowAt(ev.x, ev.y)
+            when {
+                window != null -> if (window !== activeWindow || indexOfChild(window) != childCount - 1) activate(window)
+                // A click on the wallpaper deactivates the active window, as on a desktop.
+                activeWindow != null -> activate(null)
+            }
         }
         return false
     }

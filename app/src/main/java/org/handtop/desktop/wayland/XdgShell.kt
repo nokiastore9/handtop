@@ -270,7 +270,7 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) :
             0 -> destroy()
             1 -> parent = client.optional<XdgToplevel>(r.obj())
             2 -> { title = r.string() ?: ""; view?.titleChanged() }
-            3 -> appId = r.string() ?: ""
+            3 -> { appId = r.string() ?: ""; view?.appIdChanged() }
             4 -> { r.obj(); r.uint(); r.int(); r.int() } // show_window_menu
             5 -> { r.obj(); r.uint(); view?.startMove() } // move(seat, serial)
             6 -> { r.obj(); r.uint(); view?.startResize(r.uint()) } // resize(seat, serial, edges)
@@ -444,6 +444,8 @@ class XdgPopup(
 /** What the window manager provides for a mapped toplevel. */
 interface ToplevelView {
     fun titleChanged()
+    /** The app id (xdg) / WM_CLASS (X11) arrived or changed: the icon may change. */
+    fun appIdChanged() = Unit
     fun contentChanged()
     fun decorationsChanged()
 

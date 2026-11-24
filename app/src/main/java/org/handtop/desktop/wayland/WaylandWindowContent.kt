@@ -47,6 +47,8 @@ class WaylandWindowContent(
         fun minimize()
         fun isMaximized(): Boolean
         fun isActive(): Boolean
+        /** Look up the program's icon again (its app id changed). */
+        fun appIdChanged()
     }
 
     /** A move or resize the program started from its own title bar / border. */
@@ -93,10 +95,19 @@ class WaylandWindowContent(
 
     private val imm get() = context.getSystemService(InputMethodManager::class.java)
     private var keyboardAutoShown = false
+    /** The keyboard was asked for with the taskbar button: type into any program (as keys). */
+    private var keyboardRequested = false
     private var lastTextInput: TextInput? = null
     private val textInputListener: () -> Unit = { textInputChanged() }
 
-    override fun onCheckIsTextEditor() = true
+    /**
+     * An editor for Android only while the program has a text field focused (or the user asked
+     * for the keyboard): otherwise Android could bring the keyboard up on its own, e.g. when
+     * HandTop's window gets the focus back.
+     */
+    override fun onCheckIsTextEditor() = keyboardRequested || ownTextInput() != null
+
+    private fun ownTextInput() = server.textInputs.active()?.takeIf { it.client === toplevel.client }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
         WaylandInputConnection.editorInfo(outAttrs, server.textInputs.active())
@@ -105,7 +116,9 @@ class WaylandWindowContent(
 
     /** Taskbar keyboard button. */
     override fun requestKeyboard() {
+        keyboardRequested = true
         requestFocus()
+        imm?.restartInput(this)
         imm?.showSoftInput(this, 0)
     }
 
@@ -114,7 +127,7 @@ class WaylandWindowContent(
      * keyboard sends, and show it on its own when there is no hardware keyboard.
      */
     private fun textInputChanged() {
-        val input = server.textInputs.active()?.takeIf { it.client === toplevel.client }
+        val input = ownTextInput()
         imm?.restartInput(this)
         if (input != null && lastTextInput == null && !hasHardwareKeyboard()) {
             requestFocus()
@@ -127,10 +140,12 @@ class WaylandWindowContent(
     }
 
     private fun showKeyboardIfTyping() {
-        if (server.textInputs.active()?.client !== toplevel.client || hasHardwareKeyboard()) return
+        if (ownTextInput() == null || hasHardwareKeyboard() || !isActiveWindow()) return
         imm?.showSoftInput(this, 0)
         keyboardAutoShown = true
     }
+
+    private fun isActiveWindow() = windowControl.isActive()
 
     private fun hideKeyboard() {
         keyboardAutoShown = false
@@ -142,6 +157,7 @@ class WaylandWindowContent(
 
     override fun onDeactivated() {
         server.textInputs.removeListener(textInputListener)
+        keyboardRequested = false
         if (keyboardAutoShown) hideKeyboard()
         // Menus close when their window loses focus, as on a desktop.
         toplevel.popups.toList().forEach { it.dismiss() }
@@ -167,6 +183,8 @@ class WaylandWindowContent(
     override fun titleChanged() {
         host?.setTitle(toplevel.title.ifEmpty { toplevel.appId.ifEmpty { "Linux" } })
     }
+
+    override fun appIdChanged() = windowControl.appIdChanged()
 
     override fun contentChanged() {
         invalidate()

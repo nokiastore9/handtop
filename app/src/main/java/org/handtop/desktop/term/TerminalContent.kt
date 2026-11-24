@@ -20,6 +20,7 @@ import com.termux.view.TerminalView
 import com.termux.view.TerminalViewClient
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.dpi
+import org.handtop.desktop.wm.TitleAction
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
 
@@ -35,6 +36,13 @@ class TerminalContent(
 
     val terminalView = TerminalView(context, null)
     private val extraKeys = ExtraKeysBar(context) { onExtraKey(it) }
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /** Title bar toggle for the extra keys (hidden by default: the terminal gets the room). */
+    private val extraKeysAction = TitleAction(R.drawable.ic_extra_keys, R.string.terminal_extra_keys) {
+        setExtraKeysShown(extraKeys.visibility != View.VISIBLE)
+    }
+    override val titleActions = listOf(extraKeysAction)
     private var host: WindowHost? = null
     private val defaultTitle = term.spec.title
     private val minFontPx = dpi(6)
@@ -58,10 +66,6 @@ class TerminalContent(
         TermSessions.remove(context, term)
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        updateExtraKeysVisibility(newConfig)
-    }
 
     override fun requestKeyboard() {
         terminalView.requestFocus()
@@ -101,9 +105,11 @@ class TerminalContent(
         terminalView.setTextSize(fontPx)
     }
 
-    private fun updateExtraKeysVisibility(config: Configuration) {
-        val hardwareKeyboard = config.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO
-        extraKeys.visibility = if (hardwareKeyboard) View.GONE else View.VISIBLE
+    /** Shows or hides the extra keys; new terminals open the way the user left the last one. */
+    private fun setExtraKeysShown(shown: Boolean) {
+        extraKeys.visibility = if (shown) View.VISIBLE else View.GONE
+        extraKeysAction.checked = shown
+        prefs.edit().putBoolean(KEY_EXTRA_KEYS, shown).apply()
     }
 
     private fun hasHardwareKeyboard() =
@@ -238,10 +244,14 @@ class TerminalContent(
         term.ui = this
         // The shell process starts on the first layout, once the terminal knows its size.
         terminalView.attachSession(term.session)
-        updateExtraKeysVisibility(resources.configuration)
+        val shown = prefs.getBoolean(KEY_EXTRA_KEYS, false)
+        extraKeys.visibility = if (shown) View.VISIBLE else View.GONE
+        extraKeysAction.checked = shown
     }
 
     private companion object {
+        const val PREFS = "terminal"
+        const val KEY_EXTRA_KEYS = "extra_keys"
         const val CURSOR_BLINK_MS = 600
     }
 }

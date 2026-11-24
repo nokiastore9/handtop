@@ -16,7 +16,7 @@ import org.handtop.desktop.ui.selectableBackground
 
 /**
  * Two rows of keys missing from phone keyboards (Esc, Tab, Ctrl, Alt, arrows...).
- * Hidden automatically when a hardware keyboard is connected (e.g. in DeX).
+ * Shown with the terminal window's title bar toggle.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class ExtraKeysBar(context: Context, private val listener: Listener) : LinearLayout(context) {

@@ -1,6 +1,8 @@
 package org.handtop.desktop.wm
 
 import android.view.View
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 
 /**
  * Anything that can live inside a desktop window: the terminal, the about page and,
@@ -32,6 +34,21 @@ interface WindowContent {
 
     /** Show the on-screen keyboard for this content, if it accepts text. */
     fun requestKeyboard() {}
+
+    /** Extra buttons for the window's title bar, left of minimize (e.g. a terminal's key bar). */
+    val titleActions: List<TitleAction> get() = emptyList()
+}
+
+/** A title bar button; [checked] shows a toggle as on. */
+class TitleAction(@param:DrawableRes val icon: Int, @param:StringRes val label: Int, val onClick: () -> Unit) {
+    var checked = false
+        set(value) {
+            field = value
+            onChange?.invoke()
+        }
+
+    /** Set by the window to refresh the button. */
+    var onChange: (() -> Unit)? = null
 }
 
 /** What the content may ask from its window. */

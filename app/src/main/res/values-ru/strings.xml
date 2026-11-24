@@ -11,6 +11,7 @@
     <string name="app_settings">Настройки</string>
     <string name="app_about">О программе</string>
     <string name="action_minimize">Свернуть</string>
+    <string name="terminal_extra_keys">Доп. клавиши (Esc, Ctrl, стрелки)</string>
     <string name="action_maximize">Развернуть</string>
     <string name="action_close">Закрыть</string>
     <string name="action_paste">Вставить</string>

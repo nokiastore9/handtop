@@ -6,7 +6,9 @@ import android.graphics.Canvas
 import android.graphics.Point
 import android.view.InputDevice
 import android.view.MotionEvent
+import android.view.PointerIcon
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewTreeObserver
 
 /**
@@ -178,6 +180,33 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
             -event.getAxisValue(MotionEvent.AXIS_VSCROLL) * SCROLL_STEP,
         )
         return true
+    }
+
+    /**
+     * The pointer shape. ViewGroup asks only the topmost child under the pointer, and this layer
+     * covers the whole desktop: outside the popups, answer for the views below (the windows,
+     * their resize edges, the programs' own cursors), as if the layer were not there.
+     */
+    override fun onResolvePointerIcon(event: MotionEvent, pointerIndex: Int): PointerIcon? {
+        val x = event.getX(pointerIndex)
+        val y = event.getY(pointerIndex)
+        if (popupAt(x, y) != null) return pointerIcon // set by the Seat for the popup's program
+        val parent = parent as? ViewGroup ?: return null
+        for (i in parent.indexOfChild(this) - 1 downTo 0) {
+            val below = parent.getChildAt(i)
+            if (below.visibility != VISIBLE) continue
+            val dx = left - below.left.toFloat()
+            val dy = top - below.top.toFloat()
+            if (x + dx < 0 || y + dy < 0 || x + dx >= below.width || y + dy >= below.height) continue
+            val moved = MotionEvent.obtain(event)
+            moved.offsetLocation(dx, dy)
+            try {
+                return below.onResolvePointerIcon(moved, pointerIndex)
+            } finally {
+                moved.recycle()
+            }
+        }
+        return null
     }
 
     private fun buttonOf(event: MotionEvent): Int {
