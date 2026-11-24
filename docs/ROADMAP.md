@@ -346,10 +346,13 @@ Xwayland (X11-приложения), общий буфер обмена, drag & 
   Turnip на KGSL (`/dev/kgsl-3d0` открыт всем приложениям, root не нужен) внутри proot,
   Mesa 26.3.1 своей сборкой (`native/mesa/`, у Debian KGSL выключен). Vulkan 1.4,
   OpenGL 4.6, GLES 3.2 в окнах HandTop — Wayland и X11 (GLX через `LIBGL_KOPPER_DRI2`,
-  у Xwayland в proot нет DRI3). glmark2 terrain 7 → 126 к/с, refract 16 → 186.
+  у Xwayland в proot нет DRI3). На Wayland без DRM EGL бросал Zink ради программного
+  пути, и окна оставались пустыми (FPS при этом были «настоящие» — проверять картинку, а не
+  только числа); исправлено патчем `native/mesa/patches/0001`. glmark2 terrain 7 → 117 к/с,
+  refract 16 → 160; SuperTuxKart (Black Forest, 8 машин, 2560×1440) ~0,5 → 48,5 к/с.
 - Дальше: кадры без копирования — HandTop должен принимать GPU-буферы (dmabuf /
   `AHardwareBuffer`); сейчас `MESA_VK_WSI_DEBUG=sw` копирует кадр через общую память, и
-  лёгкие сцены упираются в это (~350 к/с против 900 у llvmpipe). Пакет для релиза и
+  лёгкие сцены упираются в это (~290 к/с против 900 у llvmpipe). Пакет для релиза и
   автоматическое включение — см. «Из коробки».
 - DeX: захват Meta-клавиши, несколько мониторов, режим «лаунчер».
 - Проверить горячие клавиши (Ctrl+Alt+T, Alt+F4, Ctrl+Shift+C/V, Ctrl ±) с клавиатурой,
@@ -367,6 +370,7 @@ Xwayland (X11-приложения), общий буфер обмена, drag & 
 | `gpg` в дистрибутиве | сторонние пакеты (VS Code, Chrome…) записывают ключ своего репозитория через `gpg`; без него ключ пустой, и `apt update` падает с ошибкой подписи | нет | ставить при установке дистрибутива |
 | Флаги Electron (VS Code и др.) | под root и в proot: `--no-sandbox`, `--user-data-dir`, `--password-store=basic`, пока без GPU `--disable-gpu` | правка `.desktop`-файла руками | HandTop добавляет сам, как переменные для Firefox |
 | Xwayland | X11-программы | ставится по запросу | без изменений |
+| `/usr/games` в `PATH` | Debian кладёт игры туда, а у root этого пути нет: игры не запускались ни из меню, ни из терминала | — | готово: `/etc/profile.d/handtop.sh`, HandTop пишет его сам |
 
 ## Риски и находки
 

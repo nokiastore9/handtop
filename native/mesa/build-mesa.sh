@@ -26,7 +26,7 @@ export DEBIAN_FRONTEND=noninteractive
 # Debian's own lists are refreshed all the same.
 apt-get update -q || echo "warning: apt-get update reported errors; continuing with Debian's lists"
 apt-get install -y -q --no-install-recommends \
-    build-essential meson ninja-build pkg-config bison flex glslang-tools \
+    build-essential meson ninja-build pkg-config bison flex glslang-tools patch \
     python3-mako python3-yaml python3-packaging \
     libdrm-dev libexpat1-dev zlib1g-dev libzstd-dev libglvnd-dev \
     libwayland-dev libwayland-bin libwayland-egl-backend-dev wayland-protocols \
@@ -47,6 +47,15 @@ echo "$MESA_SHA256  $TARBALL" | sha256sum -c -
 # An interrupted build continues where it stopped; delete mesa-$MESA_VERSION to start over.
 [ -d "mesa-$MESA_VERSION" ] || tar -xJf "$TARBALL"
 cd "mesa-$MESA_VERSION"
+
+# HandTop's changes to Mesa (patches/, each explains itself), applied once.
+if [ ! -f .handtop-patched ]; then
+    for p in "$HERE"/patches/*.patch; do
+        echo "applying $(basename "$p")"
+        patch -p1 --forward --batch < "$p"
+    done
+    touch .handtop-patched
+fi
 
 # Mesa needs wayland-protocols newer than Debian 13's: it comes from Mesa's own wrap. Its XML
 # uses the "frozen" attribute, unknown to Debian 13's wayland-scanner (1.23), which with

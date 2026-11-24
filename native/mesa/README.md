@@ -22,11 +22,20 @@ What the script does:
 
 1. Installs about 1 GB of build tools with apt.
 2. Fetches the pinned Mesa release from archive.mesa3d.org and checks its SHA-256.
-3. Builds Mesa, installs it into `/opt/handtop-mesa`, and packs that directory as
+3. Applies `patches/`.
+4. Builds Mesa, installs it into `/opt/handtop-mesa`, and packs that directory as
    `handtop-mesa-<version>-debian13-arm64.tar.xz` (about 7 MB).
 
 The build takes about 10 minutes on a Snapdragon 8 Gen 3. It resumes after an interruption;
 delete `mesa-<version>/` to start over.
+
+## Patches
+
+- `0001-egl-keep-zink-without-drm.patch`: with Zink requested and no DRM device, EGL used to
+  drop Zink for its software path. Zink then still drew on the GPU, but every frame was read
+  back through drisw, and on Wayland the windows stayed empty. With the patch, EGL keeps
+  Zink on the software platform path, and Zink presents through Vulkan (kopper), as it does
+  on X11. Candidate for upstream.
 
 ## Use
 
@@ -41,14 +50,18 @@ environment. Frames reach HandTop's windows through shared memory for now
 
 ## Measured
 
-Galaxy S24 Ultra (Adreno 750), Mesa 26.3.1, window 800×600 on the phone's screen, fps:
+Galaxy S24 Ultra (Adreno 750), Mesa 26.3.1, in windows on the phone's screen. The phone
+was warm after an hour of tests, so expect some spread.
 
 | test | llvmpipe (CPU) | Adreno 750 |
 |---|---|---|
-| glmark2 clear | 922 | 354 |
-| glmark2 build | 393 | 337 |
-| glmark2 refract | 16 | 186 |
-| glmark2 terrain | 7 | 126 |
-| glxgears (X11) | — | 508 |
+| glmark2 clear, 800×600 | 922 fps | 293 fps |
+| glmark2 build, 800×600 | 393 fps | 266 fps |
+| glmark2 refract, 800×600 | 16 fps | 160 fps |
+| glmark2 terrain, 800×600 | 7 fps | 117 fps |
+| vkmark, 800×600 | — | score 428 |
+| SuperTuxKart 1.4, Black Forest, 8 karts, 2560×1440 px | ~0.5 fps | 48.5 fps |
+| glxgears (X11) | — | 557 fps |
 
-Light scenes are limited by the copies above; heavy scenes run 10–18× faster.
+Light scenes are limited by the copies above (and lose to llvmpipe for now). Heavy scenes
+run 10–100× faster.
