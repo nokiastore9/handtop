@@ -22,6 +22,10 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
     private var pendingBuffer: WlBuffer? = null
     private var pendingAttached = false
     private var pendingScale = 1
+    /** set_input_region: where the surface takes pointer and touch input; null = everywhere. */
+    private var pendingInputRegion: Region? = null
+    private var inputRegionSet = false
+    private var inputRegion: Region? = null
     private val pendingFrames = ArrayList<WlCallback>()
     /** wl_surface.damage (surface coordinates) and damage_buffer (buffer pixels). */
     private val pendingSurfaceDamage = ArrayList<Rect>()
@@ -99,7 +103,10 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
     fun surfaceAt(x: Double, y: Double): Pair<WlSurface, DoubleArray>? {
         for (s in stack.asReversed()) {
             if (s === this) {
-                if (bitmap != null && x >= 0 && y >= 0 && x < width && y < height) return this to doubleArrayOf(x, y)
+                // E.g. Firefox draws on a sub-surface with an empty input region: input goes below.
+                if (bitmap != null && x >= 0 && y >= 0 && x < width && y < height && inputRegion?.contains(x, y) != false) {
+                    return this to doubleArrayOf(x, y)
+                }
             } else {
                 val sub = s.subsurface ?: continue
                 s.surfaceAt(x - sub.x, y - sub.y)?.let { return it }
@@ -119,7 +126,11 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
             2 -> pendingSurfaceDamage += readRect(r) // damage
             9 -> pendingBufferDamage += readRect(r) // damage_buffer (v4)
             3 -> pendingFrames += client.register(WlCallback(client, r.newId()))
-            4, 5 -> r.obj() // set_opaque_region / set_input_region
+            4 -> r.obj() // set_opaque_region
+            5 -> { // set_input_region(region or null)
+                pendingInputRegion = client.optional<WlRegion>(r.obj())?.snapshot()
+                inputRegionSet = true
+            }
             6 -> commit()
             7 -> r.int() // set_buffer_transform
             8 -> pendingScale = r.int().coerceIn(1, 8)
@@ -154,6 +165,10 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         pendingSurfaceDamage.clear()
         pendingBufferDamage.clear()
         bufferScale = scale
+        if (inputRegionSet) {
+            inputRegion = pendingInputRegion
+            inputRegionSet = false
+        }
         if (pendingFrames.isNotEmpty()) {
             client.server.scheduleFrameCallbacks(pendingFrames)
             pendingFrames.clear()

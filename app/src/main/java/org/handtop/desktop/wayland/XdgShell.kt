@@ -359,6 +359,10 @@ class XdgPopup(
     override val surface get() = xdg.surface
     override fun visibleGeometry() = xdg.visibleGeometry()
 
+    /** xdg_popup.grab: a menu. Without a grab (tooltips) a click elsewhere goes through. */
+    private var grabbed = false
+    override val closesOnOutsideClick get() = grabbed
+
     var mapped = false
         private set
     private var configureSent = false
@@ -379,6 +383,7 @@ class XdgPopup(
             0 -> destroy()
             1 -> { // grab(seat, serial): menus take the keyboard (arrow keys, Escape)
                 r.obj(); r.uint()
+                grabbed = true
                 client.server.seat.setKeyboardFocus(xdg.surface)
             }
             2 -> { // reposition(positioner, token)

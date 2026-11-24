@@ -52,6 +52,7 @@ import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.wayland.PopupLayer
 import org.handtop.desktop.wayland.WaylandServer
 import org.handtop.desktop.wayland.WaylandWindowContent
+import org.handtop.desktop.wayland.ScreenKeeper
 import org.handtop.desktop.wayland.Toplevel
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
@@ -174,6 +175,9 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         val wayland = WaylandServer.get(this)
         wayland.updateDisplay(resources.displayMetrics) // after the interface scale
         wayland.host = this
+        // Linux programs playing a video keep the screen on (Wayland idle inhibit, D-Bus).
+        ScreenKeeper.onChange = { keepScreenOn(it) }
+        keepScreenOn(ScreenKeeper.active)
         wayland.mappedToplevels().forEach { toplevelMapped(it) }
         // Re-created after changing the scale: keep the Settings window where the user was.
         if (savedInstanceState?.getBoolean(STATE_SETTINGS_OPEN) == true) openSettings()
@@ -204,7 +208,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         area.windows.forEach { (it.content as? SettingsContent)?.refresh() }
     }
 
+    private fun keepScreenOn(on: Boolean) {
+        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
     override fun onDestroy() {
+        ScreenKeeper.onChange = null
         WaylandServer.get(this).let { if (it.host === this) it.host = null }
         startMenu?.dismiss()
         // Sessions stay alive in TermSessions; just drop references to this activity's views.

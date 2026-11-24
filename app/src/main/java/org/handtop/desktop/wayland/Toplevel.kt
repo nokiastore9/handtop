@@ -48,6 +48,12 @@ interface Popup {
     /** False for tooltips: they take no clicks and do not close on a click elsewhere. */
     val takesInput: Boolean get() = true
 
+    /**
+     * A menu that holds the input: a click elsewhere closes it (and is not passed on).
+     * Tooltips and other popups without a grab let the click through.
+     */
+    val closesOnOutsideClick: Boolean get() = takesInput
+
     fun visibleGeometry(): Rect
 
     /** Closes the popup (a click outside it). */

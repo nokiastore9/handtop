@@ -268,6 +268,18 @@ Firefox: песочницы процессов (seccomp, namespaces) несов�
 Проверено в DeX: места, переходы, миниатюры, меню, открытие в Parole / Ristretto / Галерее
 Android, Ctrl+C / Ctrl+V, F2, Delete с подтверждением, Thunar с закладками, Firefox с картинкой.
 
+Экран не гаснет при видео (2026-11-24): `ScreenKeeper` держит `FLAG_KEEP_SCREEN_ON` окна HandTop,
+пока есть хотя бы одна просьба: Wayland `zwp_idle_inhibit_manager_v1` (mpv, GStreamer, Firefox
+без D-Bus) или D-Bus — HandTop сам служит на сессионной шине (`InhibitBus.kt`, свой минимальный
+клиент D-Bus в `DBus.kt`, аутентификация ANONYMOUS): `org.freedesktop.ScreenSaver`,
+`org.freedesktop.PowerManagement.Inhibit`, `org.gnome.SessionManager` (только флаг idle).
+Просьбы программы, которая закрылась или упала, снимаются по `NameOwnerChanged`.
+Проверено: Parole (PowerManagement) — флаг на время ролика, снят в конце и после `kill -9`;
+Firefox (ScreenSaver) — две просьбы на время видео, сняты после конца.
+Ввод: `wl_surface.set_input_region` / `wl_region` теперь работают — Firefox рисует на
+подповерхности с пустой областью ввода, раньше мышь и касания уходили ей и терялись (клавиатура
+работала). Всплывающие окна без `xdg_popup.grab` (подсказки) больше не съедают клик мимо себя.
+
 Дальше:
 - окна Linux на отдельной поверхности (SurfaceControl / TextureView), чтобы кадр клиента не
   перерисовывал всё окно HandTop; GPU-клиенты через dmabuf / общий `AHardwareBuffer` (этап 5);

@@ -121,7 +121,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
         return null
     }
 
-    private fun anyPopups() = windows.any { w -> w.toplevel.popups.any { it.takesInput } }
+    private fun anyPopups() = windows.any { w -> w.toplevel.popups.any { it.closesOnOutsideClick } }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -132,7 +132,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
                 if (hit == null) {
                     if (!anyPopups()) return false // not ours: the windows below get it
                     // A click outside the menus closes them (and is not passed on).
-                    windows.forEach { w -> w.toplevel.popups.filter { it.takesInput }.forEach { it.dismiss() } }
+                    windows.forEach { w -> w.toplevel.popups.filter { it.closesOnOutsideClick }.forEach { it.dismiss() } }
                     return true
                 }
                 pressTarget = hit.surface

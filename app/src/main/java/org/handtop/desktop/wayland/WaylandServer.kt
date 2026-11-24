@@ -94,6 +94,7 @@ class WaylandServer private constructor(private val app: Context) {
         Global(9, "zwp_text_input_manager_v3", 1) { c, id, _ -> c.register(TextInputManager(c, id)) },
         Global(10, "xwayland_shell_v1", 1) { c, id, _ -> c.register(XwaylandShell(c, id)) },
         Global(11, "zxdg_output_manager_v1", 2) { c, id, v -> c.register(XdgOutputManager(c, id, v)) },
+        Global(12, "zwp_idle_inhibit_manager_v1", 1) { c, id, _ -> c.register(IdleInhibitManager(c, id)) },
     )
 
     fun nextSerial() = ++serial

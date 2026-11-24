@@ -1,5 +1,6 @@
 package org.handtop.desktop.wayland
 
+import android.graphics.Rect
 import android.util.Log
 
 // Core Wayland protocol objects (wayland.xml). Request/event numbers follow the XML order.
@@ -68,13 +69,35 @@ class WlCompositor(client: Client, id: Int, version: Int) : Resource(client, id,
 }
 
 /** Opaque / input regions: accepted and ignored for now. */
+/**
+ * A set of rectangles built by adding and subtracting: a point is inside if the last
+ * operation whose rectangle holds it was an add.
+ */
+class Region(private val ops: List<Pair<Boolean, Rect>>) {
+    fun contains(x: Double, y: Double): Boolean {
+        var inside = false
+        for ((add, rect) in ops) {
+            if (x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom) inside = add
+        }
+        return inside
+    }
+}
+
 class WlRegion(client: Client, id: Int) : Resource(client, id, 1) {
     override val iface = "wl_region"
+
+    private val ops = ArrayList<Pair<Boolean, Rect>>()
+
+    /** A copy: the surface keeps it even if the client changes or destroys the region. */
+    fun snapshot() = Region(ops.toList())
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
             0 -> destroy()
-            1, 2 -> repeat(4) { r.int() } // add / subtract
+            1, 2 -> { // add / subtract(x, y, width, height)
+                val x = r.int(); val y = r.int(); val w = r.int(); val h = r.int()
+                if (w > 0 && h > 0) ops.add((opcode == 1) to Rect(x, y, x + w, y + h))
+            }
             else -> super.dispatch(opcode, r)
         }
     }
