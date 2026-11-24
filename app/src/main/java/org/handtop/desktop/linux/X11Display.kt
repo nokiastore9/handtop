@@ -22,6 +22,9 @@ object X11Display {
     const val NUMBER = 0
     const val DISPLAY = ":$NUMBER"
     private const val START_TIMEOUT_MS = 15_000L
+    private const val RESTART_DELAY_MS = 1_000L
+    private const val RESTART_WINDOW_MS = 60_000L
+    private const val MAX_RESTARTS = 3
 
     // Asynchronous like the Wayland server's: X11 replies must not wait for a screen refresh.
     private val main: Handler = mainAsync()
@@ -53,6 +56,8 @@ object X11Display {
         File(rootfs, "tmp/.X$NUMBER-lock").delete()
         val spec = LinuxEnv.commandSpec(app, "exec Xwayland $DISPLAY -rootless -shm -noreset -nolisten tcp -nolisten local")
         val log = File(rootfs, "tmp/handtop-xwayland.log")
+        // Keep the previous run's output: after a crash it holds the backtrace.
+        if (log.exists()) log.renameTo(File(rootfs, "tmp/handtop-xwayland.log.old"))
         val started = try {
             ProcessBuilder(listOf(spec.executable) + spec.args.drop(1))
                 .directory(File(spec.cwd))
@@ -94,8 +99,32 @@ object X11Display {
         Thread({
             started.waitFor()
             Log.i(TAG, "Xwayland exited (${started.exitValue()})")
-            main.post { if (process === started) process = null }
+            main.post {
+                if (process !== started) return@post
+                process = null
+                restartAfterExit(app)
+            }
         }, "xwayland-wait").start()
+    }
+
+    /** When Xwayland exited unexpectedly lately, to stop restarting one that cannot run. */
+    private val exits = ArrayDeque<Long>()
+
+    /**
+     * Xwayland is meant to run as long as HandTop does. If it crashed or was killed, X11
+     * programs would not start again until a new terminal session: start it again, unless it
+     * keeps exiting. (Seen once: SIGSYS in accept() under proot, not reproduced.)
+     */
+    private fun restartAfterExit(app: Context) {
+        val now = SystemClock.uptimeMillis()
+        while (exits.isNotEmpty() && now - exits.first() > RESTART_WINDOW_MS) exits.removeFirst()
+        exits.addLast(now)
+        if (exits.size > MAX_RESTARTS) {
+            Log.w(TAG, "Xwayland keeps exiting, not restarting it (see /tmp/handtop-xwayland.log)")
+            return
+        }
+        Log.i(TAG, "restarting Xwayland")
+        main.postDelayed({ ensureRunning(app) }, RESTART_DELAY_MS)
     }
 
     /** Waits (off the main thread) until X11 programs can start, at most [timeoutMs]. */
