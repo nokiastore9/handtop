@@ -84,6 +84,8 @@ class Seat(private val server: WaylandServer) {
         }
         keyboardFocus = surface
         if (surface != null) {
+            // The selection is announced before the keyboard enters (wl_data_device spec).
+            server.clipboard.sendSelection(surface.client)
             val serial = server.nextSerial()
             keyboards.filter { it.client === surface.client }.forEach { k ->
                 k.event(1) { uint(serial); obj(surface.id); array(ByteArray(0)) }
@@ -102,13 +104,18 @@ class Seat(private val server: WaylandServer) {
         if (pressed && event.repeatCount > 0) return true // the client repeats keys itself
         val serial = server.nextSerial()
         val clientKeyboards = keyboards.filter { it.client === surface.client }
-        clientKeyboards.forEach { k ->
-            k.event(3) { uint(serial); uint(time()); uint(code); uint(if (pressed) 1 else 0) }
-        }
-        val newModifiers = Keycodes.modifierMask(event.metaState)
+        // Clients keep modifier state only from wl_keyboard.modifiers, so it must be current
+        // before the key arrives. A modifier key's own event may not carry its meta bit yet
+        // (injected keys, some keyboards): account for it here.
+        var newModifiers = Keycodes.modifierMask(event.metaState)
+        val own = Keycodes.modifierOf(event.keyCode)
+        if (own != 0) newModifiers = if (pressed) newModifiers or own else newModifiers and own.inv()
         if (newModifiers != modifiers) {
             modifiers = newModifiers
             clientKeyboards.forEach { k -> k.event(4) { uint(serial); uint(modifiers); uint(0); uint(0); uint(0) } }
+        }
+        clientKeyboards.forEach { k ->
+            k.event(3) { uint(serial); uint(time()); uint(code); uint(if (pressed) 1 else 0) }
         }
         surface.client.flush()
         return true

@@ -187,6 +187,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         super.onWindowFocusChanged(hasFocus)
         // Back from Android settings, a permission dialog etc.: hide the bars again.
         if (hasFocus) window.hideSystemBars()
+        // Something may have been copied in another app meanwhile: offer it to Linux.
+        if (hasFocus) WaylandServer.get(this).clipboard.syncFromAndroid()
     }
 
     override fun onResume() {

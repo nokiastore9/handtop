@@ -61,6 +61,15 @@ object Keycodes {
     }
 
     /** XKB "depressed" modifier mask: Shift, Lock, Control, Mod1 (Alt), Mod2 (Num), Mod4 (Super). */
+    /** The XKB modifier bit a modifier key itself controls (0 for other keys). */
+    fun modifierOf(keyCode: Int): Int = when (keyCode) {
+        KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> 1
+        KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_CTRL_RIGHT -> 4
+        KeyEvent.KEYCODE_ALT_LEFT, KeyEvent.KEYCODE_ALT_RIGHT -> 8
+        KeyEvent.KEYCODE_META_LEFT, KeyEvent.KEYCODE_META_RIGHT -> 64
+        else -> 0
+    }
+
     fun modifierMask(metaState: Int): Int {
         var mask = 0
         if (metaState and KeyEvent.META_SHIFT_ON != 0) mask = mask or 1

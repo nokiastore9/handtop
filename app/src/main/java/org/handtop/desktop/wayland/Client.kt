@@ -135,6 +135,11 @@ class Client(val server: WaylandServer, private val fd: Int, private val main: H
 
     fun resources(): Collection<Resource> = objects.values
 
+    private var nextServerObject = SERVER_ID_START
+
+    /** An id for an object the compositor creates (e.g. wl_data_offer). */
+    fun nextServerId(): Int = nextServerObject++
+
     // ---- events ----
 
     fun event(objectId: Int, opcode: Int, block: EventWriter.() -> Unit) {

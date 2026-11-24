@@ -241,23 +241,6 @@ class WlSubsurface(client: Client, id: Int) : Resource(client, id, 1) {
     }
 }
 
-/** Clipboard / drag & drop: present so toolkits are happy; no transfers yet. */
-class WlDataDeviceManager(client: Client, id: Int, version: Int) : Resource(client, id, version) {
-    override val iface = "wl_data_device_manager"
-
-    override fun dispatch(opcode: Int, r: MessageReader) {
-        when (opcode) {
-            0 -> client.register(Stub(client, r.newId(), version, "wl_data_source", destroyOpcode = 1))
-            1 -> {
-                val newId = r.newId()
-                r.obj() // seat
-                client.register(Stub(client, newId, version, "wl_data_device", destroyOpcode = 2))
-            }
-            else -> super.dispatch(opcode, r)
-        }
-    }
-}
-
 /** Server-side decorations: HandTop always draws the window frame itself. */
 class XdgDecorationManager(client: Client, id: Int) : Resource(client, id, 1) {
     override val iface = "zxdg_decoration_manager_v1"
