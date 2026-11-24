@@ -2,6 +2,7 @@ package org.handtop.desktop.wayland
 
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.graphics.RectF
 
 /** What a surface is used for; decides what a commit means. */
 sealed interface SurfaceRole {
@@ -44,8 +45,42 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         private set
 
     /** Content size in surface-local (logical) coordinates. */
-    val width get() = if (bitmap != null) bufferWidth / bufferScale else 0
-    val height get() = if (bitmap != null) bufferHeight / bufferScale else 0
+    val width get() = if (bitmap == null) 0 else if (destWidth > 0) destWidth else source?.width()?.toInt() ?: (bufferWidth / bufferScale)
+    val height get() = if (bitmap == null) 0 else if (destHeight > 0) destHeight else source?.height()?.toInt() ?: (bufferHeight / bufferScale)
+
+    // ---- wp_viewport (see Viewporter.kt), double-buffered like the rest ----
+
+    var viewport: WpViewport? = null
+    private var pendingSource: RectF? = null
+    private var sourceSet = false
+    private var pendingDestWidth = -1
+    private var pendingDestHeight = -1
+    private var destSet = false
+    /** The part of the buffer shown, in surface coordinates (before the buffer scale); null = all. */
+    private var source: RectF? = null
+    private var destWidth = -1
+    private var destHeight = -1
+
+    fun setPendingSource(rect: RectF?) {
+        pendingSource = rect
+        sourceSet = true
+    }
+
+    fun setPendingDestination(width: Int, height: Int) {
+        pendingDestWidth = width
+        pendingDestHeight = height
+        destSet = true
+    }
+
+    private val scaled get() = source != null || destWidth > 0
+
+    /** The buffer pixels to draw (the viewport's source), or null for the whole buffer. */
+    fun sourceInBuffer(): Rect? = source?.let {
+        Rect(
+            (it.left * bufferScale).toInt(), (it.top * bufferScale).toInt(),
+            Math.round(it.right * bufferScale), Math.round(it.bottom * bufferScale),
+        )
+    }
 
     /** Called after each commit (on the main thread), e.g. to redraw the window. */
     var onCommit: (() -> Unit)? = null
@@ -165,6 +200,15 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         pendingSurfaceDamage.clear()
         pendingBufferDamage.clear()
         bufferScale = scale
+        if (sourceSet) {
+            source = pendingSource
+            sourceSet = false
+        }
+        if (destSet) {
+            destWidth = pendingDestWidth
+            destHeight = pendingDestHeight
+            destSet = false
+        }
         if (inputRegionSet) {
             inputRegion = pendingInputRegion
             inputRegionSet = false
@@ -185,7 +229,9 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
     private fun damageInBuffer(scale: Int, buffer: WlBuffer): List<Rect> {
         val bounds = Rect(0, 0, buffer.width, buffer.height)
         val out = ArrayList<Rect>(pendingSurfaceDamage.size + pendingBufferDamage.size)
-        for (d in pendingSurfaceDamage) {
+        // Damage in surface coordinates with a viewport (scaled, cropped): take the whole buffer.
+        if (pendingSurfaceDamage.isNotEmpty() && (scaled || pendingSource != null || pendingDestWidth > 0)) out += bounds
+        else for (d in pendingSurfaceDamage) {
             val r = Rect(d.left * scale, d.top * scale, d.right * scale, d.bottom * scale)
             if (r.intersect(bounds)) out += r
         }

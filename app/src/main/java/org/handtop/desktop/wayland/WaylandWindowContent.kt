@@ -288,7 +288,7 @@ class WaylandWindowContent(
         for (part in surface.drawOrder) {
             if (part === surface) {
                 val bitmap = surface.bitmap ?: continue
-                src.set(0, 0, bitmap.width, bitmap.height)
+                surface.sourceInBuffer()?.let { src.set(it) } ?: src.set(0, 0, bitmap.width, bitmap.height)
                 dst.set(ox, oy, ox + surface.width * s, oy + surface.height * s)
                 canvas.drawBitmap(bitmap, src, dst, paint)
             } else {
