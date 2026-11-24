@@ -145,6 +145,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
             return false // the window below handles its own hover
         }
         hovering = true
+        server.seat.cursorView = this
         server.seat.pointerMotion(hit.surface, hit.x, hit.y)
         return true
     }

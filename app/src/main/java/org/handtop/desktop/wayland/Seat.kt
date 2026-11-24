@@ -2,6 +2,8 @@ package org.handtop.desktop.wayland
 
 import android.os.SystemClock
 import android.view.KeyEvent
+import android.view.PointerIcon
+import android.view.View
 
 /** The single seat: routes Android input to the focused client's pointer and keyboard. */
 class Seat(private val server: WaylandServer) {
@@ -14,6 +16,50 @@ class Seat(private val server: WaylandServer) {
     var keyboardFocus: WlSurface? = null
         private set
     private var modifiers = 0
+
+    // ---- cursor: the pointer image a program sets (I-beam over text, arrows on borders) ----
+
+    /** The view the mouse is over (a Linux window or the popup layer); it shows the icon. */
+    var cursorView: View? = null
+    private var cursorSurface: WlSurface? = null
+    private var cursorHidden = false
+    private var hotX = 0
+    private var hotY = 0
+
+    /** wl_pointer.set_cursor from [client]; a null surface hides the pointer. */
+    fun setCursor(client: Client, surface: WlSurface?, hotspotX: Int, hotspotY: Int) {
+        if (pointerFocus?.client !== client) return // only the program under the pointer
+        cursorSurface = surface
+        cursorHidden = surface == null
+        hotX = hotspotX
+        hotY = hotspotY
+        applyCursor()
+    }
+
+    fun cursorCommitted(surface: WlSurface) {
+        if (surface === cursorSurface) applyCursor()
+    }
+
+    private fun applyCursor() {
+        val view = cursorView ?: return
+        val icon = if (cursorHidden) {
+            PointerIcon.getSystemIcon(view.context, PointerIcon.TYPE_NULL)
+        } else {
+            val surface = cursorSurface ?: return
+            val bitmap = surface.bitmap ?: return
+            val scale = surface.bufferScale
+            try {
+                PointerIcon.create(
+                    bitmap,
+                    (hotX * scale).toFloat().coerceIn(0f, (bitmap.width - 1).toFloat()),
+                    (hotY * scale).toFloat().coerceIn(0f, (bitmap.height - 1).toFloat()),
+                )
+            } catch (_: IllegalArgumentException) {
+                return
+            }
+        }
+        view.pointerIcon = icon
+    }
 
     private fun time() = SystemClock.uptimeMillis().toInt()
 
@@ -161,10 +207,13 @@ class WlPointer(client: Client, id: Int, version: Int) : Resource(client, id, ve
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
-            0 -> { // set_cursor(serial, surface, hotspot x, y): Android draws the pointer
+            0 -> { // set_cursor(serial, surface, hotspot x, y): shown as an Android pointer icon
                 r.uint()
-                client.optional<WlSurface>(r.obj())?.role = SurfaceRole.Cursor
-                r.int(); r.int()
+                val surface = client.optional<WlSurface>(r.obj())
+                val x = r.int()
+                val y = r.int()
+                surface?.role = SurfaceRole.Cursor
+                client.server.seat.setCursor(client, surface, x, y)
             }
             1 -> destroy()
             else -> super.dispatch(opcode, r)

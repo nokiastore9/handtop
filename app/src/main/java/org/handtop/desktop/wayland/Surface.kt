@@ -95,6 +95,7 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
             pendingFrames.clear()
         }
         (role as? SurfaceRole.Xdg)?.xdg?.surfaceCommitted()
+        if (role === SurfaceRole.Cursor) client.server.seat.cursorCommitted(this)
         onCommit?.invoke()
     }
 
@@ -122,7 +123,8 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
             dropContent()
             bufferWidth = buffer.width
             bufferHeight = buffer.height
-            frames = HardwareFrames.create(bufferWidth, bufferHeight)
+            // Pointer icons need a software bitmap.
+            frames = if (role === SurfaceRole.Cursor) null else HardwareFrames.create(bufferWidth, bufferHeight)
         }
         val hardware = frames
         if (hardware != null) {

@@ -259,6 +259,7 @@ class WaylandWindowContent(
 
     private fun motion(event: MotionEvent) {
         val (surface, p) = hit(event.x, event.y) ?: return
+        server.seat.cursorView = this
         server.seat.pointerMotion(surface, p[0], p[1])
     }
 
