@@ -26,6 +26,8 @@ class WaylandWindowContent(
     context: Context,
     val toplevel: XdgToplevel,
     private val windowControl: WindowControl,
+    /** Draws this window's popups above every window (see [PopupLayer]). */
+    private val popupLayer: PopupLayer,
 ) : View(context), WindowContent, ToplevelView {
 
     /** What the content may ask from its desktop window beyond [WindowHost]. Raw = screen pixels. */
@@ -84,6 +86,8 @@ class WaylandWindowContent(
     }
 
     override fun onDeactivated() {
+        // Menus close when their window loses focus, as on a desktop.
+        toplevel.popups.toList().forEach { it.dismiss() }
         if (server.seat.keyboardFocus === toplevel.xdg.surface) server.seat.setKeyboardFocus(null)
         sendState()
     }
@@ -94,6 +98,7 @@ class WaylandWindowContent(
     }
 
     override fun onClosed() {
+        popupLayer.unregister(this)
         if (toplevel.view === this) toplevel.view = null
         toplevel.xdg.surface.onCommit = null
         if (server.seat.keyboardFocus === toplevel.xdg.surface) server.seat.setKeyboardFocus(null)
@@ -105,7 +110,29 @@ class WaylandWindowContent(
         host?.setTitle(toplevel.title.ifEmpty { toplevel.appId.ifEmpty { "Linux" } })
     }
 
-    override fun contentChanged() = invalidate()
+    override fun contentChanged() {
+        invalidate()
+        popupLayer.invalidate()
+    }
+
+    override fun constraintBounds(): Rect? {
+        val origin = popupLayer.originOf(this) ?: return null
+        val s = scale
+        return Rect(
+            Math.floorDiv(-origin.x, s), Math.floorDiv(-origin.y, s),
+            (popupLayer.width - origin.x) / s, (popupLayer.height - origin.y) / s,
+        )
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        popupLayer.register(this)
+    }
+
+    override fun onDetachedFromWindow() {
+        popupLayer.unregister(this)
+        super.onDetachedFromWindow()
+    }
     override fun setMaximized(maximized: Boolean) = windowControl.setMaximized(maximized)
     override fun minimize() = windowControl.minimize()
 
@@ -162,15 +189,11 @@ class WaylandWindowContent(
     // ---- drawing ----
 
     override fun onDraw(canvas: Canvas) {
-        drawSurface(canvas, toplevel.xdg, 0, 0)
-        for (popup in toplevel.popups) {
-            val origin = popup.originInToplevel
-            drawSurface(canvas, popup.xdg, origin.left * scale, origin.top * scale)
-        }
+        drawSurface(canvas, toplevel.xdg, 0, 0) // popups: drawn by the PopupLayer
     }
 
-    /** Draws the window-geometry part of [xdg] with its top-left at view pixel ([x], [y]). */
-    private fun drawSurface(canvas: Canvas, xdg: XdgSurface, x: Int, y: Int) {
+    /** Draws the window-geometry part of [xdg] with its top-left at canvas pixel ([x], [y]). */
+    fun drawSurface(canvas: Canvas, xdg: XdgSurface, x: Int, y: Int) {
         val surface = xdg.surface
         val bitmap = surface.bitmap ?: return
         val g = xdg.visibleGeometry()
@@ -186,13 +209,6 @@ class WaylandWindowContent(
     private fun hit(px: Float, py: Float): Pair<WlSurface, DoubleArray>? {
         val lx = px / scale.toDouble()
         val ly = py / scale.toDouble()
-        for (popup in toplevel.popups.asReversed()) {
-            val o = popup.originInToplevel
-            if (lx >= o.left && lx < o.right && ly >= o.top && ly < o.bottom) {
-                val g = popup.xdg.visibleGeometry()
-                return popup.xdg.surface to doubleArrayOf(lx - o.left + g.left, ly - o.top + g.top)
-            }
-        }
         val g = toplevel.xdg.visibleGeometry()
         return toplevel.xdg.surface to doubleArrayOf(lx + g.left, ly + g.top)
     }
@@ -211,11 +227,6 @@ class WaylandWindowContent(
                 if (event.metaState and KeyEvent.META_ALT_ON != 0) {
                     startMove()
                     return true
-                }
-                // A click outside the open popups closes them, like on a desktop.
-                val target = hit(event.x, event.y)
-                if (target != null && target.first === toplevel.xdg.surface && toplevel.popups.isNotEmpty()) {
-                    toplevel.popups.toList().forEach { it.dismiss() }
                 }
                 motion(event)
                 seat.pointerButton(buttonOf(event), true)

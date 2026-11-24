@@ -44,6 +44,7 @@ import org.handtop.desktop.ui.hideSystemBars
 import org.handtop.desktop.ui.hideSystemBarsOfWindow
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.wayland.PopupLayer
 import org.handtop.desktop.wayland.WaylandServer
 import org.handtop.desktop.wayland.WaylandWindowContent
 import org.handtop.desktop.wayland.XdgToplevel
@@ -61,6 +62,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private lateinit var column: LinearLayout
     private lateinit var area: DesktopArea
     private lateinit var taskbar: Taskbar
+    /** Menus and other popups of Linux windows, above every window. */
+    private val popupLayer by lazy { PopupLayer(this, WaylandServer.get(this)) }
     private var startMenu: PopupWindow? = null
 
     /** System density and display kind this activity's interface scale was computed for. */
@@ -129,6 +132,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR, Palette.WALLPAPER)
             addView(icons, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
             addView(area, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            addView(popupLayer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         }
         column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -267,7 +271,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             override fun isMaximized() = window.mode == DesktopWindow.Mode.MAXIMIZED
             override fun isActive() = window.isActiveWindow
         }
-        val content = WaylandWindowContent(this, toplevel, control)
+        val content = WaylandWindowContent(this, toplevel, control, popupLayer)
         window = DesktopWindow(this, area, content, toplevel.title.ifEmpty { "Linux" }, R.drawable.ic_apps)
         // Programs without server-side decorations draw their own title bar.
         window.decorated = toplevel.serverSideDecorations

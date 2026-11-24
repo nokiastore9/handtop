@@ -33,6 +33,7 @@ class XdgPositioner(client: Client, id: Int, version: Int) : Resource(client, id
     var gravity = 0
     var offsetX = 0
     var offsetY = 0
+    var constraintAdjustment = 0
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
@@ -41,7 +42,7 @@ class XdgPositioner(client: Client, id: Int, version: Int) : Resource(client, id
             2 -> { val x = r.int(); val y = r.int(); anchorRect.set(x, y, x + r.int(), y + r.int()) }
             3 -> anchor = r.uint()
             4 -> gravity = r.uint()
-            5 -> r.uint() // set_constraint_adjustment
+            5 -> constraintAdjustment = r.uint()
             6 -> { offsetX = r.int(); offsetY = r.int() }
             7 -> Unit // set_reactive
             8 -> { r.int(); r.int() } // set_parent_size
@@ -50,29 +51,93 @@ class XdgPositioner(client: Client, id: Int, version: Int) : Resource(client, id
         }
     }
 
-    /** Popup position relative to the parent's window geometry (no constraint adjustment yet). */
-    fun place(): Rect {
+    /**
+     * Popup position relative to the parent's window geometry. With [bounds] (the desktop in the
+     * same coordinates) the client's constraint adjustment is applied: flip, then slide, then
+     * resize, per axis, so menus stay on screen.
+     */
+    fun place(bounds: Rect? = null): Rect {
+        val rect = Rect(xFor(anchor, gravity), yFor(anchor, gravity), 0, 0)
+        rect.right = rect.left + width
+        rect.bottom = rect.top + height
+        if (bounds == null || bounds.isEmpty) return rect
+
+        if (rect.left < bounds.left || rect.right > bounds.right) {
+            if (constraintAdjustment and FLIP_X != 0) {
+                val x = xFor(flipX(anchor), flipX(gravity))
+                if (x >= bounds.left && x + width <= bounds.right) rect.offsetTo(x, rect.top)
+            }
+            if (constraintAdjustment and SLIDE_X != 0) {
+                if (rect.right > bounds.right) rect.offset(bounds.right - rect.right, 0)
+                if (rect.left < bounds.left) rect.offset(bounds.left - rect.left, 0)
+            }
+            if (constraintAdjustment and RESIZE_X != 0) {
+                rect.left = rect.left.coerceAtLeast(bounds.left)
+                rect.right = rect.right.coerceAtMost(bounds.right)
+            }
+        }
+        if (rect.top < bounds.top || rect.bottom > bounds.bottom) {
+            if (constraintAdjustment and FLIP_Y != 0) {
+                val y = yFor(flipY(anchor), flipY(gravity))
+                if (y >= bounds.top && y + height <= bounds.bottom) rect.offsetTo(rect.left, y)
+            }
+            if (constraintAdjustment and SLIDE_Y != 0) {
+                if (rect.bottom > bounds.bottom) rect.offset(0, bounds.bottom - rect.bottom)
+                if (rect.top < bounds.top) rect.offset(0, bounds.top - rect.top)
+            }
+            if (constraintAdjustment and RESIZE_Y != 0) {
+                rect.top = rect.top.coerceAtLeast(bounds.top)
+                rect.bottom = rect.bottom.coerceAtMost(bounds.bottom)
+            }
+        }
+        if (rect.width() <= 0 || rect.height() <= 0) rect.set(rect.left, rect.top, rect.left + 1, rect.top + 1)
+        return rect
+    }
+
+    private fun xFor(anchor: Int, gravity: Int): Int {
         val ax = when (anchor) {
             LEFT, TOP_LEFT, BOTTOM_LEFT -> anchorRect.left
             RIGHT, TOP_RIGHT, BOTTOM_RIGHT -> anchorRect.right
             else -> anchorRect.centerX()
         }
+        return when (gravity) {
+            LEFT, TOP_LEFT, BOTTOM_LEFT -> ax - width
+            RIGHT, TOP_RIGHT, BOTTOM_RIGHT -> ax
+            else -> ax - width / 2
+        } + offsetX
+    }
+
+    private fun yFor(anchor: Int, gravity: Int): Int {
         val ay = when (anchor) {
             TOP, TOP_LEFT, TOP_RIGHT -> anchorRect.top
             BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT -> anchorRect.bottom
             else -> anchorRect.centerY()
         }
-        val x = when (gravity) {
-            LEFT, TOP_LEFT, BOTTOM_LEFT -> ax - width
-            RIGHT, TOP_RIGHT, BOTTOM_RIGHT -> ax
-            else -> ax - width / 2
-        } + offsetX
-        val y = when (gravity) {
+        return when (gravity) {
             TOP, TOP_LEFT, TOP_RIGHT -> ay - height
             BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT -> ay
             else -> ay - height / 2
         } + offsetY
-        return Rect(x, y, x + width, y + height)
+    }
+
+    private fun flipX(edge: Int) = when (edge) {
+        LEFT -> RIGHT
+        RIGHT -> LEFT
+        TOP_LEFT -> TOP_RIGHT
+        TOP_RIGHT -> TOP_LEFT
+        BOTTOM_LEFT -> BOTTOM_RIGHT
+        BOTTOM_RIGHT -> BOTTOM_LEFT
+        else -> edge
+    }
+
+    private fun flipY(edge: Int) = when (edge) {
+        TOP -> BOTTOM
+        BOTTOM -> TOP
+        TOP_LEFT -> BOTTOM_LEFT
+        BOTTOM_LEFT -> TOP_LEFT
+        TOP_RIGHT -> BOTTOM_RIGHT
+        BOTTOM_RIGHT -> TOP_RIGHT
+        else -> edge
     }
 
     private companion object {
@@ -84,6 +149,14 @@ class XdgPositioner(client: Client, id: Int, version: Int) : Resource(client, id
         const val BOTTOM_LEFT = 6
         const val TOP_RIGHT = 7
         const val BOTTOM_RIGHT = 8
+
+        // constraint_adjustment bits
+        const val SLIDE_X = 1
+        const val SLIDE_Y = 2
+        const val FLIP_X = 4
+        const val FLIP_Y = 8
+        const val RESIZE_X = 16
+        const val RESIZE_Y = 32
     }
 }
 
@@ -108,7 +181,9 @@ class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) 
                 val newId = r.newId()
                 val parent = client.optional<XdgSurface>(r.obj())
                 val positioner = client.require<XdgPositioner>(r.obj())
-                popup = client.register(XdgPopup(client, newId, version, this, parent, positioner.place()))
+                popup = client.register(
+                    XdgPopup(client, newId, version, this, parent, positioner.place(XdgPopup.boundsFor(parent))),
+                )
             }
             3 -> { // set_window_geometry
                 val x = r.int(); val y = r.int()
@@ -300,11 +375,14 @@ class XdgPopup(
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
             0 -> destroy()
-            1 -> { r.obj(); r.uint() } // grab
+            1 -> { // grab(seat, serial): menus take the keyboard (arrow keys, Escape)
+                r.obj(); r.uint()
+                client.server.seat.setKeyboardFocus(xdg.surface)
+            }
             2 -> { // reposition(positioner, token)
                 val positioner = client.require<XdgPositioner>(r.obj())
                 val token = r.uint()
-                position.set(positioner.place())
+                position.set(positioner.place(boundsFor(parent)))
                 event(2) { uint(token) }
                 sendConfigure()
             }
@@ -343,9 +421,22 @@ class XdgPopup(
         mapped = false
         toplevel?.popups?.remove(this)
         toplevel?.view?.contentChanged()
+        // A grabbing menu had the keyboard: give it back to the menu or window below.
+        val seat = client.server.seat
+        if (seat.keyboardFocus === xdg.surface) seat.setKeyboardFocus(parent?.surface)
     }
 
     override fun destroyed() = unmap()
+
+    companion object {
+        /** The desktop in the coordinates of the parent window geometry, for constraint adjustment. */
+        fun boundsFor(parent: XdgSurface?): Rect? {
+            val toplevel = parent?.toplevel ?: parent?.popup?.toplevel ?: return null
+            val bounds = toplevel.view?.constraintBounds() ?: return null
+            parent?.popup?.originInToplevel?.let { bounds.offset(-it.left, -it.top) }
+            return bounds
+        }
+    }
 }
 
 /** What the window manager provides for a mapped toplevel. */
@@ -353,6 +444,9 @@ interface ToplevelView {
     fun titleChanged()
     fun contentChanged()
     fun decorationsChanged()
+
+    /** The desktop area in toplevel-geometry coordinates (logical), where popups must fit. */
+    fun constraintBounds(): Rect?
 
     /** Interactive move / resize, requested while a pointer button is held (client title bar). */
     fun startMove()
