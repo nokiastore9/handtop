@@ -45,9 +45,10 @@ object LinuxEnv {
     /** Phone storage is shared with Linux once the user grants "All files access". */
     fun hasStorageAccess() = Environment.isExternalStorageManager()
 
-    /** What Linux programs need from HandTop: the display server and, if installed, sound. */
+    /** What Linux programs need from HandTop: the display server and, if installed, D-Bus, sound, X11. */
     fun startServices(context: Context) {
         WaylandServer.ensureRunning(context, rootfs(context))
+        SessionBus.ensureRunning(context)
         SoundBridge.ensureRunning(context)
         X11Display.ensureRunning(context)
     }
@@ -120,7 +121,11 @@ object LinuxEnv {
             "QT_QPA_PLATFORM=wayland",
             "SDL_VIDEODRIVER=wayland",
             "MOZ_ENABLE_WAYLAND=1",
-        ) + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) + program
+            // No accessibility bus in the session: GTK would look for it at every start.
+            "NO_AT_BRIDGE=1",
+        ) + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) +
+            (if (SessionBus.isAvailable(context)) listOf("DBUS_SESSION_BUS_ADDRESS=${SessionBus.ADDRESS}") else emptyList()) +
+            program
 
         val env = LinkedHashMap(System.getenv())
         env.remove("LD_PRELOAD")

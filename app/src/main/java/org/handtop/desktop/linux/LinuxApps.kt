@@ -39,6 +39,13 @@ object LinuxApps {
     private const val TAG = "LinuxApps"
     private val MENU_DIRS = listOf("usr/share/applications", "usr/local/share/applications", "root/.local/share/applications")
     private const val X11_WAIT_MS = 8_000L
+
+    /**
+     * GTK programs that work properly only on X11 here: Parole puts its video into an X11
+     * window (GstVideoOverlay); as a Wayland window it would show the video in a second window.
+     */
+    private val PREFER_X11 = setOf("parole")
+    private const val BUS_WAIT_MS = 3_000L
     private val ICON_SIZES = listOf("256x256", "128x128", "96x96", "64x64", "48x48", "32x32")
 
     private val main = Handler(Looper.getMainLooper())
@@ -96,7 +103,9 @@ object LinuxApps {
     /** Starts a graphical program in the background (no terminal window). */
     fun launch(context: Context, app: LinuxApp) {
         LinuxEnv.startServices(context)
-        val spec = LinuxEnv.commandSpec(context, "exec ${app.exec}")
+        val program = app.exec.substringBefore(' ').substringAfterLast('/')
+        val x11 = program in PREFER_X11 && X11Display.isInstalled(context)
+        val spec = LinuxEnv.commandSpec(context, (if (x11) "export GDK_BACKEND=x11; " else "") + "exec ${app.exec}")
         val log = File(LinuxEnv.rootfs(context), "tmp/handtop-apps.log")
         val builder = ProcessBuilder(listOf(spec.executable) + spec.args.drop(1))
             .directory(File(spec.cwd))
@@ -107,10 +116,11 @@ object LinuxApps {
             putAll(spec.env)
         }
         val appContext = context.applicationContext
-        val x11 = X11Display.isInstalled(appContext)
+        val waitX11 = X11Display.isInstalled(appContext)
         Thread({
-            // X11 programs need the display: Xwayland may have been started just now.
-            if (x11) X11Display.awaitReady(appContext, X11_WAIT_MS)
+            // The session bus and X11 may have been started just now.
+            if (SessionBus.isAvailable(appContext)) SessionBus.awaitReady(appContext, BUS_WAIT_MS)
+            if (waitX11) X11Display.awaitReady(appContext, X11_WAIT_MS)
             val process = try {
                 log.appendText("--- ${app.name}: ${app.exec}\n")
                 builder.start()

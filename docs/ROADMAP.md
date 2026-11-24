@@ -235,6 +235,20 @@ MapRequest/ConfigureRequest, `WM_STATE`, EWMH (`_NET_SUPPORTING_WM_CHECK`, `_NET
 (ConfigureRequest после показа отклоняется), HiDPI для X11 (1 пиксель X = scale пикселей экрана,
 шрифты крупные и мягкие), закрытие X-меню кликом вне окна проверено только логикой.
 
+D-Bus и мультимедиа (2026-11-24): сессионная шина D-Bus — часть сессии (`SessionBus.kt`):
+`dbus-daemon` на `$XDG_RUNTIME_DIR/bus`, `DBUS_SESSION_BUS_ADDRESS` во всех процессах, службы
+запускаются по требованию (Xfconf, dconf, уведомления). В proot EXTERNAL-аутентификация не
+проходит (proot подделывает uid 0, ядро сообщает настоящий uid) — шина принимает ANONYMOUS
+(сокет в каталоге 0700 внутри данных приложения). `NO_AT_BRIDGE=1`: шины специальных
+возможностей нет. Проверено с `xfce4-goodies` + Parole + GStreamer (DeX): Parole играет видео со
+звуком (640×360@30: Parole ~17–27% ядра, HandTop ~14–17%), развёрнутое окно масштабирует видео;
+меню GTK под X11 открываются кликом и закрываются кликом мимо; диалог открытия файлов — окно над
+родителем; Ristretto (Wayland) с диалогом. Parole встраивает видео только в X11-окно
+(GstVideoOverlay), как Wayland-окно он показывает видео отдельным окном — из меню приложений он
+запускается с `GDK_BACKEND=x11` (`LinuxApps.PREFER_X11`); из терминала: `GDK_BACKEND=x11 parole`.
+Не работает пока: «Screenshot» (нет протокола захвата экрана), запрет гашения экрана при видео
+(`org.freedesktop.ScreenSaver` / PowerManagement), миниатюры без пакета `tumbler`.
+
 Дальше:
 - окна Linux на отдельной поверхности (SurfaceControl / TextureView), чтобы кадр клиента не
   перерисовывал всё окно HandTop; GPU-клиенты через dmabuf / общий `AHardwareBuffer` (этап 5);
