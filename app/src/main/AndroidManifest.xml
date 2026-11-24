@@ -12,6 +12,13 @@
     <!-- Optional: share the phone's storage with Linux as /sdcard (granted in Settings). -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
+    <!-- Names and icons of the apps whose notifications the taskbar shows (like a launcher). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -45,6 +52,17 @@
                 android:minWidth="360dp"
                 android:minHeight="320dp" />
         </activity>
+
+        <!-- Notifications on the taskbar: enabled by the user in "Notification access". -->
+        <service
+            android:name=".service.NotificationsService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <service
             android:name=".service.SessionService"

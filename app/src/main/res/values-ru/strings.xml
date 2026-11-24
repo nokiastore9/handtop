@@ -21,6 +21,17 @@
     <string name="status_battery_charging">Батарея %1$d%%, заряжается</string>
     <string name="status_battery_settings">Батарея</string>
     <string name="status_calendar">Календарь</string>
+    <string name="status_notifications">Уведомления: %1$d</string>
+    <string name="notifications_title">Уведомления</string>
+    <string name="notif_clear_all">Очистить все</string>
+    <string name="notif_empty">Нет уведомлений</string>
+    <string name="notif_dismiss">Закрыть</string>
+    <string name="notif_access_text">HandTop работает в полный экран, и строка состояния Android скрыта. Чтобы уведомления были здесь, разрешите HandTop их читать в разделе «Доступ к уведомлениям». HandTop только показывает их и ничего не сохраняет.</string>
+    <string name="notif_access_restricted">Если Android пишет «Ограниченная настройка»: Настройки → Приложения → HandTop → ⋮ → «Разрешить ограниченные настройки», затем повторите.</string>
+    <string name="notif_access_open">Открыть доступ к уведомлениям</string>
+    <string name="notif_access_granted">✓ Доступ есть — уведомления на панели задач</string>
+    <string name="notif_access_denied">Доступа нет — уведомления не показываются</string>
+    <string name="settings_notif_text">Показываются на панели задач вместо скрытой строки состояния Android: нажмите на колокольчик, чтобы открыть центр уведомлений.</string>
     <string name="action_exit">Выход (закрыть всё)</string>
     <string name="terminal_finished">%1$s — завершён</string>
     <string name="terminal_linux_title">Терминал %1$s</string>

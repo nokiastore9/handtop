@@ -23,6 +23,17 @@
     <string name="status_battery_charging">Battery %1$d%%, charging</string>
     <string name="status_battery_settings">Battery</string>
     <string name="status_calendar">Calendar</string>
+    <string name="status_notifications">Notifications: %1$d</string>
+    <string name="notifications_title">Notifications</string>
+    <string name="notif_clear_all">Clear all</string>
+    <string name="notif_empty">No notifications</string>
+    <string name="notif_dismiss">Dismiss</string>
+    <string name="notif_access_text">HandTop runs full screen, so Android\'s status bar is hidden. To see notifications here, allow HandTop to read them in \"Notification access\". HandTop only shows them and keeps nothing.</string>
+    <string name="notif_access_restricted">If Android says \"Restricted setting\": Settings → Apps → HandTop → ⋮ → Allow restricted settings, then try again.</string>
+    <string name="notif_access_open">Open notification access</string>
+    <string name="notif_access_granted">✓ Access granted — notifications are on the taskbar</string>
+    <string name="notif_access_denied">No access — notifications are not shown</string>
+    <string name="settings_notif_text">Shown on the taskbar instead of Android\'s hidden status bar: tap the bell for the notification center.</string>
     <string name="action_exit">Exit (close all)</string>
     <string name="terminal_finished">%1$s — finished</string>
     <string name="terminal_linux_title">%1$s Terminal</string>

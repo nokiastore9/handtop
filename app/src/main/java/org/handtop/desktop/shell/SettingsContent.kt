@@ -18,6 +18,8 @@ import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxInstaller
+import org.handtop.desktop.notify.NotificationCenter
+import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.UiScale
@@ -45,6 +47,9 @@ class SettingsContent(
     private val processStatus = TextView(context)
     private val linuxStatus = TextView(context)
     private val removeButton = Button(context)
+    private val notifyStatus = TextView(context)
+    private val notifyHint = TextView(context)
+    private val notifyButton = Button(context)
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
 
     // Interface scale of the screen this window is on (declared before init, which uses them).
@@ -66,6 +71,22 @@ class SettingsContent(
         column.addView(scaleChoices(), LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply { bottomMargin = dpi(6) })
+
+        // Notifications on the taskbar (HandTop hides Android's status bar).
+        column.addView(heading(R.string.notifications_title))
+        column.addView(body(R.string.settings_notif_text))
+        column.addView(notifyStatus.styled())
+        notifyHint.apply {
+            setText(R.string.notif_access_restricted)
+            textSize = 12f
+            setTextColor(Palette.TEXT_DIM)
+            setPadding(0, 0, 0, dpi(4))
+        }
+        column.addView(notifyHint)
+        notifyButton.isAllCaps = false
+        notifyButton.setText(R.string.notif_access_open)
+        notifyButton.setOnClickListener { NotificationCenter.openAccessSettings(context) }
+        column.addView(notifyButton, wrap())
 
         // Phone storage.
         column.addView(heading(R.string.settings_storage_title))
@@ -126,6 +147,10 @@ class SettingsContent(
     }
 
     fun refresh() {
+        val notifications = Notifications.isAccessGranted(context)
+        notifyStatus.setText(if (notifications) R.string.notif_access_granted else R.string.notif_access_denied)
+        notifyHint.visibility = if (notifications) View.GONE else View.VISIBLE
+        notifyButton.visibility = if (notifications) View.GONE else View.VISIBLE
         val storage = LinuxEnv.hasStorageAccess()
         storageStatus.setText(if (storage) R.string.settings_storage_granted else R.string.settings_storage_denied)
         storageButton.visibility = if (storage) View.GONE else View.VISIBLE

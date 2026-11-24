@@ -1,6 +1,7 @@
 package org.handtop.desktop.shell
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -28,6 +29,8 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.CalendarView
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextClock
@@ -35,6 +38,8 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import org.handtop.desktop.R
+import org.handtop.desktop.notify.NotificationCenter
+import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -69,6 +74,14 @@ class StatusArea(context: Context) : LinearLayout(context) {
     private val networkGroup: LinearLayout
     private val batteryGroup: LinearLayout
 
+    // Notifications: icons of the latest ones, a bell with the count; opens the center.
+    private val notificationCenter = (context as? Activity)?.let { NotificationCenter(it) }
+    private val notifyIcons = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    private val bell = ImageView(context).apply { setImageResource(R.drawable.ic_bell); setColorFilter(Palette.TEXT) }
+    private val badge = TextView(context)
+    private val notifyGroup: LinearLayout
+    private val notificationsListener: () -> Unit = { refreshNotifications() }
+
     // Network state, updated from ConnectivityManager callbacks on the main thread.
     private var defaultCaps: NetworkCapabilities? = null
     /** Every Wi-Fi network: the station connection and, on Android 15+, our own hotspot. */
@@ -81,6 +94,24 @@ class StatusArea(context: Context) : LinearLayout(context) {
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
+
+        notifyGroup = group(R.string.notifications_title) { notificationCenter?.toggle(it) }
+        notifyGroup.addView(notifyIcons, LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+        val bellBox = FrameLayout(context)
+        bellBox.addView(bell, FrameLayout.LayoutParams(dpi(20), dpi(20), Gravity.CENTER))
+        badge.apply {
+            textSize = 9f
+            setTextColor(0xFFFFFFFF.toInt())
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            minWidth = dpi(14)
+            setPadding(dpi(3), 0, dpi(3), 0)
+            includeFontPadding = false
+            background = roundedRect(Palette.ACCENT, dp(7f))
+        }
+        bellBox.addView(badge, FrameLayout.LayoutParams(WRAP_CONTENT, dpi(14), Gravity.TOP or Gravity.END))
+        notifyGroup.addView(bellBox, LayoutParams(dpi(30), dpi(30)).apply { marginStart = dpi(2) })
+        addView(notifyGroup, LayoutParams(WRAP_CONTENT, LayoutParams.MATCH_PARENT))
 
         networkGroup = group(R.string.status_network) { openSettings(networkSettings()) }
         networkGroup.addView(vpn, iconParams(WRAP_CONTENT))
@@ -127,6 +158,9 @@ class StatusArea(context: Context) : LinearLayout(context) {
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hasTelephony) listenDisplayInfo()
+        Notifications.addListener(notificationsListener)
+        Notifications.ensureConnected(context)
+        refreshNotifications()
         main.post(poll)
         refreshNetwork()
     }
@@ -168,6 +202,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
 
     override fun onDetachedFromWindow() {
         main.removeCallbacks(poll)
+        Notifications.removeListener(notificationsListener)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             (telephonyCallback as? TelephonyCallback)?.let {
                 try { telephony?.unregisterTelephonyCallback(it) } catch (_: RuntimeException) {}
@@ -239,6 +274,29 @@ class StatusArea(context: Context) : LinearLayout(context) {
             caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_LOCAL_NETWORK)
 
     // ---- state → views ----
+
+    private fun refreshNotifications() {
+        val granted = Notifications.isAccessGranted(context)
+        val items = Notifications.items
+        notifyIcons.removeAllViews()
+        // Like Android's status bar: the newest apps' small icons.
+        for (item in items.distinctBy { it.packageName }.take(MAX_NOTIFY_ICONS)) {
+            val icon = item.smallIcon ?: continue
+            val view = ImageView(context)
+            try {
+                view.setImageIcon(icon)
+            } catch (_: RuntimeException) {
+                continue // the posting app's resources are not visible to us
+            }
+            view.setColorFilter(Palette.TEXT)
+            notifyIcons.addView(view, LayoutParams(dpi(16), dpi(16)).apply { marginEnd = dpi(4) })
+        }
+        badge.text = if (items.size > 99) "99+" else items.size.toString()
+        badge.visibility = if (items.isEmpty()) GONE else VISIBLE
+        bell.alpha = if (granted) 1f else 0.45f
+        notifyGroup.tooltipText = if (granted) context.getString(R.string.status_notifications, items.size)
+        else context.getString(R.string.notif_access_denied)
+    }
 
     private fun onBattery(intent: Intent) {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
@@ -403,6 +461,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
 
     private companion object {
         const val POLL_MS = 10_000L
+        const val MAX_NOTIFY_ICONS = 3
     }
 }
 
