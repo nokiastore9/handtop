@@ -27,7 +27,7 @@ import org.handtop.desktop.wm.WindowHost
 @SuppressLint("ViewConstructor")
 class WaylandWindowContent(
     context: Context,
-    val toplevel: XdgToplevel,
+    val toplevel: Toplevel,
     private val windowControl: WindowControl,
     /** Draws this window's popups above every window (see [PopupLayer]). */
     private val popupLayer: PopupLayer,
@@ -72,7 +72,7 @@ class WaylandWindowContent(
         isFocusableInTouchMode = true
         setBackgroundColor(Color.BLACK)
         toplevel.view = this
-        toplevel.xdg.surface.onCommit = { invalidate() }
+        toplevel.surface.onCommit = { invalidate() }
     }
 
     // ---- WindowContent ----
@@ -85,7 +85,7 @@ class WaylandWindowContent(
     override fun onActivated() {
         requestFocus()
         server.textInputs.addListener(textInputListener)
-        server.seat.setKeyboardFocus(toplevel.xdg.surface)
+        server.seat.setKeyboardFocus(toplevel.surface)
         sendState()
     }
 
@@ -145,7 +145,7 @@ class WaylandWindowContent(
         if (keyboardAutoShown) hideKeyboard()
         // Menus close when their window loses focus, as on a desktop.
         toplevel.popups.toList().forEach { it.dismiss() }
-        if (server.seat.keyboardFocus === toplevel.xdg.surface) server.seat.setKeyboardFocus(null)
+        if (server.seat.keyboardFocus === toplevel.surface) server.seat.setKeyboardFocus(null)
         sendState()
     }
 
@@ -158,8 +158,8 @@ class WaylandWindowContent(
         server.textInputs.removeListener(textInputListener)
         popupLayer.unregister(this)
         if (toplevel.view === this) toplevel.view = null
-        toplevel.xdg.surface.onCommit = null
-        if (server.seat.keyboardFocus === toplevel.xdg.surface) server.seat.setKeyboardFocus(null)
+        toplevel.surface.onCommit = null
+        if (server.seat.keyboardFocus === toplevel.surface) server.seat.setKeyboardFocus(null)
     }
 
     // ---- ToplevelView ----
@@ -247,19 +247,19 @@ class WaylandWindowContent(
     // ---- drawing ----
 
     override fun onDraw(canvas: Canvas) {
-        drawSurface(canvas, toplevel.xdg, 0, 0) // popups: drawn by the PopupLayer
+        drawSurface(canvas, toplevel.surface, toplevel.visibleGeometry(), 0, 0) // popups: the PopupLayer
     }
 
     /**
-     * Draws the window-geometry part of [xdg] (with its sub-surfaces) with its top-left at
+     * Draws the [geometry] part of [surface] (with its sub-surfaces) with its top-left at
      * canvas pixel ([x], [y]).
      */
-    fun drawSurface(canvas: Canvas, xdg: XdgSurface, x: Int, y: Int) {
-        val g = xdg.visibleGeometry()
+    fun drawSurface(canvas: Canvas, surface: WlSurface, geometry: Rect, x: Int, y: Int) {
+        val g = geometry
         val s = scale
         canvas.save()
         canvas.clipRect(x, y, x + g.width() * s, y + g.height() * s)
-        drawTree(canvas, xdg.surface, x - g.left * s, y - g.top * s)
+        drawTree(canvas, surface, x - g.left * s, y - g.top * s)
         canvas.restore()
     }
 
@@ -286,10 +286,10 @@ class WaylandWindowContent(
     private fun hit(px: Float, py: Float): Pair<WlSurface, DoubleArray>? {
         val lx = px / scale.toDouble()
         val ly = py / scale.toDouble()
-        val g = toplevel.xdg.visibleGeometry()
+        val g = toplevel.visibleGeometry()
         val x = lx + g.left
         val y = ly + g.top
-        return toplevel.xdg.surface.surfaceAt(x, y) ?: (toplevel.xdg.surface to doubleArrayOf(x, y))
+        return toplevel.surface.surfaceAt(x, y) ?: (toplevel.surface to doubleArrayOf(x, y))
     }
 
     @SuppressLint("ClickableViewAccessibility")

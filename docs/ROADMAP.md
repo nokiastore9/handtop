@@ -213,6 +213,26 @@ GTK/Qt-приложения (2026-11-24, шаг 3):
 терминала). Проверено: `speaker-test` 3 с → 163456 кадров (≈3,4 с) проиграно, затем плеер Android
 `paused`. Задержка — до ~0,35 с (буфер канала 64 КБ): для видео и игр позже — синхронизация.
 
+X11 (2026-11-24): rootless Xwayland (`:0`, `-shm -nolisten tcp -nolisten local`) запускается с
+сессией Linux, если установлен; `DISPLAY=:0` во всех процессах Linux. HandTop — оконный менеджер X11
+(`Xwm.kt`, свой минимальный клиент протокола X в `X11.kt` через unix-сокет): Composite
+`RedirectSubwindows(Manual)` (без этого rootless Xwayland не создаёт `wl_surface` окнам),
+MapRequest/ConfigureRequest, `WM_STATE`, EWMH (`_NET_SUPPORTING_WM_CHECK`, `_NET_ACTIVE_WINDOW`,
+`_NET_WM_STATE`, `_NET_WM_MOVERESIZE`, `WM_CHANGE_STATE`), заголовки (`_NET_WM_NAME`/`WM_NAME`),
+`WM_CLASS` → иконка, `WM_TRANSIENT_FOR` → диалоги, `WM_NORMAL_HINTS` → фиксированный размер,
+`_MOTIF_WM_HINTS` → без рамки, закрытие через `WM_DELETE_WINDOW` (иначе `KillClient`), фокус
+`SetInputFocus` + `WM_TAKE_FOCUS`. Связь X-окно ↔ `wl_surface`: `xwayland_shell_v1` (serial) или
+старый `WL_SURFACE_ID`. Общий интерфейс `Toplevel`/`Popup`: X-окна идут через тот же
+`WaylandWindowContent`, панель задач и `PopupLayer`; override-redirect окна (меню, подсказки) —
+попапы активного X-окна; координаты X = логические пиксели рабочего стола, позиция окна
+сообщается X при каждом перемещении. `zxdg_output_manager_v1` даёт Xwayland логический размер
+экрана (корень 1560×720). Настройки → «Программы X11»: статус и установка (apt/apk/dnf).
+Проверено: xclock, xedit (ввод с клавиатуры, закрытие ✕), bitmap (меню File точно под кнопкой,
+в том числе после перемещения окна), Mousepad (Wayland) работает как прежде.
+Пока нет: буфер обмена X11 ↔ Android, изменение размера окна по запросу программы
+(ConfigureRequest после показа отклоняется), HiDPI для X11 (1 пиксель X = scale пикселей экрана,
+шрифты крупные и мягкие), закрытие X-меню кликом вне окна проверено только логикой.
+
 Дальше:
 - окна Linux на отдельной поверхности (SurfaceControl / TextureView), чтобы кадр клиента не
   перерисовывал всё окно HandTop; GPU-клиенты через dmabuf / общий `AHardwareBuffer` (этап 5);

@@ -49,6 +49,7 @@ object LinuxEnv {
     fun startServices(context: Context) {
         WaylandServer.ensureRunning(context, rootfs(context))
         SoundBridge.ensureRunning(context)
+        X11Display.ensureRunning(context)
     }
 
     /** A login shell inside the installed distribution, as fake root, through proot. */
@@ -119,7 +120,7 @@ object LinuxEnv {
             "QT_QPA_PLATFORM=wayland",
             "SDL_VIDEODRIVER=wayland",
             "MOZ_ENABLE_WAYLAND=1",
-        ) + program
+        ) + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) + program
 
         val env = LinkedHashMap(System.getenv())
         env.remove("LD_PRELOAD")

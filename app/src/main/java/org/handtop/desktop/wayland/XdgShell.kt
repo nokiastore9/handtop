@@ -217,18 +217,20 @@ class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) 
     }
 }
 
-class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) : Resource(client, id, version) {
+class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) :
+    Resource(client, id, version), Toplevel {
     override val iface = "xdg_toplevel"
 
-    var title = ""
+    override val surface get() = xdg.surface
+    override var title = ""
         private set
-    var appId = ""
+    override var appId = ""
         private set
-    var mapped = false
+    override var mapped = false
         private set
 
     /** Owner window for dialogs (xdg_toplevel.set_parent). */
-    var parent: XdgToplevel? = null
+    override var parent: XdgToplevel? = null
         private set
 
     /** Size limits in logical pixels; 0 = no limit. */
@@ -241,21 +243,21 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) : 
     var maxHeight = 0
         private set
 
-    /** Dialogs and the like: the program allows exactly one size. */
-    val fixedSize: Boolean
+    override val fixedSize: Boolean
         get() = maxWidth > 0 && maxHeight > 0 && minWidth == maxWidth && minHeight == maxHeight
 
     /** Negotiated through xdg-decoration; otherwise the program draws its own title bar. */
-    var serverSideDecorations = false
+    override var serverSideDecorations = false
         set(value) {
             if (field == value) return
             field = value
             view?.decorationsChanged()
         }
-    val popups = ArrayList<XdgPopup>()
+    override val popups = ArrayList<XdgPopup>()
 
-    /** Window shown on the desktop; set by the host when it maps the toplevel. */
-    var view: ToplevelView? = null
+    override var view: ToplevelView? = null
+
+    override fun visibleGeometry() = xdg.visibleGeometry()
 
     private var initialConfigureSent = false
     private var configuredWidth = 0
@@ -299,8 +301,7 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) : 
         }
     }
 
-    /** New size (logical pixels) and state requested by the window manager. */
-    fun requestState(width: Int, height: Int, activated: Boolean, maximized: Boolean) {
+    override fun requestState(width: Int, height: Int, activated: Boolean, maximized: Boolean) {
         if (width == configuredWidth && height == configuredHeight &&
             activated == this.activated && maximized == this.maximized
         ) return
@@ -326,8 +327,7 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) : 
         xdg.configure()
     }
 
-    /** The user pressed the window's close button. */
-    fun requestClose() {
+    override fun requestClose() {
         event(1)
         client.flush()
     }
@@ -353,8 +353,11 @@ class XdgPopup(
     private val parent: XdgSurface?,
     /** Position relative to the parent's window geometry. */
     val position: Rect,
-) : Resource(client, id, version) {
+) : Resource(client, id, version), Popup {
     override val iface = "xdg_popup"
+
+    override val surface get() = xdg.surface
+    override fun visibleGeometry() = xdg.visibleGeometry()
 
     var mapped = false
         private set
@@ -363,8 +366,7 @@ class XdgPopup(
     /** The toplevel this popup (possibly nested) belongs to. */
     val toplevel: XdgToplevel? = parent?.toplevel ?: parent?.popup?.toplevel
 
-    /** Offset of the popup's geometry origin from the toplevel's geometry origin. */
-    val originInToplevel: Rect
+    override val originInToplevel: Rect
         get() {
             val parentOrigin = parent?.popup?.originInToplevel
             val dx = (parentOrigin?.left ?: 0)
@@ -409,8 +411,8 @@ class XdgPopup(
         toplevel?.view?.contentChanged()
     }
 
-    /** Closes the popup (click outside it): the client destroys it in response. */
-    fun dismiss() {
+    /** The client destroys the popup in response. */
+    override fun dismiss() {
         event(1)
         unmap()
         client.flush()

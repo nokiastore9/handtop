@@ -19,6 +19,7 @@ import org.handtop.desktop.R
 import org.handtop.desktop.audio.SoundBridge
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxInstaller
+import org.handtop.desktop.linux.X11Display
 import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.term.TermSessions
@@ -53,6 +54,8 @@ class SettingsContent(
     private val notifyStatus = TextView(context)
     private val soundStatus = TextView(context)
     private val soundButton = Button(context)
+    private val x11Status = TextView(context)
+    private val x11Button = Button(context)
     private val notifyHint = TextView(context)
     private val notifyButton = Button(context)
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
@@ -104,6 +107,18 @@ class SettingsContent(
             runInTerminal(context.getString(R.string.settings_sound_title), SoundBridge.installCommand(distro))
         }
         column.addView(soundButton, wrap())
+
+        // X11 programs through Xwayland.
+        column.addView(heading(R.string.settings_x11_title))
+        column.addView(body(R.string.settings_x11_text))
+        column.addView(x11Status.styled())
+        x11Button.isAllCaps = false
+        x11Button.setText(R.string.settings_x11_install)
+        x11Button.setOnClickListener {
+            val distro = LinuxEnv.installedDistro(context)?.id
+            runInTerminal(context.getString(R.string.settings_x11_title), X11Display.installCommand(distro))
+        }
+        column.addView(x11Button, wrap())
 
         // Phone storage.
         column.addView(heading(R.string.settings_storage_title))
@@ -176,6 +191,17 @@ class SettingsContent(
             },
         )
         soundButton.visibility = if (linux && !sound) View.VISIBLE else View.GONE
+        val x11 = linux && X11Display.isInstalled(context)
+        if (x11) X11Display.ensureRunning(context)
+        x11Status.setText(
+            when {
+                !linux -> R.string.apps_not_installed
+                !x11 -> R.string.settings_x11_missing
+                X11Display.isReady(context) -> R.string.settings_x11_on
+                else -> R.string.settings_x11_off
+            },
+        )
+        x11Button.visibility = if (linux && !x11) View.VISIBLE else View.GONE
         val notifications = Notifications.isAccessGranted(context)
         notifyStatus.setText(if (notifications) R.string.notif_access_granted else R.string.notif_access_denied)
         notifyHint.visibility = if (notifications) View.GONE else View.VISIBLE

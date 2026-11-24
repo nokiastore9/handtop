@@ -38,6 +38,7 @@ object LinuxApps {
 
     private const val TAG = "LinuxApps"
     private val MENU_DIRS = listOf("usr/share/applications", "usr/local/share/applications", "root/.local/share/applications")
+    private const val X11_WAIT_MS = 8_000L
     private val ICON_SIZES = listOf("256x256", "128x128", "96x96", "64x64", "48x48", "32x32")
 
     private val main = Handler(Looper.getMainLooper())
@@ -101,17 +102,22 @@ object LinuxApps {
             clear()
             putAll(spec.env)
         }
-        val process = try {
-            log.appendText("--- ${app.name}: ${app.exec}\n")
-            builder.start()
-        } catch (e: IOException) {
-            Log.w(TAG, "cannot start ${app.id}", e)
-            return
-        }
         val appContext = context.applicationContext
-        running += process
-        SessionService.update(appContext)
+        val x11 = X11Display.isInstalled(appContext)
         Thread({
+            // X11 programs need the display: Xwayland may have been started just now.
+            if (x11) X11Display.awaitReady(appContext, X11_WAIT_MS)
+            val process = try {
+                log.appendText("--- ${app.name}: ${app.exec}\n")
+                builder.start()
+            } catch (e: IOException) {
+                Log.w(TAG, "cannot start ${app.id}", e)
+                return@Thread
+            }
+            main.post {
+                running += process
+                SessionService.update(appContext)
+            }
             process.waitFor()
             main.post {
                 running -= process

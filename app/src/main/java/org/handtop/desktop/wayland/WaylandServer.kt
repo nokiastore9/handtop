@@ -19,8 +19,8 @@ class WaylandServer private constructor(private val app: Context) {
 
     /** Receives toplevels that become visible / go away. Set by the desktop activity. */
     interface Host {
-        fun toplevelMapped(toplevel: XdgToplevel)
-        fun toplevelUnmapped(toplevel: XdgToplevel)
+        fun toplevelMapped(toplevel: Toplevel)
+        fun toplevelUnmapped(toplevel: Toplevel)
     }
 
     var host: Host? = null
@@ -30,6 +30,10 @@ class WaylandServer private constructor(private val app: Context) {
     private var serverFd = -1
     private var socketPath: String? = null
     private var serial = 0
+
+    /** HandTop as the window manager of Xwayland, while it runs (see X11Display). */
+    @Volatile
+    var xwm: Xwm? = null
 
     val seat = Seat(this)
     val clipboard = Clipboard(this, app)
@@ -61,6 +65,7 @@ class WaylandServer private constructor(private val app: Context) {
         if (!applyDisplay(metrics)) return
         Log.i(TAG, "output ${outputWidth}x$outputHeight, scale $scale")
         for (client in clients.toList()) {
+            client.resources().filterIsInstance<XdgOutput>().forEach { it.sendInfo(false) }
             client.resources().filterIsInstance<WlOutput>().forEach { it.sendInfo() }
             client.flush()
         }
@@ -87,6 +92,8 @@ class WaylandServer private constructor(private val app: Context) {
         Global(7, "xdg_wm_base", 3) { c, id, v -> c.register(XdgWmBase(c, id, v)) },
         Global(8, "zxdg_decoration_manager_v1", 1) { c, id, _ -> c.register(XdgDecorationManager(c, id)) },
         Global(9, "zwp_text_input_manager_v3", 1) { c, id, _ -> c.register(TextInputManager(c, id)) },
+        Global(10, "xwayland_shell_v1", 1) { c, id, _ -> c.register(XwaylandShell(c, id)) },
+        Global(11, "zxdg_output_manager_v1", 2) { c, id, v -> c.register(XdgOutputManager(c, id, v)) },
     )
 
     fun nextSerial() = ++serial
@@ -139,8 +146,17 @@ class WaylandServer private constructor(private val app: Context) {
     }
 
     /** All toplevels currently shown, e.g. to re-create their windows after an activity restart. */
-    fun mappedToplevels(): List<XdgToplevel> =
-        clients.flatMap { c -> c.resources().filterIsInstance<XdgToplevel>().filter { it.mapped } }
+    fun mappedToplevels(): List<Toplevel> =
+        clients.flatMap { c -> c.resources().filterIsInstance<XdgToplevel>().filter { it.mapped } } +
+            (xwm?.toplevels() ?: emptyList())
+
+    /**
+     * The wl_surface an older Xwayland means by WL_SURFACE_ID: object [id] without a role,
+     * preferably in a client that is not an xdg-shell program (Xwayland in rootless mode).
+     */
+    fun findXwaylandSurface(id: Int): WlSurface? =
+        clients.sortedBy { c -> c.resources().any { it is XdgWmBase } }
+            .firstNotNullOfOrNull { c -> (c.get(id) as? WlSurface)?.takeIf { it.role == null } }
 
     // ---- frame callbacks ----
 

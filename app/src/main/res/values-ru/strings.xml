@@ -72,6 +72,12 @@
     <string name="settings_sound_off">PulseAudio установлен, но не запущен (откройте терминал или приложение Linux)</string>
     <string name="settings_sound_install">Установить поддержку звука</string>
     <string name="terminal_press_enter">Нажмите Enter, чтобы закрыть</string>
+    <string name="settings_x11_title">Программы X11</string>
+    <string name="settings_x11_text">Linux-программы, которые умеют только X11 (без Wayland), работают через Xwayland и тоже получают окна рабочего стола. Терминалы, открытые до установки, нужно открыть заново.</string>
+    <string name="settings_x11_missing">Xwayland не установлен в Linux — X11-программы не запустятся</string>
+    <string name="settings_x11_on">✓ X11 работает (дисплей :0)</string>
+    <string name="settings_x11_off">Xwayland установлен; он запускается вместе с терминалом или приложением Linux</string>
+    <string name="settings_x11_install">Установить поддержку X11</string>
     <string name="settings_storage_title">Память телефона</string>
     <string name="settings_storage_text">Дайте Linux доступ к вашим файлам: они появятся в /sdcard. Android попросит разрешение «Доступ ко всем файлам». После этого откройте новый терминал Linux.</string>
     <string name="settings_storage_grant">Разрешить доступ</string>

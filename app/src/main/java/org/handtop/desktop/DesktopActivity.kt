@@ -50,7 +50,7 @@ import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.wayland.PopupLayer
 import org.handtop.desktop.wayland.WaylandServer
 import org.handtop.desktop.wayland.WaylandWindowContent
-import org.handtop.desktop.wayland.XdgToplevel
+import org.handtop.desktop.wayland.Toplevel
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
 
@@ -256,7 +256,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     // ---- Linux GUI windows (WaylandServer.Host) ----
 
-    override fun toplevelMapped(toplevel: XdgToplevel) {
+    override fun toplevelMapped(toplevel: Toplevel) {
         if (area.windows.any { (it.content as? WaylandWindowContent)?.toplevel === toplevel }) return
         lateinit var window: DesktopWindow
         val control = object : WaylandWindowContent.WindowControl {
@@ -289,12 +289,12 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             area.windows.firstOrNull { (it.content as? WaylandWindowContent)?.toplevel === p }
         }
         // Size the window around what the program drew (in view pixels).
-        val g = toplevel.xdg.visibleGeometry()
+        val g = toplevel.visibleGeometry()
         val s = toplevel.client.server.scale
         area.addWindow(window, g.width() * s, g.height() * s, parent)
     }
 
-    override fun toplevelUnmapped(toplevel: XdgToplevel) {
+    override fun toplevelUnmapped(toplevel: Toplevel) {
         area.windows.firstOrNull { (it.content as? WaylandWindowContent)?.toplevel === toplevel }
             ?.let { area.closeWindow(it) }
     }

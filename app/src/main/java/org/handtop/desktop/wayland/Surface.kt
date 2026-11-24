@@ -9,6 +9,8 @@ sealed interface SurfaceRole {
     class Xdg(val xdg: XdgSurface) : SurfaceRole
     object Cursor : SurfaceRole
     class Subsurface(val subsurface: WlSubsurface) : SurfaceRole
+    /** An X11 window through Xwayland: see [Xwm]. */
+    class Xwayland(val surface: XwaylandSurface) : SurfaceRole
 }
 
 class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, version) {
@@ -160,6 +162,7 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         (role as? SurfaceRole.Xdg)?.xdg?.surfaceCommitted()
         if (role === SurfaceRole.Cursor) client.server.seat.cursorCommitted(this)
         if (role is SurfaceRole.Subsurface) contentChanged()
+        (role as? SurfaceRole.Xwayland)?.surface?.committed()
         onCommit?.invoke()
     }
 
@@ -231,6 +234,7 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         pendingFrames.forEach { client.destroy(it) }
         pendingFrames.clear()
         (role as? SurfaceRole.Xdg)?.xdg?.surfaceGone()
+        (role as? SurfaceRole.Xwayland)?.surface?.surfaceGone()
         client.server.seat.surfaceGone(this)
         // Orphan our sub-surfaces; leave our parent's stack.
         for (child in stack) if (child !== this) child.subsurface?.parent = null

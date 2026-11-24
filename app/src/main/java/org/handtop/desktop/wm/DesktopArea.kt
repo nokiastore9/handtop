@@ -100,7 +100,8 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         var wh = max(min(ah, dpi(260)), (ah * 0.62f).toInt())
         if (contentWidth > 0 && contentHeight > 0) {
             val (fw, fh) = window.frameSizeFor(contentWidth, contentHeight)
-            ww = min(fw, aw)
+            // Room for the title bar's buttons (a small program, e.g. a clock, gets a wider window).
+            ww = min(if (window.decorated) max(fw, minWidth) else fw, aw)
             wh = min(fh, ah)
         }
         val offset = dpi(32) * (cascadeStep++ % 6)

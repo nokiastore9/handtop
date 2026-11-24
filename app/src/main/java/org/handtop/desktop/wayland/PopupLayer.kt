@@ -24,16 +24,30 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
     private val here = IntArray(2)
     private val there = IntArray(2)
     private val lastOrigins = HashMap<WaylandWindowContent, Point>()
+    /** Last position reported to each toplevel (logical), see [Toplevel.moved]. */
+    private val reported = HashMap<WaylandWindowContent, Point>()
 
     /** Popup surface the current touch / button press belongs to. */
     private var pressTarget: WlSurface? = null
     private var hovering = false
     private var lastButton = BTN_LEFT
 
-    // While popups are open, follow window moves (rare: a click outside closes menus).
+    // Follow window moves: open popups move along, X11 windows learn their new position.
     private val follow = ViewTreeObserver.OnPreDrawListener {
         if (windows.any { it.toplevel.popups.isNotEmpty() && originOf(it) != lastOrigins[it] }) invalidate()
+        reportPositions()
         true
+    }
+
+    private fun reportPositions() {
+        val scale = server.scale
+        for (window in windows) {
+            val origin = originOf(window) ?: continue
+            val logical = Point(Math.floorDiv(origin.x, scale), Math.floorDiv(origin.y, scale))
+            if (reported[window] == logical) continue
+            reported[window] = logical
+            window.toplevel.moved(logical.x, logical.y)
+        }
     }
 
     fun register(window: WaylandWindowContent) {
@@ -43,6 +57,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
     fun unregister(window: WaylandWindowContent) {
         windows -= window
         lastOrigins -= window
+        reported -= window
         invalidate()
     }
 
@@ -73,7 +88,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
             val scale = server.scale
             for (popup in window.toplevel.popups) {
                 val at = popup.originInToplevel
-                window.drawSurface(canvas, popup.xdg, origin.x + at.left * scale, origin.y + at.top * scale)
+                window.drawSurface(canvas, popup.surface, popup.visibleGeometry(), origin.x + at.left * scale, origin.y + at.top * scale)
             }
         }
     }
@@ -90,12 +105,13 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
             val lx = (px - origin.x) / scale
             val ly = (py - origin.y) / scale
             for (popup in window.toplevel.popups.asReversed()) {
+                if (!popup.takesInput) continue
                 val o = popup.originInToplevel
                 if (lx >= o.left && lx < o.right && ly >= o.top && ly < o.bottom) {
-                    val g = popup.xdg.visibleGeometry()
+                    val g = popup.visibleGeometry()
                     val x = lx - o.left + g.left
                     val y = ly - o.top + g.top
-                    val (surface, p) = popup.xdg.surface.surfaceAt(x, y) ?: (popup.xdg.surface to doubleArrayOf(x, y))
+                    val (surface, p) = popup.surface.surfaceAt(x, y) ?: (popup.surface to doubleArrayOf(x, y))
                     return Hit(surface, p[0], p[1])
                 }
             }
@@ -103,7 +119,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
         return null
     }
 
-    private fun anyPopups() = windows.any { it.toplevel.popups.isNotEmpty() }
+    private fun anyPopups() = windows.any { w -> w.toplevel.popups.any { it.takesInput } }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -114,7 +130,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
                 if (hit == null) {
                     if (!anyPopups()) return false // not ours: the windows below get it
                     // A click outside the menus closes them (and is not passed on).
-                    windows.forEach { w -> w.toplevel.popups.toList().forEach { it.dismiss() } }
+                    windows.forEach { w -> w.toplevel.popups.filter { it.takesInput }.forEach { it.dismiss() } }
                     return true
                 }
                 pressTarget = hit.surface
