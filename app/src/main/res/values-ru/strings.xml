@@ -105,4 +105,80 @@
     <string name="notif_installing">Настройка Linux…</string>
 
     <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Linux (Debian, Ubuntu, Alpine или Fedora через proot, без root).\n\nТекущий этап: 2 — Linux-окружение.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
+    <string name="app_files">Файлы</string>
+    <string name="files_title">Файлы — %1$s</string>
+    <string name="files_phone">Телефон</string>
+    <string name="files_downloads">Загрузки</string>
+    <string name="files_camera">Камера</string>
+    <string name="files_documents">Документы</string>
+    <string name="files_pictures">Изображения</string>
+    <string name="files_music">Музыка</string>
+    <string name="files_movies">Видео</string>
+    <string name="files_linux_home">Домашняя папка Linux</string>
+    <string name="files_linux_root">Linux (/)</string>
+    <string name="files_back">Назад</string>
+    <string name="files_forward">Вперёд</string>
+    <string name="files_up">Вверх</string>
+    <string name="files_menu">Меню папки</string>
+    <string name="files_empty">Папка пуста</string>
+    <string name="files_unreadable">Эту папку нельзя открыть</string>
+    <string name="files_no_access">HandTop пока не видит файлы телефона. Android спросит «Доступ ко всем файлам» — он же откроет их Linux-программам в /sdcard.</string>
+    <string name="files_grant">Разрешить доступ</string>
+    <string name="files_free">свободно %1$s</string>
+    <string name="files_open">Открыть</string>
+    <string name="files_open_in">Открыть в %1$s</string>
+    <string name="files_open_android">Открыть в Android-приложении…</string>
+    <string name="files_terminal_here">Открыть терминал Linux здесь</string>
+    <string name="files_cut">Вырезать</string>
+    <string name="files_copy">Копировать</string>
+    <string name="files_paste">Вставить</string>
+    <string name="files_paste_into">Вставить в эту папку</string>
+    <string name="files_rename">Переименовать</string>
+    <string name="files_copy_path">Копировать путь</string>
+    <string name="files_delete">Удалить</string>
+    <string name="files_delete_one">Удалить «%1$s»? Это нельзя отменить.</string>
+    <string name="files_new_folder">Новая папка</string>
+    <string name="files_new_folder_name">Новая папка</string>
+    <string name="files_create">Создать</string>
+    <string name="files_show_hidden">Показать скрытые файлы</string>
+    <string name="files_hide_hidden">Скрыть скрытые файлы</string>
+    <string name="files_refresh">Обновить</string>
+    <string name="files_no_app">Нет приложения, которое откроет этот файл</string>
+    <string name="files_copying">Копирование…</string>
+    <string name="files_moving">Перемещение…</string>
+    <string name="files_deleting">Удаление…</string>
+    <string name="files_renaming">Переименование…</string>
+    <string name="files_creating">Создание…</string>
+    <string name="files_name_taken">Нельзя использовать имя «%1$s»</string>
+    <string name="files_failed">Ошибка: %1$s</string>
+    <plurals name="files_items">
+        <item quantity="one">%d объект</item>
+        <item quantity="few">%d объекта</item>
+        <item quantity="many">%d объектов</item>
+        <item quantity="other">%d объекта</item>
+    </plurals>
+    <plurals name="files_selected">
+        <item quantity="one">выбран %d</item>
+        <item quantity="few">выбрано %d</item>
+        <item quantity="many">выбрано %d</item>
+        <item quantity="other">выбрано %d</item>
+    </plurals>
+    <plurals name="files_copied">
+        <item quantity="one">Скопирован %d объект — вставьте его в другую папку</item>
+        <item quantity="few">Скопировано %d объекта — вставьте их в другую папку</item>
+        <item quantity="many">Скопировано %d объектов — вставьте их в другую папку</item>
+        <item quantity="other">Скопировано %d объекта — вставьте их в другую папку</item>
+    </plurals>
+    <plurals name="files_cut_done">
+        <item quantity="one">Вырезан %d объект — вставьте его в другую папку</item>
+        <item quantity="few">Вырезано %d объекта — вставьте их в другую папку</item>
+        <item quantity="many">Вырезано %d объектов — вставьте их в другую папку</item>
+        <item quantity="other">Вырезано %d объекта — вставьте их в другую папку</item>
+    </plurals>
+    <plurals name="files_delete_many">
+        <item quantity="one">Удалить %d объект? Это нельзя отменить.</item>
+        <item quantity="few">Удалить %d объекта? Это нельзя отменить.</item>
+        <item quantity="many">Удалить %d объектов? Это нельзя отменить.</item>
+        <item quantity="other">Удалить %d объекта? Это нельзя отменить.</item>
+    </plurals>
 </resources>

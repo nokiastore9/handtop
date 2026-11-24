@@ -126,7 +126,7 @@ class SettingsContent(
         column.addView(storageStatus.styled())
         storageButton.isAllCaps = false
         storageButton.setText(R.string.settings_storage_grant)
-        storageButton.setOnClickListener { requestStorage() }
+        storageButton.setOnClickListener { LinuxEnv.requestStorageAccess(context) }
         column.addView(storageButton, wrap())
 
         // Android's phantom process killer.
@@ -236,15 +236,6 @@ class SettingsContent(
             Settings.Global.getString(context.contentResolver, PHANTOM_SETTING) != "false"
         } catch (_: SecurityException) {
             null
-        }
-    }
-
-    private fun requestStorage() {
-        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${context.packageName}"))
-        try {
-            context.startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
         }
     }
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Files the file manager hands to Android apps (content:// URIs, read access per file):
+     the phone's storage, SD cards and the Linux root filesystem. -->
+<paths>
+    <root-path name="root" path="." />
+</paths>

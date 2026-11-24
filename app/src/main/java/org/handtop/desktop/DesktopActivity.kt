@@ -27,6 +27,7 @@ import androidx.annotation.StringRes
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import org.handtop.desktop.files.FilesContent
 import org.handtop.desktop.linux.LinuxApp
 import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
@@ -129,6 +130,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         val icons = DesktopIcons(this).apply {
             add(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
             add(R.drawable.ic_apps, R.string.app_linux_apps) { openLinuxApps() }
+            add(R.drawable.ic_files, R.string.app_files) { openFiles() }
             add(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
             add(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
             add(R.drawable.ic_info, R.string.app_about) { openAbout() }
@@ -322,14 +324,25 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         openTerminalWindow(TermSessions.create(this, LinuxEnv.commandSpec(this, script).copy(title = title)))
     }
 
-    private fun launchLinuxApp(app: LinuxApp) {
+    private fun launchLinuxApp(app: LinuxApp, paths: List<String> = emptyList()) {
         if (app.terminal) {
-            // Terminal programs (htop, mc…) get a terminal window of their own.
-            val spec = LinuxEnv.commandSpec(this, app.exec).copy(title = app.name)
+            // Terminal programs (htop, mc, vim…) get a terminal window of their own.
+            val spec = LinuxEnv.commandSpec(this, LinuxApps.commandFor(app, paths)).copy(title = app.name)
             openTerminalWindow(TermSessions.create(this, spec))
         } else {
-            LinuxApps.launch(this, app)
+            LinuxApps.launch(this, app, paths)
         }
+    }
+
+    /** A new file manager window (several can be open, e.g. to copy between them). */
+    private fun openFiles() {
+        val content = FilesContent(this, object : FilesContent.Actions {
+            override fun openWithLinux(app: LinuxApp, linuxPaths: List<String>) = launchLinuxApp(app, linuxPaths)
+            override fun openTerminalAt(linuxPath: String) {
+                openTerminalWindow(TermSessions.create(this@DesktopActivity, LinuxEnv.shellSpec(this@DesktopActivity, linuxPath)))
+            }
+        })
+        area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_files), R.drawable.ic_files))
     }
 
     private fun openSettings() {
@@ -375,6 +388,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         item(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
         item(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
         item(R.drawable.ic_apps, R.string.app_linux_apps) { openLinuxApps() }
+        item(R.drawable.ic_files, R.string.app_files) { openFiles() }
         item(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
         item(R.drawable.ic_info, R.string.app_about) { openAbout() }
         panel.addView(View(this).apply { setBackgroundColor(Palette.MENU_DIVIDER) },

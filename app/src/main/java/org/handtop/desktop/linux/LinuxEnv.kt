@@ -1,6 +1,10 @@
 package org.handtop.desktop.linux
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.os.Environment
 import android.system.Os
 import org.handtop.desktop.R
@@ -16,6 +20,7 @@ import kotlin.math.abs
 object LinuxEnv {
 
     const val HOSTNAME = "handtop"
+    const val HOME = "/root"
 
     fun rootfs(context: Context) = File(context.filesDir, "linux/rootfs")
 
@@ -45,20 +50,31 @@ object LinuxEnv {
     /** Phone storage is shared with Linux once the user grants "All files access". */
     fun hasStorageAccess() = Environment.isExternalStorageManager()
 
+    /** Opens Android's "All files access" screen for HandTop (the user decides). */
+    fun requestStorageAccess(context: Context) {
+        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${context.packageName}"))
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+        }
+    }
+
     /** What Linux programs need from HandTop: the display server and, if installed, D-Bus, sound, X11. */
     fun startServices(context: Context) {
         WaylandServer.ensureRunning(context, rootfs(context))
         SessionBus.ensureRunning(context)
         SoundBridge.ensureRunning(context)
         X11Display.ensureRunning(context)
+        LinuxBookmarks.update(context)
     }
 
-    /** A login shell inside the installed distribution, as fake root, through proot. */
-    fun shellSpec(context: Context): ShellSpec {
+    /** A login shell inside the installed distribution, as fake root, through proot, in [cwd]. */
+    fun shellSpec(context: Context, cwd: String = HOME): ShellSpec {
         startServices(context)
         val rootfsDir = rootfs(context)
         val shell = if (File(rootfsDir, "bin/bash").exists()) listOf("/bin/bash", "--login") else listOf("/bin/sh", "-l")
-        return prootSpec(context, shell)
+        return prootSpec(context, shell, cwd)
     }
 
     /**
@@ -69,7 +85,7 @@ object LinuxEnv {
         prootSpec(context, listOf("/bin/sh", "-lc", command))
 
     /** [program] (argv inside Linux) with the HandTop environment, through proot. */
-    private fun prootSpec(context: Context, program: List<String>): ShellSpec {
+    private fun prootSpec(context: Context, program: List<String>, cwd: String = HOME): ShellSpec {
         val nativeDir = context.applicationInfo.nativeLibraryDir
         val rootfsDir = rootfs(context)
         val rootfs = rootfsDir.absolutePath
@@ -100,7 +116,7 @@ object LinuxEnv {
             "-b", "/proc/self/fd:/dev/fd",
             "-b", "$rootfs/tmp:/dev/shm",
         ) + storage + ProcFakes.bindings(File(context.filesDir, "linux/proc-fakes")) + listOf(
-            "-w", "/root",
+            "-w", cwd,
             "/usr/bin/env", "-i",
             "HOME=/root",
             "USER=root",
@@ -123,6 +139,14 @@ object LinuxEnv {
             "MOZ_ENABLE_WAYLAND=1",
             // No accessibility bus in the session: GTK would look for it at every start.
             "NO_AT_BRIDGE=1",
+            // Firefox's process sandboxes (seccomp, namespaces) cannot work under proot, which
+            // runs programs through ptrace: tabs would crash on start. Linux as a whole stays
+            // inside HandTop's Android app sandbox.
+            "MOZ_DISABLE_CONTENT_SANDBOX=1",
+            "MOZ_DISABLE_RDD_SANDBOX=1",
+            "MOZ_DISABLE_SOCKET_PROCESS_SANDBOX=1",
+            "MOZ_DISABLE_GMP_SANDBOX=1",
+            "MOZ_DISABLE_UTILITY_SANDBOX=1",
         ) + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) +
             (if (SessionBus.isAvailable(context)) listOf("DBUS_SESSION_BUS_ADDRESS=${SessionBus.ADDRESS}") else emptyList()) +
             program

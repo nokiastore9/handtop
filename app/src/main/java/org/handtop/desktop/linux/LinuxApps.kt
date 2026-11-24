@@ -27,6 +27,12 @@ data class LinuxApp(
     val searchText: String,
     /** A PNG icon inside the root filesystem, if the app has one. */
     val iconFile: File?,
+    /** The Exec line as written, with %f / %F / %u / %U where files go. */
+    val execTemplate: String = exec,
+    /** MIME types the program opens (MimeType=). */
+    val mimeTypes: List<String> = emptyList(),
+    /** Categories= (Viewer, Player, TextEditor, WebBrowser…). */
+    val categories: List<String> = emptyList(),
 )
 
 /**
@@ -100,12 +106,88 @@ object LinuxApps {
         return bitmap
     }
 
-    /** Starts a graphical program in the background (no terminal window). */
-    fun launch(context: Context, app: LinuxApp) {
+    /**
+     * Programs that open [mime] (from their MimeType=), the best first: the default chosen in
+     * Linux (mimeapps.list), then programs made for that kind of file (an image viewer before a
+     * web browser), then programs that take any file of the family.
+     */
+    fun appsFor(context: Context, mime: String): List<LinuxApp> {
+        val apps = known.ifEmpty { scan(context) }
+        val major = mime.substringBefore('/') + "/*"
+        val defaults = defaultsFor(LinuxEnv.rootfs(context), mime)
+        val exact = apps.filter { mime in it.mimeTypes }
+        val wide = apps.filter { it !in exact && (major in it.mimeTypes || (mime.startsWith("text/") && "text/plain" in it.mimeTypes)) }
+        fun rank(app: LinuxApp): Int {
+            val chosen = defaults.indexOf(app.id)
+            if (chosen >= 0) return 100 - chosen
+            return fit(app.categories, mime)
+        }
+        return exact.sortedByDescending(::rank) + wide.sortedByDescending(::rank)
+    }
+
+    /** How well a program's Categories fit a kind of file. */
+    private fun fit(categories: List<String>, mime: String): Int {
+        var score = 0
+        val wanted = when {
+            mime == "inode/directory" -> listOf("FileManager")
+            mime.startsWith("image/") -> listOf("Viewer", "Graphics", "2DGraphics", "Photography")
+            mime.startsWith("video/") -> listOf("Video", "Player", "AudioVideo")
+            mime.startsWith("audio/") -> listOf("Audio", "Player", "AudioVideo", "Music")
+            mime.startsWith("text/") -> listOf("TextEditor", "Development")
+            else -> emptyList()
+        }
+        if (categories.any { it in wanted }) score += 10
+        val html = mime == "text/html" || mime == "application/xhtml+xml"
+        if ("WebBrowser" in categories && !html) score -= 10
+        return score
+    }
+
+    /** Desktop file ids the user / distribution chose for [mime] (freedesktop mimeapps.list). */
+    private fun defaultsFor(rootfs: File, mime: String): List<String> {
+        val files = listOf("root/.config/mimeapps.list", "etc/xdg/mimeapps.list", "usr/share/applications/mimeapps.list")
+        val ids = ArrayList<String>()
+        for (path in files) {
+            val lines = try {
+                File(rootfs, path).takeIf { it.isFile }?.readLines() ?: continue
+            } catch (_: IOException) {
+                continue
+            }
+            var section = ""
+            for (raw in lines) {
+                val line = raw.trim()
+                if (line.startsWith("[")) section = line
+                else if (section == "[Default Applications]" && line.startsWith("$mime=")) {
+                    ids += list(line.substringAfter('=')).map { it.removeSuffix(".desktop") }
+                }
+            }
+        }
+        return ids
+    }
+
+    /** The command that opens [paths] (paths inside Linux) with [app], per its Exec field codes. */
+    fun commandFor(app: LinuxApp, paths: List<String>): String {
+        val all = paths.joinToString(" ") { quote(it) }
+        var used = false
+        val command = app.execTemplate.replace(Regex("%[a-zA-Z%]")) { code ->
+            when (code.value) {
+                "%f", "%u" -> { used = true; paths.firstOrNull()?.let(::quote) ?: "" }
+                "%F", "%U" -> { used = true; all }
+                "%%" -> "%"
+                else -> "" // %i, %c, %k: icon, name, desktop file
+            }
+        }.replace(Regex("\\s+"), " ").trim()
+        return if (!used && paths.isNotEmpty()) "$command $all" else command
+    }
+
+    /** Single-quoted for sh: a quote inside becomes '\'' (close, escaped quote, reopen). */
+    private fun quote(text: String) = "'" + text.replace("'", "'\\''") + "'"
+
+    /** Starts a graphical program in the background (no terminal window), optionally with files. */
+    fun launch(context: Context, app: LinuxApp, paths: List<String> = emptyList()) {
         LinuxEnv.startServices(context)
         val program = app.exec.substringBefore(' ').substringAfterLast('/')
         val x11 = program in PREFER_X11 && X11Display.isInstalled(context)
-        val spec = LinuxEnv.commandSpec(context, (if (x11) "export GDK_BACKEND=x11; " else "") + "exec ${app.exec}")
+        val spec = LinuxEnv.commandSpec(context, (if (x11) "export GDK_BACKEND=x11; " else "") + "exec ${commandFor(app, paths)}")
         val log = File(LinuxEnv.rootfs(context), "tmp/handtop-apps.log")
         val builder = ProcessBuilder(listOf(spec.executable) + spec.args.drop(1))
             .directory(File(spec.cwd))
@@ -181,8 +263,13 @@ object LinuxApps {
             wmClass = keys["StartupWMClass"],
             searchText = search,
             iconFile = keys["Icon"]?.let { findIcon(rootfs, it) },
+            execTemplate = keys["Exec"] ?: exec,
+            mimeTypes = list(keys["MimeType"]),
+            categories = list(keys["Categories"]),
         )
     }
+
+    private fun list(value: String?) = value?.split(';')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
 
     /** Removes %f, %U and other field codes; "%%" is a literal percent sign. */
     private fun stripFieldCodes(exec: String): String =
