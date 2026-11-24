@@ -290,6 +290,17 @@ Parole + `gstreamer1.0-libav`: тот же MP4 (~38% ядра, HandTop ~14%). MI
 и Xwayland не работает (SysV shm в proot эмулируется отдельно для каждого запуска) — кадры идут
 в X-сервер копированием; кандидат на ускорение: MIT-SHM через fd (`XShmAttachFd`).
 
+Буфер обмена X11 (2026-11-24): XWM связывает CLIPBOARD X11 с буфером HandTop. X11 → всем:
+XFixes `SelectSelectionInput` сообщает о новом владельце, XWM забирает текст `ConvertSelection`
+(UTF8_STRING, иначе STRING) и делает его выбором HandTop (Wayland-программы, Android).
+Всем → X11: при выборе из Wayland-программы или Android XWM становится владельцем CLIPBOARD и
+отвечает на `SelectionRequest` (TARGETS, UTF8_STRING, STRING, TEXT, text/plain); текст читается
+только при вставке (из буфера Android — тоже, Android 12+ показывает уведомление о чтении).
+Когда X11-программа закрывается, скопированный текст остаётся. Ограничения: INCR (очень большие
+выборы из X11) не поддерживается; в X11 отдаётся до ~256 КБ за раз (без BIG-REQUESTS); PRIMARY
+(вставка средней кнопкой) не связывается. Проверено: `xclip` → Mousepad (Wayland), Mousepad →
+`xclip -o` и TARGETS, кириллица.
+
 Дальше:
 - окна Linux на отдельной поверхности (SurfaceControl / TextureView), чтобы кадр клиента не
   перерисовывал всё окно HandTop; GPU-клиенты через dmabuf / общий `AHardwareBuffer` (этап 5);

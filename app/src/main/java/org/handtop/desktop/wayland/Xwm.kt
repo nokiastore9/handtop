@@ -146,7 +146,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
         x.changeProperty32(x.root, a("_NET_SUPPORTING_WM_CHECK"), ATOM_WINDOW, wmWindow)
         x.changePropertyUtf8(wmWindow, a("_NET_WM_NAME"), a("UTF8_STRING"), "HandTop")
         x.changeProperty32(x.root, a("_NET_SUPPORTED"), ATOM_ATOM, *SUPPORTED.map { a(it) }.toIntArray())
-        x.queryExtension("Composite") { composite ->
+        x.queryExtension("Composite") { composite, _ ->
             if (composite == 0) {
                 Log.e(TAG, "the X server has no Composite extension: X11 windows cannot be shown")
                 return@queryExtension
@@ -158,6 +158,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
                 }
                 ready = true
                 Log.i(TAG, "X11 window manager ready (root ${x.rootWidth}x${x.rootHeight})")
+                startClipboard()
             }
         }
     }
@@ -210,6 +211,105 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
             }
             EV_PROPERTY_NOTIFY -> windows[e.u32(4)]?.let { propertyChanged(it, e.u32(8)) }
             EV_CLIENT_MESSAGE -> clientMessage(e)
+            X11Connection.EV_SELECTION_REQUEST -> selectionRequest(e)
+            X11Connection.EV_SELECTION_NOTIFY -> selectionNotify(e)
+            else -> if (xfixesEvent != 0 && e.code == xfixesEvent) selectionOwnerChanged(e)
+        }
+    }
+
+    // ---- clipboard: X11 CLIPBOARD ↔ HandTop's clipboard (Wayland programs, Android) ----
+
+    private var xfixesEvent = 0
+    /** HandTop owns the X11 CLIPBOARD (the selection comes from a Wayland program or Android). */
+    private var ownClipboard = false
+
+    private fun startClipboard() {
+        x.queryExtension("XFIXES") { xfixes, firstEvent ->
+            if (xfixes == 0) {
+                Log.w(TAG, "no XFixes: X11 programs cannot copy to the shared clipboard")
+                return@queryExtension
+            }
+            x.watchSelection(xfixes, wmWindow, a("CLIPBOARD")) { ok ->
+                if (!ok) return@watchSelection
+                xfixesEvent = firstEvent
+                server.clipboard.onChange = { fromX11 -> if (!fromX11 && server.clipboard.hasSelection) claimClipboard() }
+                if (server.clipboard.hasSelection && !server.clipboard.isX11) claimClipboard()
+                Log.i(TAG, "clipboard shared with X11")
+            }
+        }
+    }
+
+    /** HandTop's clipboard changed outside X11: X11 programs paste it from HandTop. */
+    private fun claimClipboard() {
+        if (!ready) return
+        x.setSelectionOwner(wmWindow, a("CLIPBOARD"))
+        ownClipboard = true
+    }
+
+    /** XFixesSelectionNotify: someone else owns the CLIPBOARD now — an X11 program copied. */
+    private fun selectionOwnerChanged(e: XMessage) {
+        val owner = e.u32(8)
+        val selection = e.u32(12)
+        if (selection != a("CLIPBOARD")) return
+        if (owner == wmWindow) return
+        ownClipboard = false
+        if (owner == 0) return // the program quit: HandTop keeps the text it already copied
+        fetchClipboard(a("UTF8_STRING"))
+    }
+
+    private fun fetchClipboard(target: Int) {
+        x.convertSelection(wmWindow, a("CLIPBOARD"), target, a("HANDTOP_SELECTION"))
+    }
+
+    /** The X11 owner answered our ConvertSelection. */
+    private fun selectionNotify(e: XMessage) {
+        val target = e.u32(16)
+        val property = e.u32(20)
+        if (e.u32(8) != wmWindow || e.u32(12) != a("CLIPBOARD")) return
+        if (property == 0) {
+            if (target == a("UTF8_STRING")) fetchClipboard(ATOM_STRING) // older programs: Latin-1 only
+            return
+        }
+        x.getProperty(wmWindow, property, longs = MAX_CLIPBOARD_BYTES / 4) { value ->
+            if (value == null || value.format != 8) return@getProperty
+            if (value.type == a("INCR")) {
+                Log.w(TAG, "clipboard: X11 program sends a large selection in pieces (INCR): not supported")
+                return@getProperty
+            }
+            val text = String(value.data, if (value.type == ATOM_STRING) Charsets.ISO_8859_1 else Charsets.UTF_8)
+            server.clipboard.setX11Text(text)
+        }
+    }
+
+    /** An X11 program pastes what HandTop owns. */
+    private fun selectionRequest(e: XMessage) {
+        val time = e.u32(4)
+        val requestor = e.u32(12)
+        val selection = e.u32(16)
+        val target = e.u32(20)
+        val property = e.u32(24).takeIf { it != 0 } ?: target // obsolete clients: property = target
+        fun refuse() = x.selectionNotify(requestor, selection, target, 0, time)
+        if (selection != a("CLIPBOARD") || !ownClipboard) return refuse()
+        val utf8 = a("UTF8_STRING")
+        val textTargets = setOf(utf8, ATOM_STRING, a("TEXT"), a("text/plain;charset=utf-8"), a("text/plain"))
+        when (target) {
+            a("TARGETS") -> {
+                x.changeProperty32(requestor, property, ATOM_ATOM, a("TARGETS"), utf8, ATOM_STRING, a("TEXT"), a("text/plain;charset=utf-8"))
+                x.selectionNotify(requestor, selection, target, property, time)
+            }
+            in textTargets -> server.clipboard.readText { text ->
+                if (text == null) return@readText refuse()
+                val latin1 = target == ATOM_STRING
+                var bytes = text.toByteArray(if (latin1) Charsets.ISO_8859_1 else Charsets.UTF_8)
+                val room = X11Connection.MAX_REQUEST_BYTES - 64
+                if (bytes.size > room) {
+                    Log.w(TAG, "clipboard: ${bytes.size} bytes are too many for one X11 request; truncated")
+                    bytes = bytes.copyOf(room)
+                }
+                x.changeProperty(requestor, property, if (latin1) ATOM_STRING else utf8, 8, bytes, bytes.size)
+                x.selectionNotify(requestor, selection, target, property, time)
+            }
+            else -> refuse()
         }
     }
 
@@ -498,6 +598,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
         const val P_MAX_SIZE = 32
         const val MWM_HINTS_DECORATIONS = 2
         const val MOVERESIZE_MOVE = 8
+        const val MAX_CLIPBOARD_BYTES = 8 * 1024 * 1024
 
         /** _NET_WM_MOVERESIZE directions 0..7 (top-left clockwise) as xdg resize edges. */
         val RESIZE_EDGES = intArrayOf(5, 1, 9, 8, 10, 2, 6, 4)
@@ -513,6 +614,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
             "UTF8_STRING", "WM_PROTOCOLS", "WM_DELETE_WINDOW", "WM_TAKE_FOCUS", "WM_STATE", "WM_CHANGE_STATE",
             "_NET_WM_WINDOW_TYPE_TOOLTIP", "_NET_WM_WINDOW_TYPE_NOTIFICATION", "_NET_WM_WINDOW_TYPE_DND",
             "_MOTIF_WM_HINTS", "WL_SURFACE_ID", "WL_SURFACE_SERIAL",
+            "CLIPBOARD", "TARGETS", "TEXT", "INCR", "HANDTOP_SELECTION", "text/plain;charset=utf-8", "text/plain",
         )
     }
 }

@@ -154,10 +154,40 @@ class X11Connection private constructor(
 
     // ---- requests the window manager uses ----
 
-    /** The extension's major opcode, or 0 if the server does not have it. */
-    fun queryExtension(name: String, reply: (Int) -> Unit) {
+    /** The extension's major opcode (0 if the server does not have it) and its first event code. */
+    fun queryExtension(name: String, reply: (major: Int, firstEvent: Int) -> Unit) {
         val bytes = name.toByteArray(Charsets.ISO_8859_1)
-        request(98, 0, { m -> reply(if (m != null && m.u8(8) != 0) m.u8(9) else 0) }) { u16(bytes.size); u16(0); data(bytes) }
+        request(98, 0, { m ->
+            if (m != null && m.u8(8) != 0) reply(m.u8(9), m.u8(10)) else reply(0, 0)
+        }) { u16(bytes.size); u16(0); data(bytes) }
+    }
+
+    /**
+     * XFixes: be told when the owner of [selection] changes (an X11 program copies).
+     * QueryVersion first, as XFixes requires.
+     */
+    fun watchSelection(xfixes: Int, window: Int, selection: Int, done: (Boolean) -> Unit) {
+        request(xfixes, 0, { m ->
+            if (m == null) {
+                done(false)
+                return@request
+            }
+            // SelectSelectionInput: SetSelectionOwner | SelectionWindowDestroy | SelectionClientClose
+            request(xfixes, 2) { u32(window); u32(selection); u32(7) }
+            done(true)
+        }) { u32(5); u32(0) } // QueryVersion 5.0
+    }
+
+    fun setSelectionOwner(owner: Int, selection: Int) = request(22) { u32(owner); u32(selection); u32(0) }
+
+    /** Asks the selection owner to put [target] into [property] of [requestor]: a SelectionNotify follows. */
+    fun convertSelection(requestor: Int, selection: Int, target: Int, property: Int) =
+        request(24) { u32(requestor); u32(selection); u32(target); u32(property); u32(0) }
+
+    /** Tells [requestor] its selection request is answered ([property], or 0 for refused). */
+    fun selectionNotify(requestor: Int, selection: Int, target: Int, property: Int, time: Int) = sendEvent(requestor, 0) {
+        u8(EV_SELECTION_NOTIFY); u8(0); u16(0)
+        u32(time); u32(requestor); u32(selection); u32(target); u32(property)
     }
 
     /**
@@ -209,7 +239,7 @@ class X11Connection private constructor(
         changeProperty(window, property, type, 8, bytes, bytes.size)
     }
 
-    fun getProperty(window: Int, property: Int, reply: (XProperty?) -> Unit) =
+    fun getProperty(window: Int, property: Int, longs: Int = MAX_PROPERTY_LONGS, reply: (XProperty?) -> Unit) =
         request(20, 0, { m ->
             if (m == null || m.u32(8) == 0) {
                 reply(null)
@@ -218,7 +248,7 @@ class X11Connection private constructor(
                 val count = m.u32(16) * (format / 8)
                 reply(XProperty(m.u32(8), format, m.bytes.copyOfRange(32, minOf(32 + count, m.bytes.size))))
             }
-        }) { u32(window); u32(property); u32(0); u32(0); u32(MAX_PROPERTY_LONGS) }
+        }) { u32(window); u32(property); u32(0); u32(0); u32(longs) }
 
     /** A 32-byte [event] built by [build] (after its code byte), sent to [window]. */
     fun sendEvent(window: Int, eventMask: Int, build: XOut.() -> Unit) {
@@ -253,7 +283,13 @@ class X11Connection private constructor(
         const val EV_CONFIGURE_NOTIFY = 22
         const val EV_CONFIGURE_REQUEST = 23
         const val EV_PROPERTY_NOTIFY = 28
+        const val EV_SELECTION_CLEAR = 29
+        const val EV_SELECTION_REQUEST = 30
+        const val EV_SELECTION_NOTIFY = 31
         const val EV_CLIENT_MESSAGE = 33
+
+        /** Largest request without BIG-REQUESTS (in bytes), for property data we send. */
+        const val MAX_REQUEST_BYTES = 262_140
 
         const val CW_OVERRIDE_REDIRECT = 0x200
         const val CW_EVENT_MASK = 0x800

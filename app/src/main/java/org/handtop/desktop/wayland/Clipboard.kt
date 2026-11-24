@@ -31,9 +31,21 @@ class Clipboard(private val server: WaylandServer, private val context: Context)
     sealed interface Selection {
         class Linux(val source: WlDataSource) : Selection
         object Android : Selection
+        /** Copied by an X11 program (HandTop holds the text: see Xwm). */
+        class X11(val text: String) : Selection
     }
 
     private var selection: Selection? = null
+        set(value) {
+            field = value
+            onChange?.invoke(value is Selection.X11)
+        }
+
+    /** The selection changed; true if it came from X11 (the X11 window manager listens). */
+    var onChange: ((fromX11: Boolean) -> Unit)? = null
+
+    val hasSelection get() = selection != null
+    val isX11 get() = selection is Selection.X11
     /** Timestamp of the Android clip we last saw, to notice new ones without reading them. */
     private var seenAndroidClip = 0L
 
@@ -56,6 +68,65 @@ class Clipboard(private val server: WaylandServer, private val context: Context)
         selection = source?.let { Selection.Linux(it) }
         source?.let { copyToAndroid(it) }
         offerToFocusedClient()
+    }
+
+    /** An X11 program copied [text]: it becomes everyone's selection, Android's too. */
+    fun setX11Text(text: String) {
+        (selection as? Selection.Linux)?.source?.let { old ->
+            if (old.client.connected) {
+                old.event(2) // cancelled
+                old.client.flush()
+            }
+        }
+        selection = Selection.X11(text)
+        putOnAndroid(text)
+        offerToFocusedClient()
+    }
+
+    /**
+     * The selection as text, for X11 programs that paste: read when they ask (from the Wayland
+     * program through a pipe, or from Android's clipboard). [done] runs on the main thread.
+     */
+    fun readText(done: (String?) -> Unit) {
+        when (val current = selection) {
+            null -> done(null)
+            is Selection.X11 -> done(current.text)
+            Selection.Android -> done(androidText())
+            is Selection.Linux -> {
+                val source = current.source
+                val mime = TEXT_MIMES.firstOrNull { it in source.mimeTypes }
+                if (mime == null || !source.client.connected || !source.alive) return done(null)
+                val pipe = ParcelFileDescriptor.createPipe()
+                source.event(1) { string(mime); fd(pipe[1].detachFd()) }
+                source.client.flush()
+                Thread({
+                    val text = readAll(pipe[0])
+                    main.post { done(text) }
+                }, "clipboard-read-x11").start()
+            }
+        }
+    }
+
+    private fun androidText(): String? = try {
+        android?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
+    } catch (_: RuntimeException) {
+        null
+    }
+
+    private fun readAll(fd: ParcelFileDescriptor): String? = try {
+        ParcelFileDescriptor.AutoCloseInputStream(fd).use { input ->
+            val out = ByteArrayOutputStream()
+            val buf = ByteArray(16 * 1024)
+            while (out.size() < MAX_BYTES) {
+                val n = input.read(buf)
+                if (n < 0) break
+                out.write(buf, 0, n)
+            }
+            out.toString(Charsets.UTF_8.name())
+        }
+    } catch (e: Exception) {
+        Log.w(WaylandServer.TAG, "clipboard: reading from Linux failed", e)
+        null
     }
 
     /** A source died: the selection is empty until someone copies again. */
@@ -140,7 +211,7 @@ class Clipboard(private val server: WaylandServer, private val context: Context)
         val current = selection
         val mimes = when (current) {
             is Selection.Linux -> current.source.mimeTypes.toList()
-            Selection.Android -> TEXT_MIMES
+            Selection.Android, is Selection.X11 -> TEXT_MIMES
             null -> emptyList()
         }
         for (device in devices.filter { it.client === client }) {
@@ -168,12 +239,8 @@ class Clipboard(private val server: WaylandServer, private val context: Context)
                     Native.close(fd)
                 }
             }
-            Selection.Android -> {
-                val text = try {
-                    android?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
-                } catch (_: RuntimeException) {
-                    null
-                }
+            Selection.Android, is Selection.X11 -> {
+                val text = if (selection is Selection.X11) selection.text else androidText()
                 val out = ParcelFileDescriptor.adoptFd(fd)
                 Thread({
                     try {
