@@ -33,6 +33,14 @@ class WaylandWindowContent(
     private val popupLayer: PopupLayer,
 ) : View(context), WindowContent, ToplevelView {
 
+    // Not attached yet: the program's first frames must not wait.
+    override val isShownOnScreen get() = !isAttachedToWindow || isShown
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (isVisible) toplevel.client.server.wakeHiddenFrames()
+    }
+
     /** What the content may ask from its desktop window beyond [WindowHost]. Raw = screen pixels. */
     interface WindowControl {
         fun beginMove(rawX: Float, rawY: Float)

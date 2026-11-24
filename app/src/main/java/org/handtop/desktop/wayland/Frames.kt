@@ -2,6 +2,8 @@ package org.handtop.desktop.wayland
 
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.graphics.Region
+import android.graphics.RegionIterator
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -19,8 +21,11 @@ import androidx.annotation.RequiresApi
 internal class HardwareFrames private constructor(val width: Int, val height: Int) {
 
     private class Slot(val handle: Long, val bitmap: Bitmap) {
-        /** Damage since this slot was last written; null = everything. */
-        var dirty: MutableList<Rect>? = null
+        /**
+         * Damage since this slot was last written; null = everything. A region, so damage that
+         * overlaps (a video's whole frame, every commit) is copied once, not once per commit.
+         */
+        var dirty: Region? = null
     }
 
     private val slots = arrayOfNulls<Slot>(SLOTS)
@@ -36,19 +41,11 @@ internal class HardwareFrames private constructor(val width: Int, val height: In
      * Returns false if no hardware buffer could be used (the caller falls back to software).
      */
     fun update(buffer: WlBuffer, damage: List<Rect>): Boolean {
-        for (slot in slots) slot?.dirty?.let { add(it, damage) }
+        for (slot in slots) slot?.dirty?.let { dirty -> for (r in damage) dirty.op(r, Region.Op.UNION) }
         val slot = slots[next] ?: allocate() ?: return false
         slots[next] = slot
 
-        val region = slot.dirty ?: listOf(Rect(0, 0, width, height))
-        val count = region.size.coerceAtMost(MAX_RECTS)
-        for (i in 0 until count) {
-            val r = region[i]
-            rects[i * 4] = r.left
-            rects[i * 4 + 1] = r.top
-            rects[i * 4 + 2] = r.width()
-            rects[i * 4 + 3] = r.height()
-        }
+        val count = rectsOf(slot.dirty)
         val pool = buffer.pool
         val result = Native.hbBlit(
             slot.handle, pool.addr, pool.size, buffer.offset, buffer.width, buffer.height, buffer.stride,
@@ -56,7 +53,7 @@ internal class HardwareFrames private constructor(val width: Int, val height: In
         )
         if (result == -1) throw ProtocolError(buffer.id, 0, "buffer outside its pool")
         if (result != 0) return false
-        slot.dirty = ArrayList()
+        slot.dirty = Region()
         current = slot.bitmap
         next = (next + 1) % SLOTS
         return true
@@ -75,15 +72,28 @@ internal class HardwareFrames private constructor(val width: Int, val height: In
         return Slot(handle, bitmap)
     }
 
-    /** Adds damage to a slot's list, merging into one bounding box when it gets long. */
-    private fun add(list: MutableList<Rect>, damage: List<Rect>) {
-        list.addAll(damage)
-        if (list.size > MERGE_ABOVE) {
-            val box = Rect(list[0])
-            for (r in list) box.union(r)
-            list.clear()
-            list += box
+    /**
+     * Puts the disjoint rectangles of [region] (null = the whole buffer) into [rects] as
+     * x, y, width, height and returns how many; past [MAX_RECTS], their bounding box.
+     */
+    private fun rectsOf(region: Region?): Int {
+        if (region == null) return put(0, Rect(0, 0, width, height))
+        val r = Rect()
+        val iterator = RegionIterator(region)
+        var count = 0
+        while (iterator.next(r)) {
+            if (count == MAX_RECTS) return put(0, region.bounds)
+            count = put(count, r)
         }
+        return count
+    }
+
+    private fun put(index: Int, r: Rect): Int {
+        rects[index * 4] = r.left
+        rects[index * 4 + 1] = r.top
+        rects[index * 4 + 2] = r.width()
+        rects[index * 4 + 3] = r.height()
+        return index + 1
     }
 
     fun release() {
@@ -102,7 +112,6 @@ internal class HardwareFrames private constructor(val width: Int, val height: In
     companion object {
         private const val SLOTS = 3
         private const val MAX_RECTS = 64
-        private const val MERGE_ABOVE = 16
         private const val RELEASE_DELAY_MS = 500L
         private val main = Handler(Looper.getMainLooper())
 

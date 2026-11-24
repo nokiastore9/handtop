@@ -124,6 +124,22 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         return null
     }
 
+    /**
+     * False when the window showing this surface is hidden: minimized, or HandTop is not on
+     * screen. Popups, cursors and surfaces not shown yet count as shown.
+     */
+    fun isShown(): Boolean {
+        var s: WlSurface = this
+        var guard = 0
+        while (guard++ < 64) s = s.subsurface?.parent ?: break
+        val view = when (val r = s.role) {
+            is SurfaceRole.Xdg -> r.xdg.toplevel?.view
+            is SurfaceRole.Xwayland -> r.surface.window?.toplevel?.view
+            else -> null
+        }
+        return view?.isShownOnScreen != false
+    }
+
     /** Asks the window showing this surface to redraw. */
     fun contentChanged() {
         val xdg = rootXdg() ?: return
@@ -214,7 +230,7 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
             inputRegionSet = false
         }
         if (pendingFrames.isNotEmpty()) {
-            client.server.scheduleFrameCallbacks(pendingFrames)
+            client.server.scheduleFrameCallbacks(this, pendingFrames)
             pendingFrames.clear()
         }
         for (child in stack) if (child !== this) child.subsurface?.parentCommitted()

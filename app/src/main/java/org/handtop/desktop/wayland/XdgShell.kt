@@ -448,6 +448,8 @@ class XdgPopup(
 
 /** What the window manager provides for a mapped toplevel. */
 interface ToplevelView {
+    /** False while the window is hidden (minimized, HandTop not on screen). */
+    val isShownOnScreen: Boolean get() = true
     fun titleChanged()
     /** The app id (xdg) / WM_CLASS (X11) arrived or changed: the icon may change. */
     fun appIdChanged() = Unit

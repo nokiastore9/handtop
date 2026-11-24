@@ -165,23 +165,52 @@ class WaylandServer private constructor(private val app: Context) {
     private val frameCallbacks = ArrayList<WlCallback>()
     private var frameScheduled = false
 
-    fun scheduleFrameCallbacks(callbacks: List<WlCallback>) {
-        frameCallbacks += callbacks
-        if (frameScheduled) return
+    /**
+     * Frame callbacks ("draw your next frame now") of hidden windows: held back like other
+     * compositors do, so a minimized player or browser, or every program while HandTop is not
+     * on screen, stops drawing frames nobody sees. They are let go once a second and as soon as
+     * their window shows again.
+     */
+    private val hiddenFrames = ArrayList<WlCallback>()
+    private var hiddenWakeScheduled = false
+
+    fun scheduleFrameCallbacks(surface: WlSurface, callbacks: List<WlCallback>) {
+        if (surface.isShown()) frameCallbacks += callbacks else hiddenFrames += callbacks
+        if (hiddenFrames.isNotEmpty() && !hiddenWakeScheduled) {
+            hiddenWakeScheduled = true
+            main.postDelayed({
+                hiddenWakeScheduled = false
+                wakeHiddenFrames()
+            }, HIDDEN_FRAME_MS)
+        }
+        if (frameCallbacks.isEmpty() || frameScheduled) return
         frameScheduled = true
         Choreographer.getInstance().postFrameCallback { frameTimeNanos ->
             frameScheduled = false
             val due = frameCallbacks.toList()
             frameCallbacks.clear()
-            val time = (frameTimeNanos / 1_000_000).toInt()
-            due.forEach { if (it.client.connected) it.done(time) }
-            due.map { it.client }.distinct().forEach { it.flush() }
+            fireFrames(due, frameTimeNanos)
         }
+    }
+
+    /** A window showed again (or a second passed): its programs may draw. Main thread. */
+    fun wakeHiddenFrames() {
+        if (hiddenFrames.isEmpty()) return
+        val due = hiddenFrames.toList()
+        hiddenFrames.clear()
+        fireFrames(due, System.nanoTime())
+    }
+
+    private fun fireFrames(due: List<WlCallback>, timeNanos: Long) {
+        val time = (timeNanos / 1_000_000).toInt()
+        due.forEach { if (it.client.connected) it.done(time) }
+        due.map { it.client }.distinct().forEach { it.flush() }
     }
 
     companion object {
         const val TAG = "HandTopWayland"
         const val DEBUG = false
+        private const val HIDDEN_FRAME_MS = 1000L
 
         /** Paths inside the Linux root filesystem (guest view). */
         const val RUNTIME_DIR = "tmp/.handtop-runtime"
