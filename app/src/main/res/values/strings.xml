@@ -83,6 +83,22 @@
     <string name="settings_x11_on">✓ X11 works (display :0)</string>
     <string name="settings_x11_off">Xwayland is installed; it starts with a Linux terminal or app</string>
     <string name="settings_x11_install">Install X11 support</string>
+
+    <string name="settings_gpu_title">Graphics acceleration</string>
+    <string name="settings_gpu_text">Linux programs draw on the phone\'s Adreno GPU (OpenGL 4.6, OpenGL ES 3.2, Vulkan 1.4) instead of the processor. The drivers come with HandTop and set themselves up. Programs that were open during a change need a restart.</string>
+    <string name="settings_gpu_not_in_build">This HandTop build has no GPU drivers: Linux programs draw on the processor</string>
+    <string name="settings_gpu_no_adreno">This phone has no Adreno GPU (Snapdragon): Linux programs draw on the processor</string>
+    <string name="settings_gpu_distro">For now only with Debian: Linux programs draw on the processor</string>
+    <string name="settings_gpu_unpacking">Setting up the GPU drivers…</string>
+    <string name="settings_gpu_libraries">Installing libraries in Linux…</string>
+    <string name="settings_gpu_on">✓ On: %1$s (Mesa %2$s, Turnip + Zink)</string>
+    <string name="settings_gpu_off">Off: Linux programs draw on the processor</string>
+    <string name="settings_gpu_missing">The GPU drivers are not installed yet</string>
+    <string name="settings_gpu_failed">Could not install the GPU drivers: %1$s</string>
+    <string name="settings_gpu_turn_on">Turn on</string>
+    <string name="settings_gpu_turn_off">Turn off</string>
+    <string name="settings_gpu_install">Install the drivers</string>
+    <string name="settings_gpu_retry">Try again</string>
     <string name="settings_storage_title">Phone storage</string>
     <string name="settings_storage_text">Let Linux see your files: they appear as /sdcard. Android asks for “All files access”. Open a new Linux terminal after granting it.</string>
     <string name="settings_storage_grant">Allow access</string>
@@ -107,6 +123,7 @@
     <string name="notif_title">HandTop is running</string>
     <string name="notif_sessions">Open terminals: %1$d</string>
     <string name="notif_installing">Setting up Linux…</string>
+    <string name="notif_gpu_installing">Installing the GPU drivers…</string>
 
     <string name="about_text">HandTop %1$s\nDesktop in your hand.\n\nA desktop for Android: windows, a taskbar and terminals — Android shell and real Linux (Debian, Ubuntu, Alpine or Fedora through proot, no root needed).\n\nCurrent stage: 2 — Linux environment.\n\nLicense: GNU GPL v3.\nThe terminal emulator is based on Termux (Apache 2.0); proot is the Termux fork (GPL v2+), talloc is LGPL v3+.\n\nShortcuts:\nCtrl+Alt+T — new terminal\nAlt+F4 — close window\nCtrl+Shift+C / V — copy / paste\nCtrl+Plus / Ctrl+Minus — font size</string>
     <string name="app_files">Files</string>

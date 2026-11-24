@@ -54,6 +54,8 @@ object LinuxInstaller {
     /** Installs [distro], replacing whatever is installed. Linux terminals must be closed. */
     fun install(context: Context, distro: Distro) = runJob(context, State(Phase.RESOLVING, distro)) { app ->
         download(app, distro)
+        // GPU drivers right away, so that the first terminal already gets them (Adreno only).
+        GpuDrivers.installIfNeeded(app)
         State(Phase.DONE, distro)
     }
 

@@ -7,8 +7,26 @@ GPU acceleration for HandTop's Linux programs on Snapdragon phones:
 - **Zink** provides OpenGL 4.6 and OpenGL ES 3.2 on top of Vulkan.
 
 Mesa supports this pairing without DRM (`pseudo-drm`). Debian's Mesa is built without KGSL,
-so HandTop builds its own and installs it next to Debian's, into `/opt/handtop-mesa`. Debian's
-llvmpipe stays the default.
+so HandTop builds its own. The package goes into the APK, and HandTop installs it next to
+Debian's Mesa by itself (see below).
+
+## How HandTop uses it
+
+1. **Bundling.** The `bundleMesa` Gradle task puts the package into the APK's assets. It takes
+   the package from `native/mesa/prebuilt/` (not in git), or else from the project's release
+   `mesa-<version>`. It checks the SHA-256 pinned in `app/build.gradle.kts`.
+2. **Installing.** On a phone with Adreno (the KGSL device is open to apps) running Debian 13,
+   `GpuDrivers` unpacks it into `/opt/handtop-mesa`. It installs any of the Debian libraries
+   it needs that are missing, with apt. This happens right after Linux is installed, or at
+   the next Linux session.
+3. **Running.** While acceleration is on, HandTop:
+   - registers the package with glvnd (`/usr/share/glvnd/egl_vendor.d/10_handtop-mesa.json`,
+     `libGLX_handtop.so.0`) and the Vulkan loader (`/usr/share/vulkan/icd.d/`);
+   - gives every Linux program the variables from `GpuDrivers.environment`.
+
+   Switched off in the settings, all of that is removed and llvmpipe draws again.
+
+`handtop-gpu` runs a single program with the package even when acceleration is off.
 
 ## Build
 
@@ -24,7 +42,15 @@ What the script does:
 2. Fetches the pinned Mesa release from archive.mesa3d.org and checks its SHA-256.
 3. Applies `patches/`.
 4. Builds Mesa, installs it into `/opt/handtop-mesa`, and packs that directory as
-   `handtop-mesa-<version>-debian13-arm64.tar.xz` (about 7 MB).
+   `handtop-mesa-<version>-<revision>-debian13-arm64.tar.gz` (about 10 MB), with a `.sha256`.
+
+A new package for the APK means:
+
+1. Put it into `native/mesa/prebuilt/`.
+2. Update the version and the SHA-256 in `app/build.gradle.kts`.
+
+The GitHub Actions workflow `.github/workflows/mesa.yml` builds the same package on an arm64
+runner. For a tag `mesa-<version>-<revision>`, it publishes the package as a release.
 
 The build takes about 10 minutes on a Snapdragon 8 Gen 3. It resumes after an interruption;
 delete `mesa-<version>/` to start over.
@@ -37,7 +63,7 @@ delete `mesa-<version>/` to start over.
   Zink on the software platform path, and Zink presents through Vulkan (kopper), as it does
   on X11. Candidate for upstream.
 
-## Use
+## Running a program by hand
 
 ```sh
 /opt/handtop-mesa/bin/handtop-gpu glmark2-es2-wayland

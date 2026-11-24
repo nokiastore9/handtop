@@ -15,6 +15,7 @@ import androidx.core.app.ServiceCompat
 import org.handtop.desktop.DesktopActivity
 import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxApps
+import org.handtop.desktop.linux.GpuDrivers
 import org.handtop.desktop.linux.LinuxInstaller
 import org.handtop.desktop.term.TermSessions
 
@@ -48,6 +49,7 @@ class SessionService : Service() {
         )
         val text = when {
             LinuxInstaller.isRunning -> getString(R.string.notif_installing)
+            GpuDrivers.isRunning -> getString(R.string.notif_gpu_installing)
             else -> getString(R.string.notif_sessions, TermSessions.hosts.size)
         }
         return Notification.Builder(this, CHANNEL_ID)
@@ -65,7 +67,8 @@ class SessionService : Service() {
         private const val TAG = "SessionService"
 
         private fun isNeeded() =
-            TermSessions.hosts.isNotEmpty() || LinuxInstaller.isRunning || LinuxApps.running.isNotEmpty()
+            TermSessions.hosts.isNotEmpty() || LinuxInstaller.isRunning || GpuDrivers.isRunning ||
+                LinuxApps.running.isNotEmpty()
 
         /** Start, refresh or stop the service to match the current sessions / installs. */
         fun update(context: Context) {

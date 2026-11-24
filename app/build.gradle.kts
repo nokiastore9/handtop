@@ -61,9 +61,20 @@ val buildProot = tasks.register<BuildProotTask>("buildProot") {
     outputDirectory.set(layout.buildDirectory.dir("generated/proot/jniLibs"))
 }
 
+// GPU drivers for Adreno (native/mesa), shipped inside the APK. A new package build means a new
+// version and SHA-256 here (the package is in native/mesa/prebuilt/ or the project's release).
+val bundleMesa = tasks.register<BundleMesaTask>("bundleMesa") {
+    version.set("26.3.1-1")
+    sha256.set("f9190a239dbf52fb508ee19be24fb602571f3a29a7eb9285f0fb034378f3bae3")
+    prebuiltDirectory.set(rootProject.layout.projectDirectory.dir("native/mesa/prebuilt"))
+    releaseUrl.set("https://github.com/nokiastore9/handtop/releases/download/mesa-{version}")
+    outputDirectory.set(layout.buildDirectory.dir("generated/mesa/assets"))
+}
+
 androidComponents {
     onVariants { variant ->
         variant.sources.jniLibs?.addGeneratedSourceDirectory(buildProot, BuildProotTask::outputDirectory)
+        variant.sources.assets?.addGeneratedSourceDirectory(bundleMesa, BundleMesaTask::outputDirectory)
     }
 }
 

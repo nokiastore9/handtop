@@ -69,6 +69,7 @@ object LinuxEnv {
         SoundBridge.ensureRunning(context)
         X11Display.ensureRunning(context)
         LinuxBookmarks.update(context)
+        GpuDrivers.installIfNeeded(context) // Adreno: HandTop's Mesa, without the user asking
     }
 
     /** A login shell inside the installed distribution, as fake root, through proot, in [cwd]. */
@@ -126,6 +127,7 @@ object LinuxEnv {
         // Linux GUI programs talk to HandTop's compositor through this socket.
         WaylandServer.ensureRunning(context, rootfsDir)
         ensureProfile(rootfsDir)
+        GpuDrivers.register(context)
 
         val storage = if (hasStorageAccess()) {
             listOf("-b", "/storage", "-b", "${Environment.getExternalStorageDirectory().absolutePath}:/sdcard")
@@ -180,6 +182,7 @@ object LinuxEnv {
             "MOZ_DISABLE_UTILITY_SANDBOX=1",
         ) + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) +
             (if (SessionBus.isAvailable(context)) listOf("DBUS_SESSION_BUS_ADDRESS=${SessionBus.ADDRESS}") else emptyList()) +
+            GpuDrivers.environment(context) +
             program
 
         val env = LinkedHashMap(System.getenv())

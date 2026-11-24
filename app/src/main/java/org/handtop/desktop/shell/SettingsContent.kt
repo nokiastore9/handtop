@@ -17,6 +17,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.audio.SoundBridge
+import org.handtop.desktop.linux.GpuDrivers
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxInstaller
 import org.handtop.desktop.linux.X11Display
@@ -58,7 +59,10 @@ class SettingsContent(
     private val x11Button = Button(context)
     private val notifyHint = TextView(context)
     private val notifyButton = Button(context)
+    private val gpuStatus = TextView(context)
+    private val gpuButton = Button(context)
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
+    private val gpuListener: (GpuDrivers.State) -> Unit = { refreshGpu() }
 
     // Interface scale of the screen this window is on (declared before init, which uses them).
     private val onDesktop = UiScale.isDesktop(context)
@@ -120,6 +124,14 @@ class SettingsContent(
         }
         column.addView(x11Button, wrap())
 
+        // The GPU for Linux programs (Adreno).
+        column.addView(heading(R.string.settings_gpu_title))
+        column.addView(body(R.string.settings_gpu_text))
+        column.addView(gpuStatus.styled())
+        gpuButton.isAllCaps = false
+        gpuButton.setOnClickListener { gpuButtonClicked() }
+        column.addView(gpuButton, wrap())
+
         // Phone storage.
         column.addView(heading(R.string.settings_storage_title))
         column.addView(body(R.string.settings_storage_text))
@@ -168,6 +180,7 @@ class SettingsContent(
 
         addView(column)
         LinuxInstaller.addListener(listener)
+        GpuDrivers.addListener(gpuListener)
         refresh()
     }
 
@@ -176,6 +189,7 @@ class SettingsContent(
 
     override fun onClosed() {
         LinuxInstaller.removeListener(listener)
+        GpuDrivers.removeListener(gpuListener)
     }
 
     fun refresh() {
@@ -202,6 +216,7 @@ class SettingsContent(
             },
         )
         x11Button.visibility = if (linux && !x11) View.VISIBLE else View.GONE
+        refreshGpu()
         val notifications = Notifications.isAccessGranted(context)
         notifyStatus.setText(if (notifications) R.string.notif_access_granted else R.string.notif_access_denied)
         notifyHint.visibility = if (notifications) View.GONE else View.VISIBLE
@@ -227,6 +242,52 @@ class SettingsContent(
         }
         removeButton.visibility = if (distro != null) View.VISIBLE else View.GONE
         removeButton.isEnabled = distro != null && openTerminals == 0 && !LinuxInstaller.isRunning
+    }
+
+    /** What the GPU section says and offers: install progress, on/off, or why it does not apply. */
+    private fun refreshGpu() {
+        val linux = LinuxEnv.isInstalled(context)
+        val state = GpuDrivers.state
+        var button: Int? = null
+        gpuStatus.text = when {
+            GpuDrivers.version(context) == null -> context.getString(R.string.settings_gpu_not_in_build)
+            !GpuDrivers.hasAdreno() -> context.getString(R.string.settings_gpu_no_adreno)
+            !linux -> context.getString(R.string.apps_not_installed)
+            !GpuDrivers.fitsDistro(context) -> context.getString(R.string.settings_gpu_distro)
+            state.phase == GpuDrivers.Phase.UNPACKING -> context.getString(R.string.settings_gpu_unpacking)
+            state.phase == GpuDrivers.Phase.LIBRARIES -> context.getString(R.string.settings_gpu_libraries)
+            !GpuDrivers.isEnabled(context) -> {
+                button = R.string.settings_gpu_turn_on
+                context.getString(R.string.settings_gpu_off)
+            }
+            GpuDrivers.isActive(context) -> {
+                button = R.string.settings_gpu_turn_off
+                context.getString(
+                    R.string.settings_gpu_on,
+                    GpuDrivers.gpuName(),
+                    GpuDrivers.version(context)?.substringBefore('-') ?: "",
+                )
+            }
+            state.phase == GpuDrivers.Phase.FAILED -> {
+                button = R.string.settings_gpu_retry
+                context.getString(R.string.settings_gpu_failed, state.error ?: "")
+            }
+            else -> {
+                button = R.string.settings_gpu_install
+                context.getString(R.string.settings_gpu_missing)
+            }
+        }
+        gpuButton.visibility = if (button != null) View.VISIBLE else View.GONE
+        button?.let { gpuButton.setText(it) }
+    }
+
+    private fun gpuButtonClicked() {
+        when {
+            !GpuDrivers.isEnabled(context) -> GpuDrivers.setEnabled(context, true)
+            GpuDrivers.isActive(context) -> GpuDrivers.setEnabled(context, false)
+            else -> GpuDrivers.install(context)
+        }
+        refreshGpu()
     }
 
     /** Whether Android limits child processes; null when it can't be read (Android 12–13, or denied). */

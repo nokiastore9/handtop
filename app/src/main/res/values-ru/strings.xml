@@ -79,6 +79,22 @@
     <string name="settings_x11_on">✓ X11 работает (дисплей :0)</string>
     <string name="settings_x11_off">Xwayland установлен; он запускается вместе с терминалом или приложением Linux</string>
     <string name="settings_x11_install">Установить поддержку X11</string>
+
+    <string name="settings_gpu_title">Ускорение графики</string>
+    <string name="settings_gpu_text">Linux-программы рисуют на видеокарте Adreno (OpenGL 4.6, OpenGL ES 3.2, Vulkan 1.4), а не на процессоре. Драйверы входят в HandTop и ставятся сами. Программы, открытые во время переключения, нужно перезапустить.</string>
+    <string name="settings_gpu_not_in_build">В этой сборке HandTop нет драйверов видеокарты: Linux-программы рисует процессор</string>
+    <string name="settings_gpu_no_adreno">В телефоне нет видеокарты Adreno (Snapdragon): Linux-программы рисует процессор</string>
+    <string name="settings_gpu_distro">Пока только для Debian: Linux-программы рисует процессор</string>
+    <string name="settings_gpu_unpacking">Установка драйверов видеокарты…</string>
+    <string name="settings_gpu_libraries">Установка библиотек в Linux…</string>
+    <string name="settings_gpu_on">✓ Работает: %1$s (Mesa %2$s, Turnip + Zink)</string>
+    <string name="settings_gpu_off">Выключено: Linux-программы рисует процессор</string>
+    <string name="settings_gpu_missing">Драйверы видеокарты ещё не установлены</string>
+    <string name="settings_gpu_failed">Не удалось установить драйверы видеокарты: %1$s</string>
+    <string name="settings_gpu_turn_on">Включить</string>
+    <string name="settings_gpu_turn_off">Выключить</string>
+    <string name="settings_gpu_install">Установить драйверы</string>
+    <string name="settings_gpu_retry">Повторить</string>
     <string name="settings_storage_title">Память телефона</string>
     <string name="settings_storage_text">Дайте Linux доступ к вашим файлам: они появятся в /sdcard. Android попросит разрешение «Доступ ко всем файлам». После этого откройте новый терминал Linux.</string>
     <string name="settings_storage_grant">Разрешить доступ</string>
@@ -103,6 +119,7 @@
     <string name="notif_title">HandTop работает</string>
     <string name="notif_sessions">Открыто терминалов: %1$d</string>
     <string name="notif_installing">Настройка Linux…</string>
+    <string name="notif_gpu_installing">Установка драйверов видеокарты…</string>
 
     <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Linux (Debian, Ubuntu, Alpine или Fedora через proot, без root).\n\nТекущий этап: 2 — Linux-окружение.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
     <string name="app_files">Файлы</string>
