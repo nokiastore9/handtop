@@ -208,39 +208,6 @@ class WlOutput(client: Client, id: Int, version: Int) : Resource(client, id, ver
     }
 }
 
-/** Sub-surfaces are accepted (so toolkits work) but not drawn yet. */
-class WlSubcompositor(client: Client, id: Int) : Resource(client, id, 1) {
-    override val iface = "wl_subcompositor"
-
-    override fun dispatch(opcode: Int, r: MessageReader) {
-        when (opcode) {
-            0 -> destroy()
-            1 -> { // get_subsurface(id, surface, parent)
-                val newId = r.newId()
-                val surface = client.require<WlSurface>(r.obj())
-                client.require<WlSurface>(r.obj())
-                surface.role = SurfaceRole.Subsurface
-                client.register(WlSubsurface(client, newId))
-            }
-            else -> super.dispatch(opcode, r)
-        }
-    }
-}
-
-class WlSubsurface(client: Client, id: Int) : Resource(client, id, 1) {
-    override val iface = "wl_subsurface"
-
-    override fun dispatch(opcode: Int, r: MessageReader) {
-        when (opcode) {
-            0 -> destroy()
-            1 -> { r.int(); r.int() } // set_position
-            2, 3 -> r.obj()           // place_above / place_below
-            4, 5 -> Unit              // set_sync / set_desync
-            else -> super.dispatch(opcode, r)
-        }
-    }
-}
-
 /** Server-side decorations: HandTop always draws the window frame itself. */
 class XdgDecorationManager(client: Client, id: Int) : Resource(client, id, 1) {
     override val iface = "zxdg_decoration_manager_v1"

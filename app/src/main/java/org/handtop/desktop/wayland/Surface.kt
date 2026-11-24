@@ -8,7 +8,7 @@ sealed interface SurfaceRole {
     /** A window or popup: see [XdgSurface]. */
     class Xdg(val xdg: XdgSurface) : SurfaceRole
     object Cursor : SurfaceRole
-    object Subsurface : SurfaceRole
+    class Subsurface(val subsurface: WlSubsurface) : SurfaceRole
 }
 
 class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, version) {
@@ -43,6 +43,68 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
 
     /** Called after each commit (on the main thread), e.g. to redraw the window. */
     var onCommit: (() -> Unit)? = null
+
+    // ---- sub-surfaces ----
+
+    /** This surface and its sub-surfaces, bottom to top (just this surface if it has none). */
+    private val stack = ArrayList<WlSurface>().also { it += this }
+
+    /** Bottom-to-top drawing order of this surface and its direct sub-surfaces. */
+    val drawOrder: List<WlSurface> get() = stack
+
+    val subsurface: WlSubsurface? get() = (role as? SurfaceRole.Subsurface)?.subsurface
+
+    fun addChild(child: WlSurface) {
+        stack += child // new sub-surfaces start on top
+        contentChanged()
+    }
+
+    fun removeChild(child: WlSurface) {
+        if (stack.remove(child)) contentChanged()
+    }
+
+    /** place_above / place_below: [child] goes right above or below [sibling] (or this surface). */
+    fun restack(child: WlSurface, sibling: WlSurface, above: Boolean) {
+        if (child === sibling || child !in stack || sibling !in stack) return
+        stack.remove(child)
+        val at = stack.indexOf(sibling)
+        stack.add(if (above) at + 1 else at, child)
+        contentChanged()
+    }
+
+    /** The window or popup this surface belongs to (through any sub-surface parents). */
+    fun rootXdg(): XdgSurface? {
+        var s: WlSurface? = this
+        var guard = 0
+        while (s != null && guard++ < 64) {
+            (s.role as? SurfaceRole.Xdg)?.let { return it.xdg }
+            s = s.subsurface?.parent
+        }
+        return null
+    }
+
+    /** Asks the window showing this surface to redraw. */
+    fun contentChanged() {
+        val xdg = rootXdg() ?: return
+        if (xdg.surface === this) return // its own onCommit handles that
+        (xdg.toplevel ?: xdg.popup?.toplevel)?.view?.contentChanged()
+    }
+
+    /**
+     * The topmost surface of this tree under the point (logical, relative to this surface),
+     * with the point in that surface's coordinates.
+     */
+    fun surfaceAt(x: Double, y: Double): Pair<WlSurface, DoubleArray>? {
+        for (s in stack.asReversed()) {
+            if (s === this) {
+                if (bitmap != null && x >= 0 && y >= 0 && x < width && y < height) return this to doubleArrayOf(x, y)
+            } else {
+                val sub = s.subsurface ?: continue
+                s.surfaceAt(x - sub.x, y - sub.y)?.let { return it }
+            }
+        }
+        return null
+    }
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
@@ -94,8 +156,10 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
             client.server.scheduleFrameCallbacks(pendingFrames)
             pendingFrames.clear()
         }
+        for (child in stack) if (child !== this) child.subsurface?.parentCommitted()
         (role as? SurfaceRole.Xdg)?.xdg?.surfaceCommitted()
         if (role === SurfaceRole.Cursor) client.server.seat.cursorCommitted(this)
+        if (role is SurfaceRole.Subsurface) contentChanged()
         onCommit?.invoke()
     }
 
@@ -168,6 +232,11 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         pendingFrames.clear()
         (role as? SurfaceRole.Xdg)?.xdg?.surfaceGone()
         client.server.seat.surfaceGone(this)
+        // Orphan our sub-surfaces; leave our parent's stack.
+        for (child in stack) if (child !== this) child.subsurface?.parent = null
+        stack.clear()
+        stack += this
+        subsurface?.parent?.removeChild(this)
         dropContent()
     }
 

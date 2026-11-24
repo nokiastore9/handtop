@@ -192,15 +192,34 @@ class WaylandWindowContent(
         drawSurface(canvas, toplevel.xdg, 0, 0) // popups: drawn by the PopupLayer
     }
 
-    /** Draws the window-geometry part of [xdg] with its top-left at canvas pixel ([x], [y]). */
+    /**
+     * Draws the window-geometry part of [xdg] (with its sub-surfaces) with its top-left at
+     * canvas pixel ([x], [y]).
+     */
     fun drawSurface(canvas: Canvas, xdg: XdgSurface, x: Int, y: Int) {
-        val surface = xdg.surface
-        val bitmap = surface.bitmap ?: return
         val g = xdg.visibleGeometry()
-        val bs = surface.bufferScale
-        src.set(g.left * bs, g.top * bs, g.right * bs, g.bottom * bs)
-        dst.set(x, y, x + g.width() * scale, y + g.height() * scale)
-        canvas.drawBitmap(bitmap, src, dst, paint)
+        val s = scale
+        canvas.save()
+        canvas.clipRect(x, y, x + g.width() * s, y + g.height() * s)
+        drawTree(canvas, xdg.surface, x - g.left * s, y - g.top * s)
+        canvas.restore()
+    }
+
+    /** Draws [surface] and its sub-surfaces, its origin at canvas pixel ([ox], [oy]). */
+    private fun drawTree(canvas: Canvas, surface: WlSurface, ox: Int, oy: Int, depth: Int = 0) {
+        if (depth > MAX_DEPTH) return
+        val s = scale
+        for (part in surface.drawOrder) {
+            if (part === surface) {
+                val bitmap = surface.bitmap ?: continue
+                src.set(0, 0, bitmap.width, bitmap.height)
+                dst.set(ox, oy, ox + surface.width * s, oy + surface.height * s)
+                canvas.drawBitmap(bitmap, src, dst, paint)
+            } else {
+                val sub = part.subsurface ?: continue
+                drawTree(canvas, part, ox + sub.x * s, oy + sub.y * s, depth + 1)
+            }
+        }
     }
 
     // ---- input ----
@@ -210,7 +229,9 @@ class WaylandWindowContent(
         val lx = px / scale.toDouble()
         val ly = py / scale.toDouble()
         val g = toplevel.xdg.visibleGeometry()
-        return toplevel.xdg.surface to doubleArrayOf(lx + g.left, ly + g.top)
+        val x = lx + g.left
+        val y = ly + g.top
+        return toplevel.xdg.surface.surfaceAt(x, y) ?: (toplevel.xdg.surface to doubleArrayOf(x, y))
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -296,5 +317,6 @@ class WaylandWindowContent(
         const val BTN_RIGHT = 0x111
         const val BTN_MIDDLE = 0x112
         const val SCROLL_STEP = 15.0
+        const val MAX_DEPTH = 16
     }
 }

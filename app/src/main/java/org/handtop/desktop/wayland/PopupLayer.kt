@@ -93,7 +93,10 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
                 val o = popup.originInToplevel
                 if (lx >= o.left && lx < o.right && ly >= o.top && ly < o.bottom) {
                     val g = popup.xdg.visibleGeometry()
-                    return Hit(popup.xdg.surface, lx - o.left + g.left, ly - o.top + g.top)
+                    val x = lx - o.left + g.left
+                    val y = ly - o.top + g.top
+                    val (surface, p) = popup.xdg.surface.surfaceAt(x, y) ?: (popup.xdg.surface to doubleArrayOf(x, y))
+                    return Hit(surface, p[0], p[1])
                 }
             }
         }
