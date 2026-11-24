@@ -123,6 +123,7 @@ class Seat(private val server: WaylandServer) {
 
     fun setKeyboardFocus(surface: WlSurface?) {
         if (keyboardFocus === surface) return
+        val previous = keyboardFocus
         keyboardFocus?.let { old ->
             val serial = server.nextSerial()
             keyboards.filter { it.client === old.client }.forEach { k -> k.event(2) { uint(serial); obj(old.id) } }
@@ -139,11 +140,22 @@ class Seat(private val server: WaylandServer) {
             }
             surface.client.flush()
         }
+        server.textInputs.focusChanged(previous, surface)
     }
 
     /** Sends an Android key event to the focused surface; false if it has no Linux key code. */
     fun key(event: KeyEvent): Boolean {
         val surface = keyboardFocus ?: return false
+        // A character outside the US layout (e.g. a Russian layout on a hardware keyboard)
+        // can't be a key here: send it as text when the program takes text input.
+        val char = event.unicodeChar
+        if (char > 0x7F && !Character.isISOControl(char)) {
+            val input = server.textInputs.active()
+            if (input != null) {
+                if (event.action == KeyEvent.ACTION_DOWN) input.commitString(String(Character.toChars(char)))
+                return true
+            }
+        }
         val code = Keycodes.evdev(event)
         if (code == 0) return false
         val pressed = event.action == KeyEvent.ACTION_DOWN
@@ -169,7 +181,10 @@ class Seat(private val server: WaylandServer) {
 
     fun surfaceGone(surface: WlSurface) {
         if (pointerFocus === surface) pointerFocus = null
-        if (keyboardFocus === surface) keyboardFocus = null
+        if (keyboardFocus === surface) {
+            keyboardFocus = null
+            server.textInputs.changed()
+        }
     }
 }
 

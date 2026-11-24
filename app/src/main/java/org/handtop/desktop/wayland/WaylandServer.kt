@@ -33,6 +33,7 @@ class WaylandServer private constructor(private val app: Context) {
 
     val seat = Seat(this)
     val clipboard = Clipboard(this, app)
+    val textInputs = TextInputs(this)
     /** XKB keymap text sent to clients, NUL-terminated as libxkbcommon expects. */
     val keymap: ByteArray = app.assets.open("keymap-us.xkb").use { it.readBytes() } + byteArrayOf(0)
 
@@ -85,6 +86,7 @@ class WaylandServer private constructor(private val app: Context) {
         Global(6, "wl_data_device_manager", 3) { c, id, v -> c.register(WlDataDeviceManager(c, id, v)) },
         Global(7, "xdg_wm_base", 3) { c, id, v -> c.register(XdgWmBase(c, id, v)) },
         Global(8, "zxdg_decoration_manager_v1", 1) { c, id, _ -> c.register(XdgDecorationManager(c, id)) },
+        Global(9, "zwp_text_input_manager_v3", 1) { c, id, _ -> c.register(TextInputManager(c, id)) },
     )
 
     fun nextSerial() = ++serial

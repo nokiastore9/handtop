@@ -10,6 +10,9 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputMethodManager
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_BOTTOM
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_LEFT
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_RIGHT
@@ -81,11 +84,65 @@ class WaylandWindowContent(
 
     override fun onActivated() {
         requestFocus()
+        server.textInputs.addListener(textInputListener)
         server.seat.setKeyboardFocus(toplevel.xdg.surface)
         sendState()
     }
 
+    // ---- on-screen keyboard (zwp_text_input_v3 / keys) ----
+
+    private val imm get() = context.getSystemService(InputMethodManager::class.java)
+    private var keyboardAutoShown = false
+    private var lastTextInput: TextInput? = null
+    private val textInputListener: () -> Unit = { textInputChanged() }
+
+    override fun onCheckIsTextEditor() = true
+
+    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
+        WaylandInputConnection.editorInfo(outAttrs, server.textInputs.active())
+        return WaylandInputConnection(this, server)
+    }
+
+    /** Taskbar keyboard button. */
+    override fun requestKeyboard() {
+        requestFocus()
+        imm?.showSoftInput(this, 0)
+    }
+
+    /**
+     * A text field of this program got or lost focus (or changed type): refresh what the
+     * keyboard sends, and show it on its own when there is no hardware keyboard.
+     */
+    private fun textInputChanged() {
+        val input = server.textInputs.active()?.takeIf { it.client === toplevel.client }
+        imm?.restartInput(this)
+        if (input != null && lastTextInput == null && !hasHardwareKeyboard()) {
+            requestFocus()
+            imm?.showSoftInput(this, 0)
+            keyboardAutoShown = true
+        } else if (input == null && keyboardAutoShown) {
+            hideKeyboard()
+        }
+        lastTextInput = input
+    }
+
+    private fun showKeyboardIfTyping() {
+        if (server.textInputs.active()?.client !== toplevel.client || hasHardwareKeyboard()) return
+        imm?.showSoftInput(this, 0)
+        keyboardAutoShown = true
+    }
+
+    private fun hideKeyboard() {
+        keyboardAutoShown = false
+        imm?.hideSoftInputFromWindow(windowToken, 0)
+    }
+
+    private fun hasHardwareKeyboard() =
+        resources.configuration.hardKeyboardHidden == android.content.res.Configuration.HARDKEYBOARDHIDDEN_NO
+
     override fun onDeactivated() {
+        server.textInputs.removeListener(textInputListener)
+        if (keyboardAutoShown) hideKeyboard()
         // Menus close when their window loses focus, as on a desktop.
         toplevel.popups.toList().forEach { it.dismiss() }
         if (server.seat.keyboardFocus === toplevel.xdg.surface) server.seat.setKeyboardFocus(null)
@@ -98,6 +155,7 @@ class WaylandWindowContent(
     }
 
     override fun onClosed() {
+        server.textInputs.removeListener(textInputListener)
         popupLayer.unregister(this)
         if (toplevel.view === this) toplevel.view = null
         toplevel.xdg.surface.onCommit = null
@@ -257,6 +315,8 @@ class WaylandWindowContent(
                 pressed = false
                 motion(event)
                 seat.pointerButton(lastButton, false)
+                // A finger tap into a text field brings the keyboard back, like on Android.
+                if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) post { showKeyboardIfTyping() }
             }
             MotionEvent.ACTION_CANCEL -> {
                 pressed = false
