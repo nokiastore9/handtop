@@ -1,6 +1,7 @@
 package org.handtop.desktop.wayland
 
 import android.graphics.Bitmap
+import android.graphics.Rect
 
 /** What a surface is used for; decides what a commit means. */
 sealed interface SurfaceRole {
@@ -20,16 +21,25 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
     private var pendingAttached = false
     private var pendingScale = 1
     private val pendingFrames = ArrayList<WlCallback>()
+    /** wl_surface.damage (surface coordinates) and damage_buffer (buffer pixels). */
+    private val pendingSurfaceDamage = ArrayList<Rect>()
+    private val pendingBufferDamage = ArrayList<Rect>()
+
+    /** Committed content in GPU memory (Android 10+), updated by damage only. */
+    private var frames: HardwareFrames? = null
+    /** Fallback: committed content copied whole into a software bitmap. */
+    private var softwareBitmap: Bitmap? = null
+    private var bufferWidth = 0
+    private var bufferHeight = 0
 
     /** Committed content, already copied out of the client's buffer. */
-    var bitmap: Bitmap? = null
-        private set
+    val bitmap: Bitmap? get() = frames?.current ?: softwareBitmap
     var bufferScale = 1
         private set
 
     /** Content size in surface-local (logical) coordinates. */
-    val width get() = (bitmap?.width ?: 0) / bufferScale
-    val height get() = (bitmap?.height ?: 0) / bufferScale
+    val width get() = if (bitmap != null) bufferWidth / bufferScale else 0
+    val height get() = if (bitmap != null) bufferHeight / bufferScale else 0
 
     /** Called after each commit (on the main thread), e.g. to redraw the window. */
     var onCommit: (() -> Unit)? = null
@@ -42,7 +52,8 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
                 r.int(); r.int()
                 pendingAttached = true
             }
-            2, 9 -> repeat(4) { r.int() } // damage / damage_buffer: we copy whole buffers for now
+            2 -> pendingSurfaceDamage += readRect(r) // damage
+            9 -> pendingBufferDamage += readRect(r) // damage_buffer (v4)
             3 -> pendingFrames += client.register(WlCallback(client, r.newId()))
             4, 5 -> r.obj() // set_opaque_region / set_input_region
             6 -> commit()
@@ -53,19 +64,32 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         }
     }
 
+    /** x, y, width, height; clients often send INT32_MAX for "everything", so keep it in range. */
+    private fun readRect(r: MessageReader): Rect {
+        val x = r.int().toLong()
+        val y = r.int().toLong()
+        val w = r.int().toLong().coerceAtLeast(0)
+        val h = r.int().toLong().coerceAtLeast(0)
+        fun clamp(v: Long) = v.coerceIn(-LIMIT, LIMIT).toInt()
+        return Rect(clamp(x), clamp(y), clamp(x + w), clamp(y + h))
+    }
+
     private fun commit() {
+        val scale = pendingScale
         if (pendingAttached) {
             pendingAttached = false
             val buffer = pendingBuffer
             pendingBuffer = null
             if (buffer == null) {
-                bitmap = null
+                dropContent()
             } else {
-                copyFrom(buffer)
+                copyFrom(buffer, damageInBuffer(scale, buffer))
                 buffer.release() // the pixels are ours now: the client may reuse its buffer
             }
         }
-        bufferScale = pendingScale
+        pendingSurfaceDamage.clear()
+        pendingBufferDamage.clear()
+        bufferScale = scale
         if (pendingFrames.isNotEmpty()) {
             client.server.scheduleFrameCallbacks(pendingFrames)
             pendingFrames.clear()
@@ -74,9 +98,44 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         onCommit?.invoke()
     }
 
-    private fun copyFrom(buffer: WlBuffer) {
+    /** This commit's damage in buffer pixels, clipped to the buffer (whole buffer if none). */
+    private fun damageInBuffer(scale: Int, buffer: WlBuffer): List<Rect> {
+        val bounds = Rect(0, 0, buffer.width, buffer.height)
+        val out = ArrayList<Rect>(pendingSurfaceDamage.size + pendingBufferDamage.size)
+        for (d in pendingSurfaceDamage) {
+            val r = Rect(d.left * scale, d.top * scale, d.right * scale, d.bottom * scale)
+            if (r.intersect(bounds)) out += r
+        }
+        for (d in pendingBufferDamage) {
+            val r = Rect(d)
+            if (r.intersect(bounds)) out += r
+        }
+        // A new buffer without damage would show nothing new; be lenient and take all of it.
+        if (out.isEmpty() && pendingSurfaceDamage.isEmpty() && pendingBufferDamage.isEmpty()) out += bounds
+        return out
+    }
+
+    private fun copyFrom(buffer: WlBuffer, damage: List<Rect>) {
         if (buffer.width <= 0 || buffer.height <= 0) return
-        var target = bitmap
+        if (buffer.width != bufferWidth || buffer.height != bufferHeight) {
+            // New size: start over (the first frame of every buffer is copied whole).
+            dropContent()
+            bufferWidth = buffer.width
+            bufferHeight = buffer.height
+            frames = HardwareFrames.create(bufferWidth, bufferHeight)
+        }
+        val hardware = frames
+        if (hardware != null) {
+            if (damage.isEmpty() || hardware.update(buffer, damage)) return
+            // No usable hardware buffer here: software from now on.
+            hardware.release()
+            frames = null
+        }
+        copyToSoftware(buffer)
+    }
+
+    private fun copyToSoftware(buffer: WlBuffer) {
+        var target = softwareBitmap
         if (target == null || target.width != buffer.width || target.height != buffer.height) {
             target = Bitmap.createBitmap(buffer.width, buffer.height, Bitmap.Config.ARGB_8888)
         }
@@ -86,7 +145,15 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
             buffer.format == WlShm.FORMAT_XRGB8888, target,
         )
         if (ok != 0) throw ProtocolError(buffer.id, 0, "buffer outside its pool")
-        bitmap = target
+        softwareBitmap = target
+    }
+
+    private fun dropContent() {
+        frames?.release()
+        frames = null
+        softwareBitmap = null
+        bufferWidth = 0
+        bufferHeight = 0
     }
 
     /** wl_surface.enter for every output the client bound. */
@@ -99,6 +166,10 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         pendingFrames.clear()
         (role as? SurfaceRole.Xdg)?.xdg?.surfaceGone()
         client.server.seat.surfaceGone(this)
-        bitmap = null
+        dropContent()
+    }
+
+    private companion object {
+        const val LIMIT = 1L shl 20
     }
 }

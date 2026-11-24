@@ -1,6 +1,7 @@
 package org.handtop.desktop.wayland
 
 import android.graphics.Bitmap
+import android.hardware.HardwareBuffer
 
 /** JNI helpers (app/src/main/cpp/handtop.c). Negative return values are -errno. */
 object Native {
@@ -25,5 +26,19 @@ object Native {
     @JvmStatic external fun blit(
         poolAddr: Long, poolSize: Int, offset: Int,
         width: Int, height: Int, stride: Int, opaque: Boolean, bitmap: Bitmap,
+    ): Int
+
+    /**
+     * A GPU-sampled RGBA AHardwareBuffer the CPU writes; 0 on failure. [persistent]: map it once
+     * for its whole life instead of locking it on every update (see handtop.c).
+     */
+    @JvmStatic external fun hbCreate(width: Int, height: Int, persistent: Boolean): Long
+    @JvmStatic external fun hbToJava(handle: Long): HardwareBuffer?
+    @JvmStatic external fun hbRelease(handle: Long)
+
+    /** Copies [count] rects (x, y, w, h in buffer pixels) of an shm buffer into the hardware buffer. */
+    @JvmStatic external fun hbBlit(
+        handle: Long, poolAddr: Long, poolSize: Int, offset: Int,
+        width: Int, height: Int, stride: Int, opaque: Boolean, rects: IntArray, count: Int,
     ): Int
 }
