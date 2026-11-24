@@ -7,11 +7,13 @@ import android.net.Uri
 import android.provider.Settings
 import android.os.Environment
 import android.system.Os
+import android.util.Log
 import org.handtop.desktop.R
 import org.handtop.desktop.audio.SoundBridge
 import org.handtop.desktop.term.ShellSpec
 import org.handtop.desktop.wayland.WaylandServer
 import java.io.File
+import java.io.IOException
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.math.abs
@@ -84,6 +86,34 @@ object LinuxEnv {
     fun commandSpec(context: Context, command: String): ShellSpec =
         prootSpec(context, listOf("/bin/sh", "-lc", command))
 
+    /**
+     * HandTop's part of the login profile, /etc/profile.d/handtop.sh: what terminals and menu
+     * programs need beyond the distribution's own profile (which resets PATH). Rewritten
+     * whenever it differs, so a HandTop update reaches distributions installed before it.
+     */
+    private fun ensureProfile(rootfsDir: File) {
+        val file = File(rootfsDir, "etc/profile.d/handtop.sh")
+        try {
+            if (file.isFile && file.readText() == PROFILE) return
+            file.parentFile?.mkdirs()
+            file.writeText(PROFILE)
+        } catch (e: IOException) {
+            Log.w("HandTopLinux", "cannot write $file", e)
+        }
+    }
+
+    private val PROFILE = """
+        |# Written by HandTop whenever it starts a Linux program: changes here are lost.
+        |
+        |# Programs run as (fake) root, and Debian leaves games out of root's PATH: games from
+        |# the menu (Exec=supertuxkart) or typed in a terminal would not be found.
+        |case ":${'$'}PATH:" in
+        |    *:/usr/games:*) ;;
+        |    *) PATH="${'$'}PATH:/usr/local/games:/usr/games" ;;
+        |esac
+        |export PATH
+        |""".trimMargin()
+
     /** [program] (argv inside Linux) with the HandTop environment, through proot. */
     private fun prootSpec(context: Context, program: List<String>, cwd: String = HOME): ShellSpec {
         val nativeDir = context.applicationInfo.nativeLibraryDir
@@ -95,6 +125,7 @@ object LinuxEnv {
 
         // Linux GUI programs talk to HandTop's compositor through this socket.
         WaylandServer.ensureRunning(context, rootfsDir)
+        ensureProfile(rootfsDir)
 
         val storage = if (hasStorageAccess()) {
             listOf("-b", "/storage", "-b", "${Environment.getExternalStorageDirectory().absolutePath}:/sdcard")
@@ -128,7 +159,7 @@ object LinuxEnv {
             "LANG=C.UTF-8",
             "TZ=" + timeZone(rootfsDir),
             "TMPDIR=/tmp",
-            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/games:/usr/games",
             // Graphical programs: HandTop is the Wayland compositor.
             "XDG_RUNTIME_DIR=/${WaylandServer.RUNTIME_DIR}",
             "WAYLAND_DISPLAY=${WaylandServer.SOCKET_NAME}",
