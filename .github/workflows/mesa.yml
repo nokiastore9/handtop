@@ -1,0 +1,47 @@
+# Builds HandTop's Mesa for Adreno (native/mesa) on an arm64 runner, in Debian 13 like
+# HandTop's Linux. For a tag mesa-<version>-<revision> (the VERSION in build-mesa.sh), the
+# package becomes that tag's GitHub release: HandTop downloads it from there and checks the
+# SHA-256 it pins (GpuDrivers.kt).
+name: Mesa for Adreno
+
+on:
+  push:
+    tags: ['mesa-*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    container: debian:trixie
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: OUT="$GITHUB_WORKSPACE/out" WORK=/tmp/mesa-build sh native/mesa/build-mesa.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: handtop-mesa
+          path: out/handtop-mesa-*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/mesa-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: handtop-mesa
+          path: out
+      - name: The tag must name the package
+        run: ls -la "out/handtop-$GITHUB_REF_NAME-debian13-arm64.tar.gz"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" out/* \
+            --repo "$GITHUB_REPOSITORY" --latest=false \
+            --title "GPU drivers for Adreno: Mesa ${GITHUB_REF_NAME#mesa-}" \
+            --notes "Mesa (Turnip + Zink over KGSL) for HandTop's Linux on Snapdragon phones, Debian 13 arm64. Built by this workflow from native/mesa at ${GITHUB_SHA}: Mesa from archive.mesa3d.org (SHA-256 checked) with the patches in native/mesa/patches. HandTop installs it by itself; you do not need to download it."

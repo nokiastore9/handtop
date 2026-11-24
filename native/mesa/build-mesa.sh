@@ -6,19 +6,22 @@
 #
 # Runs inside the distribution (as root, the default in HandTop) or in any Debian 13 arm64
 # system or container. Installs into $PREFIX, leaving Debian's own Mesa (llvmpipe) untouched,
-# and packs $PREFIX into $OUT/handtop-mesa-<version>-debian13-arm64.tar.xz for releases.
-# Programs get the GPU through handtop-gpu (see that file).
+# and packs $PREFIX into $OUT/handtop-mesa-<version>-debian13-arm64.tar.gz, the package
+# HandTop downloads from the GitHub release (see GpuDrivers.kt for how it is switched on).
 set -eu
 
 MESA_VERSION=26.3.1
 MESA_SHA256=4e4e438eac7b840a9383988cbb7c08dad8041da544b9319fc26d319fa7348961
+# Bump when the package changes without a new Mesa (patches, options, extra files).
+PACKAGE_REVISION=1
+VERSION=$MESA_VERSION-$PACKAGE_REVISION
 PREFIX=${PREFIX:-/opt/handtop-mesa}
 WORK=${WORK:-/root/mesa-build}
 OUT=${OUT:-$WORK}
 JOBS=${JOBS:-$(nproc)}
 HERE=$(cd "$(dirname "$0")" && pwd)
 
-step() { echo "=== $(date '+%H:%M:%S') $*"; }
+step() { echo; echo "=== $(date '+%H:%M:%S') $*"; }
 
 step "build tools"
 export DEBIAN_FRONTEND=noninteractive
@@ -45,17 +48,21 @@ if [ ! -f "$TARBALL" ]; then
 fi
 echo "$MESA_SHA256  $TARBALL" | sha256sum -c -
 # An interrupted build continues where it stopped; delete mesa-$MESA_VERSION to start over.
-[ -d "mesa-$MESA_VERSION" ] || tar -xJf "$TARBALL"
-cd "mesa-$MESA_VERSION"
-
-# HandTop's changes to Mesa (patches/, each explains itself), applied once.
-if [ ! -f .handtop-patched ]; then
+# A source tree with other patches than patches/ has now (each explains itself) starts over.
+PATCHES_ID=$(cat "$HERE"/patches/*.patch | sha256sum | cut -c1-16)
+if [ -d "mesa-$MESA_VERSION" ] && [ "$(cat "mesa-$MESA_VERSION/.handtop-patched" 2>/dev/null)" != "$PATCHES_ID" ]; then
+    echo "patches changed: starting from a clean source tree"
+    rm -rf "mesa-$MESA_VERSION"
+fi
+if [ ! -d "mesa-$MESA_VERSION" ]; then
+    tar -xJf "$TARBALL"
     for p in "$HERE"/patches/*.patch; do
         echo "applying $(basename "$p")"
-        patch -p1 --forward --batch < "$p"
+        patch -d "mesa-$MESA_VERSION" -p1 --forward --batch < "$p"
     done
-    touch .handtop-patched
+    echo "$PATCHES_ID" > "mesa-$MESA_VERSION/.handtop-patched"
 fi
+cd "mesa-$MESA_VERSION"
 
 # Mesa needs wayland-protocols newer than Debian 13's: it comes from Mesa's own wrap. Its XML
 # uses the "frozen" attribute, unknown to Debian 13's wayland-scanner (1.23), which with
@@ -67,8 +74,11 @@ sed -i "/'--strict',/d" subprojects/wayland-protocols-*/include/wayland-protocol
 rm -f subprojects/libarchive.wrap subprojects/libxml2.wrap
 
 step "configure"
-[ -f build/build.ninja ] || meson setup build \
-    --prefix="$PREFIX" --libdir=lib --buildtype=release -Db_ndebug=true \
+# The libraries find each other through their run path, not LD_LIBRARY_PATH: programs load
+# them by absolute path (glvnd, the Vulkan loader), and Debian's Mesa stays usable next to them.
+set -- \
+    -Dprefix="$PREFIX" -Dlibdir=lib -Dbuildtype=release -Db_ndebug=true \
+    -Dc_link_args="-Wl,-rpath,$PREFIX/lib" -Dcpp_link_args="-Wl,-rpath,$PREFIX/lib" \
     -Dplatforms=x11,wayland \
     -Dgallium-drivers=zink \
     -Dvulkan-drivers=freedreno \
@@ -76,6 +86,12 @@ step "configure"
     -Dglx=dri -Degl=enabled -Dgles1=disabled -Dgles2=enabled -Dglvnd=enabled \
     -Dllvm=disabled -Dvideo-codecs= -Dvulkan-layers= -Dtools= \
     -Dlibunwind=disabled -Dvalgrind=disabled -Dlmsensors=disabled
+if [ -f build/build.ninja ]; then
+    # A resumed build still gets changed options ("setup --reconfigure" ignores some).
+    meson configure build "$@"
+else
+    meson setup build "$@"
+fi
 
 step "build ($JOBS jobs)"
 ninja -C build -j "$JOBS"
@@ -84,10 +100,25 @@ step "install into $PREFIX"
 rm -rf "$PREFIX"
 ninja -C build install
 install -Dm755 "$HERE/handtop-gpu" "$PREFIX/bin/handtop-gpu"
-echo "$MESA_VERSION" > "$PREFIX/VERSION"
+# glvnd's vendor file, by absolute path: HandTop puts it first in /usr/share/glvnd/egl_vendor.d
+# (Debian's Mesa stays as the fallback when Zink cannot start).
+cat > "$PREFIX/share/glvnd/egl_vendor.d/10_handtop-mesa.json" <<EOF
+{
+    "file_format_version" : "1.0.0",
+    "ICD" : {
+        "library_path" : "$PREFIX/lib/libEGL_mesa.so.0"
+    }
+}
+EOF
+echo "$VERSION" > "$PREFIX/VERSION"
+# Check that the run path made it through meson's install.
+objdump -p "$PREFIX/lib/libEGL_mesa.so.0" | grep -q "RUNPATH.*$PREFIX/lib" ||
+    { echo "error: libEGL_mesa.so.0 has no run path $PREFIX/lib"; exit 1; }
 
 step "package"
-PACKAGE="$OUT/handtop-mesa-$MESA_VERSION-debian13-arm64.tar.xz"
-tar -C "$(dirname "$PREFIX")" -cJf "$PACKAGE" "$(basename "$PREFIX")"
+PACKAGE="$OUT/handtop-mesa-$VERSION-debian13-arm64.tar.gz"
+mkdir -p "$OUT"
+tar -C "$(dirname "$PREFIX")" -czf "$PACKAGE" "$(basename "$PREFIX")"
+(cd "$OUT" && sha256sum "$(basename "$PACKAGE")" | tee "$(basename "$PACKAGE").sha256")
 ls -la "$PACKAGE"
 step "done"
