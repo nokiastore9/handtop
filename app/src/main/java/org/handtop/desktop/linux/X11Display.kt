@@ -2,12 +2,12 @@ package org.handtop.desktop.linux
 
 import android.content.Context
 import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import org.handtop.desktop.wayland.WaylandServer
 import org.handtop.desktop.wayland.X11Connection
 import org.handtop.desktop.wayland.Xwm
+import org.handtop.desktop.wayland.mainAsync
 import java.io.File
 import java.io.IOException
 
@@ -23,7 +23,8 @@ object X11Display {
     const val DISPLAY = ":$NUMBER"
     private const val START_TIMEOUT_MS = 15_000L
 
-    private val main = Handler(Looper.getMainLooper())
+    // Asynchronous like the Wayland server's: X11 replies must not wait for a screen refresh.
+    private val main: Handler = mainAsync()
     private var process: Process? = null
 
     fun isInstalled(context: Context) = File(LinuxEnv.rootfs(context), "usr/bin/Xwayland").exists()

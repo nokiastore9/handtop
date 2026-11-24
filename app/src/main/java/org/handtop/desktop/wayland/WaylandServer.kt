@@ -7,8 +7,15 @@ import android.system.Os
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Choreographer
+import androidx.core.os.HandlerCompat
 import org.handtop.desktop.ui.UiScale
 import java.io.File
+
+/**
+ * A main-thread handler whose messages are not held back by the UI's sync barriers (see
+ * WaylandServer.main), for the threads that read Linux programs' sockets.
+ */
+fun mainAsync(): Handler = HandlerCompat.createAsync(Looper.getMainLooper())
 
 /**
  * HandTop's Wayland compositor: a Unix socket inside the Linux root filesystem
@@ -25,7 +32,14 @@ class WaylandServer private constructor(private val app: Context) {
 
     var host: Host? = null
 
-    private val main = Handler(Looper.getMainLooper())
+    /**
+     * Client requests reach the main thread through this handler. Its messages are asynchronous:
+     * a window waiting to be redrawn puts a sync barrier into the main queue, and plain messages
+     * would wait behind it until the next screen refresh. Measured with glmark2: every request a
+     * program made waited up to one refresh, so programs drew at most one frame per refresh
+     * (60 instead of 3600 frames per second for a trivial frame).
+     */
+    private val main: Handler = mainAsync()
     private val clients = ArrayList<Client>()
     private var serverFd = -1
     private var socketPath: String? = null
