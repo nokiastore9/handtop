@@ -306,6 +306,14 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_linux_apps), R.drawable.ic_apps))
     }
 
+    /** A Linux terminal window that runs [command] and waits for Enter before closing. */
+    private fun runInLinuxTerminal(title: String, command: String) {
+        if (!LinuxEnv.isInstalled(this)) return openLinuxSetup()
+        LinuxEnv.startServices(this)
+        val script = "$command; echo; printf '%s' '${getString(R.string.terminal_press_enter)}'; read _"
+        openTerminalWindow(TermSessions.create(this, LinuxEnv.commandSpec(this, script).copy(title = title)))
+    }
+
     private fun launchLinuxApp(app: LinuxApp) {
         if (app.terminal) {
             // Terminal programs (htop, mc…) get a terminal window of their own.
@@ -318,7 +326,12 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     private fun openSettings() {
         area.windows.firstOrNull { it.content is SettingsContent }?.let { area.activate(it); return }
-        area.addWindow(DesktopWindow(this, area, SettingsContent(this, openLinuxSetup = { openLinuxSetup() }, setScale = { setInterfaceScale(it) }), getString(R.string.app_settings), R.drawable.ic_settings))
+        area.addWindow(DesktopWindow(this, area, SettingsContent(
+            this,
+            openLinuxSetup = { openLinuxSetup() },
+            setScale = { setInterfaceScale(it) },
+            runInTerminal = { title, command -> runInLinuxTerminal(title, command) },
+        ), getString(R.string.app_settings), R.drawable.ic_settings))
     }
 
     private fun openAbout() {

@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Environment
 import android.system.Os
 import org.handtop.desktop.R
+import org.handtop.desktop.audio.SoundBridge
 import org.handtop.desktop.term.ShellSpec
 import org.handtop.desktop.wayland.WaylandServer
 import java.io.File
@@ -44,8 +45,15 @@ object LinuxEnv {
     /** Phone storage is shared with Linux once the user grants "All files access". */
     fun hasStorageAccess() = Environment.isExternalStorageManager()
 
+    /** What Linux programs need from HandTop: the display server and, if installed, sound. */
+    fun startServices(context: Context) {
+        WaylandServer.ensureRunning(context, rootfs(context))
+        SoundBridge.ensureRunning(context)
+    }
+
     /** A login shell inside the installed distribution, as fake root, through proot. */
     fun shellSpec(context: Context): ShellSpec {
+        startServices(context)
         val rootfsDir = rootfs(context)
         val shell = if (File(rootfsDir, "bin/bash").exists()) listOf("/bin/bash", "--login") else listOf("/bin/sh", "-l")
         return prootSpec(context, shell)

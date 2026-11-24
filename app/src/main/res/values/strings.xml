@@ -69,6 +69,13 @@
     <string name="settings_scale_phone">phone</string>
     <string name="settings_scale_desktop">DeX / monitor</string>
     <string name="settings_scale_size">%1$d×%2$d</string>
+    <string name="settings_sound_title">Sound</string>
+    <string name="settings_sound_text">Linux programs play sound through the phone (or DeX) via PulseAudio running inside Linux.</string>
+    <string name="settings_sound_missing">PulseAudio is not installed in Linux — no sound yet</string>
+    <string name="settings_sound_on">✓ Sound is on</string>
+    <string name="settings_sound_off">PulseAudio is installed but not running (open a Linux terminal or app)</string>
+    <string name="settings_sound_install">Install sound support</string>
+    <string name="terminal_press_enter">Press Enter to close</string>
     <string name="settings_storage_title">Phone storage</string>
     <string name="settings_storage_text">Let Linux see your files: they appear as /sdcard. Android asks for “All files access”. Open a new Linux terminal after granting it.</string>
     <string name="settings_storage_grant">Allow access</string>

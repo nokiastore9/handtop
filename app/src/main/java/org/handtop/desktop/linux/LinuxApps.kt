@@ -90,6 +90,7 @@ object LinuxApps {
 
     /** Starts a graphical program in the background (no terminal window). */
     fun launch(context: Context, app: LinuxApp) {
+        LinuxEnv.startServices(context)
         val spec = LinuxEnv.commandSpec(context, "exec ${app.exec}")
         val log = File(LinuxEnv.rootfs(context), "tmp/handtop-apps.log")
         val builder = ProcessBuilder(listOf(spec.executable) + spec.args.drop(1))

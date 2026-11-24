@@ -16,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import org.handtop.desktop.R
+import org.handtop.desktop.audio.SoundBridge
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxInstaller
 import org.handtop.desktop.notify.NotificationCenter
@@ -38,6 +39,8 @@ class SettingsContent(
     private val openLinuxSetup: () -> Unit,
     /** Saves a new interface scale (percent) and rebuilds the desktop with it. */
     private val setScale: (Int) -> Unit,
+    /** Runs a command in a new Linux terminal window (title, command). */
+    private val runInTerminal: (String, String) -> Unit,
 ) : ScrollView(context), WindowContent {
 
     override val view: View get() = this
@@ -48,6 +51,8 @@ class SettingsContent(
     private val linuxStatus = TextView(context)
     private val removeButton = Button(context)
     private val notifyStatus = TextView(context)
+    private val soundStatus = TextView(context)
+    private val soundButton = Button(context)
     private val notifyHint = TextView(context)
     private val notifyButton = Button(context)
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
@@ -87,6 +92,18 @@ class SettingsContent(
         notifyButton.setText(R.string.notif_access_open)
         notifyButton.setOnClickListener { NotificationCenter.openAccessSettings(context) }
         column.addView(notifyButton, wrap())
+
+        // Sound from Linux programs.
+        column.addView(heading(R.string.settings_sound_title))
+        column.addView(body(R.string.settings_sound_text))
+        column.addView(soundStatus.styled())
+        soundButton.isAllCaps = false
+        soundButton.setText(R.string.settings_sound_install)
+        soundButton.setOnClickListener {
+            val distro = LinuxEnv.installedDistro(context)?.id
+            runInTerminal(context.getString(R.string.settings_sound_title), SoundBridge.installCommand(distro))
+        }
+        column.addView(soundButton, wrap())
 
         // Phone storage.
         column.addView(heading(R.string.settings_storage_title))
@@ -147,6 +164,18 @@ class SettingsContent(
     }
 
     fun refresh() {
+        val linux = LinuxEnv.isInstalled(context)
+        val sound = linux && SoundBridge.isAvailable(context)
+        if (sound) SoundBridge.ensureRunning(context)
+        soundStatus.setText(
+            when {
+                !linux -> R.string.apps_not_installed
+                !sound -> R.string.settings_sound_missing
+                SoundBridge.isRunning -> R.string.settings_sound_on
+                else -> R.string.settings_sound_off
+            },
+        )
+        soundButton.visibility = if (linux && !sound) View.VISIBLE else View.GONE
         val notifications = Notifications.isAccessGranted(context)
         notifyStatus.setText(if (notifications) R.string.notif_access_granted else R.string.notif_access_denied)
         notifyHint.visibility = if (notifications) View.GONE else View.VISIBLE

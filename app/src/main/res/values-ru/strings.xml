@@ -65,6 +65,13 @@
     <string name="settings_scale_status">Этот экран (%1$s): %2$d %%. Linux-программы: масштаб ×%3$d.</string>
     <string name="settings_scale_phone">телефон</string>
     <string name="settings_scale_desktop">DeX / монитор</string>
+    <string name="settings_sound_title">Звук</string>
+    <string name="settings_sound_text">Linux-программы играют звук через телефон (или DeX) с помощью PulseAudio внутри Linux.</string>
+    <string name="settings_sound_missing">PulseAudio не установлен в Linux — звука пока нет</string>
+    <string name="settings_sound_on">✓ Звук работает</string>
+    <string name="settings_sound_off">PulseAudio установлен, но не запущен (откройте терминал или приложение Linux)</string>
+    <string name="settings_sound_install">Установить поддержку звука</string>
+    <string name="terminal_press_enter">Нажмите Enter, чтобы закрыть</string>
     <string name="settings_storage_title">Память телефона</string>
     <string name="settings_storage_text">Дайте Linux доступ к вашим файлам: они появятся в /sdcard. Android попросит разрешение «Доступ ко всем файлам». После этого откройте новый терминал Linux.</string>
     <string name="settings_storage_grant">Разрешить доступ</string>
