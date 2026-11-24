@@ -13,7 +13,7 @@ set -eu
 MESA_VERSION=26.3.1
 MESA_SHA256=4e4e438eac7b840a9383988cbb7c08dad8041da544b9319fc26d319fa7348961
 # Bump when the package changes without a new Mesa (patches, options, extra files).
-PACKAGE_REVISION=1
+PACKAGE_REVISION=2
 VERSION=$MESA_VERSION-$PACKAGE_REVISION
 PREFIX=${PREFIX:-/opt/handtop-mesa}
 WORK=${WORK:-/root/mesa-build}

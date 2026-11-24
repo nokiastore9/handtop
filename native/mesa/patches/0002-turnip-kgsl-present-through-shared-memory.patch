@@ -1,0 +1,17 @@
+--- a/src/freedreno/vulkan/tu_wsi.cc
++++ b/src/freedreno/vulkan/tu_wsi.cc
+@@ -38,7 +38,13 @@
+ {
+    VkResult result;
+ 
+-   const struct wsi_device_options options = { .sw_device = false };
++   /* KGSL, the GPU driver of Android kernels, gives no dma-buf that a Linux
++    * compositor or X server could take: present by copying into shared memory
++    * (wl_shm, MIT-SHM), as a CPU device does. Without this, Wayland and X11
++    * surfaces only work with MESA_VK_WSI_DEBUG=sw set by hand.
++    */
++   const bool kgsl = !strcmp(physical_device->instance->knl->name, "kgsl");
++   const struct wsi_device_options options = { .sw_device = kgsl };
+    result = wsi_device_init(&physical_device->wsi_device,
+                             tu_physical_device_to_handle(physical_device),
+                             tu_wsi_proc_addr,

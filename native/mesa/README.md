@@ -61,7 +61,14 @@ delete `mesa-<version>/` to start over.
   drop Zink for its software path. Zink then still drew on the GPU, but every frame was read
   back through drisw, and on Wayland the windows stayed empty. With the patch, EGL keeps
   Zink on the software platform path, and Zink presents through Vulkan (kopper), as it does
-  on X11. Candidate for upstream.
+  on X11. It also keeps Zink when Mesa tried it by itself, so programs started without
+  HandTop's variables still draw on the GPU. Candidate for upstream.
+- `0002-turnip-kgsl-present-through-shared-memory.patch`: on KGSL, Turnip now presents
+  through shared memory (wl_shm, MIT-SHM) by itself, as a CPU device does. A Linux
+  compositor or X server cannot take KGSL memory as a dma-buf, so without the patch, windows
+  only worked with `MESA_VK_WSI_DEBUG=sw`. With the patch, a terminal opened before the
+  drivers were installed, or a program started with a cleaned environment, still gets GPU
+  windows. Candidate for upstream.
 
 ## Running a program by hand
 
