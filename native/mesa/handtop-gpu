@@ -1,0 +1,26 @@
+#!/bin/sh
+# Runs a program on the Adreno GPU: OpenGL through Zink, Vulkan through Turnip (HandTop's Mesa
+# build, see build-mesa.sh). Without arguments, prints the environment it would use.
+P=/opt/handtop-mesa
+
+export LD_LIBRARY_PATH="$P/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# OpenGL / GLES: glvnd picks HandTop's Mesa, and Mesa runs Zink.
+export __EGL_VENDOR_LIBRARY_FILENAMES="$P/share/glvnd/egl_vendor.d/50_mesa.json"
+export __GLX_VENDOR_LIBRARY_NAME=mesa
+export MESA_LOADER_DRIVER_OVERRIDE=zink
+export GALLIUM_DRIVER=zink
+# X11 (GLX): Xwayland has no DRM device under proot, so no DRI3. Without this, GLX refuses
+# Zink ("DRI3 not available"); with it, GLX takes the drisw path and Zink presents itself.
+export LIBGL_KOPPER_DRI2=1
+# Vulkan: Turnip only (VK_ICD_FILENAMES for older loaders).
+export VK_DRIVER_FILES="$P/share/vulkan/icd.d/freedreno_icd.aarch64.json"
+export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
+# Frames reach HandTop's windows through shared memory (wl_shm, X11 SHM): HandTop does not
+# take GPU buffers (dmabuf) yet, and without this Vulkan finds no way to present.
+export MESA_VK_WSI_DEBUG=sw
+
+if [ $# -eq 0 ]; then
+    env | grep -E '^(LD_LIBRARY_PATH|__EGL|__GLX|MESA_|GALLIUM_|VK_)' | sort
+    exit 0
+fi
+exec "$@"
