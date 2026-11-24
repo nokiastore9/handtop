@@ -77,7 +77,8 @@ class Taskbar(
             }
         }
         val icon = ImageView(context).apply {
-            setImageResource(w.iconRes)
+            val bitmap = w.iconBitmap
+            if (bitmap != null) setImageBitmap(bitmap) else setImageResource(w.iconRes)
             alpha = if (w.minimized) 0.6f else 1f
         }
         item.addView(icon, LayoutParams(dpi(20), dpi(20)))

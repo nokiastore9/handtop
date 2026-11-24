@@ -62,6 +62,14 @@ class DesktopWindow(
     var title: CharSequence = title
         private set
 
+    /** A picture icon (a Linux app's own) instead of [iconRes]; shown in the title and taskbar. */
+    var iconBitmap: android.graphics.Bitmap? = null
+        set(value) {
+            field = value
+            if (value != null) iconView.setImageBitmap(value) else iconView.setImageResource(iconRes)
+            area.notifyWindowsChanged()
+        }
+
     var isActiveWindow = false
         set(value) {
             field = value

@@ -26,11 +26,14 @@ import androidx.annotation.StringRes
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import org.handtop.desktop.linux.LinuxApp
+import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxSetupContent
 import org.handtop.desktop.shell.AboutContent
 import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.DesktopIcons
+import org.handtop.desktop.shell.LinuxAppsContent
 import org.handtop.desktop.shell.Taskbar
 import org.handtop.desktop.term.ShellSpec
 import org.handtop.desktop.term.TermSessionHost
@@ -124,6 +127,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
         val icons = DesktopIcons(this).apply {
             add(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
+            add(R.drawable.ic_apps, R.string.app_linux_apps) { openLinuxApps() }
             add(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
             add(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
             add(R.drawable.ic_info, R.string.app_about) { openAbout() }
@@ -277,6 +281,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         window = DesktopWindow(this, area, content, toplevel.title.ifEmpty { "Linux" }, R.drawable.ic_apps)
         // Programs without server-side decorations draw their own title bar.
         window.decorated = toplevel.serverSideDecorations
+        // The program's own icon, from its menu entry (app id = desktop file id, usually).
+        LinuxApps.forAppId(this, toplevel.appId)?.let { app -> LinuxApps.icon(app, dpi(48))?.let { window.iconBitmap = it } }
         window.resizable = !toplevel.fixedSize
         // Dialogs open over the window they belong to.
         val parent = toplevel.parent?.let { p ->
@@ -291,6 +297,23 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     override fun toplevelUnmapped(toplevel: XdgToplevel) {
         area.windows.firstOrNull { (it.content as? WaylandWindowContent)?.toplevel === toplevel }
             ?.let { area.closeWindow(it) }
+    }
+
+    /** The Linux apps menu window (one at a time). */
+    private fun openLinuxApps() {
+        area.windows.firstOrNull { it.content is LinuxAppsContent }?.let { area.activate(it); return }
+        val content = LinuxAppsContent(this, launch = { launchLinuxApp(it) }, openLinuxSetup = { openLinuxSetup() })
+        area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_linux_apps), R.drawable.ic_apps))
+    }
+
+    private fun launchLinuxApp(app: LinuxApp) {
+        if (app.terminal) {
+            // Terminal programs (htop, mc…) get a terminal window of their own.
+            val spec = LinuxEnv.commandSpec(this, app.exec).copy(title = app.name)
+            openTerminalWindow(TermSessions.create(this, spec))
+        } else {
+            LinuxApps.launch(this, app)
+        }
     }
 
     private fun openSettings() {
@@ -330,7 +353,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         }
         item(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
         item(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
-        item(R.drawable.ic_apps, R.string.app_linux_soon, enabled = false)
+        item(R.drawable.ic_apps, R.string.app_linux_apps) { openLinuxApps() }
         item(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
         item(R.drawable.ic_info, R.string.app_about) { openAbout() }
         panel.addView(View(this).apply { setBackgroundColor(Palette.MENU_DIVIDER) },

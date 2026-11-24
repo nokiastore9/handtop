@@ -46,12 +46,25 @@ object LinuxEnv {
 
     /** A login shell inside the installed distribution, as fake root, through proot. */
     fun shellSpec(context: Context): ShellSpec {
+        val rootfsDir = rootfs(context)
+        val shell = if (File(rootfsDir, "bin/bash").exists()) listOf("/bin/bash", "--login") else listOf("/bin/sh", "-l")
+        return prootSpec(context, shell)
+    }
+
+    /**
+     * [command] run by a login shell inside the distribution (a menu app's Exec line), as
+     * fake root, through proot. The shell reads the profile, so PATH etc. are as in a terminal.
+     */
+    fun commandSpec(context: Context, command: String): ShellSpec =
+        prootSpec(context, listOf("/bin/sh", "-lc", command))
+
+    /** [program] (argv inside Linux) with the HandTop environment, through proot. */
+    private fun prootSpec(context: Context, program: List<String>): ShellSpec {
         val nativeDir = context.applicationInfo.nativeLibraryDir
         val rootfsDir = rootfs(context)
         val rootfs = rootfsDir.absolutePath
         val prootTmp = File(context.cacheDir, "proot").apply { mkdirs() }
         val distro = installedDistro(context) ?: Distro.DEFAULT
-        val shell = if (File(rootfsDir, "bin/bash").exists()) listOf("/bin/bash", "--login") else listOf("/bin/sh", "-l")
         val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
 
         // Linux GUI programs talk to HandTop's compositor through this socket.
@@ -98,7 +111,7 @@ object LinuxEnv {
             "QT_QPA_PLATFORM=wayland",
             "SDL_VIDEODRIVER=wayland",
             "MOZ_ENABLE_WAYLAND=1",
-        ) + shell
+        ) + program
 
         val env = LinkedHashMap(System.getenv())
         env.remove("LD_PRELOAD")

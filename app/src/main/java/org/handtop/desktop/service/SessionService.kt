@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.app.ServiceCompat
 import org.handtop.desktop.DesktopActivity
 import org.handtop.desktop.R
+import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxInstaller
 import org.handtop.desktop.term.TermSessions
 
@@ -63,7 +64,8 @@ class SessionService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val TAG = "SessionService"
 
-        private fun isNeeded() = TermSessions.hosts.isNotEmpty() || LinuxInstaller.isRunning
+        private fun isNeeded() =
+            TermSessions.hosts.isNotEmpty() || LinuxInstaller.isRunning || LinuxApps.running.isNotEmpty()
 
         /** Start, refresh or stop the service to match the current sessions / installs. */
         fun update(context: Context) {

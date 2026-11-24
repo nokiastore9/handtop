@@ -3,7 +3,11 @@
     <string name="start_menu">Пуск</string>
     <string name="app_terminal_linux">Терминал Linux</string>
     <string name="app_terminal_android">Терминал Android</string>
-    <string name="app_linux_soon">Linux-приложения (скоро)</string>
+    <string name="app_linux_apps">Приложения Linux</string>
+    <string name="apps_search">Поиск</string>
+    <string name="apps_loading">Ищу приложения…</string>
+    <string name="apps_not_installed">Linux ещё не установлен.</string>
+    <string name="apps_empty">Графических Linux-приложений пока нет. Установите их в терминале Linux, например:</string>
     <string name="app_settings">Настройки</string>
     <string name="app_about">О программе</string>
     <string name="action_minimize">Свернуть</string>
