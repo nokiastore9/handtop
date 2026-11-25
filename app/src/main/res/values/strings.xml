@@ -96,6 +96,7 @@
     <string name="desktop_wallpaper">Change wallpaper…</string>
     <string name="desktop_add_program">Add a Linux program…</string>
     <string name="desktop_restore_icons">Restore HandTop\'s icons</string>
+    <string name="desktop_arrange_icons">Arrange icons</string>
     <string name="shortcut_open">Open</string>
     <string name="shortcut_add">Add to desktop</string>
     <string name="shortcut_remove">Remove from desktop</string>

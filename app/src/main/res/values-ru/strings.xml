@@ -92,6 +92,7 @@
     <string name="desktop_wallpaper">Сменить обои…</string>
     <string name="desktop_add_program">Добавить Linux-программу…</string>
     <string name="desktop_restore_icons">Вернуть значки HandTop</string>
+    <string name="desktop_arrange_icons">Упорядочить значки</string>
     <string name="shortcut_open">Открыть</string>
     <string name="shortcut_add">Добавить на рабочий стол</string>
     <string name="shortcut_remove">Убрать с рабочего стола</string>

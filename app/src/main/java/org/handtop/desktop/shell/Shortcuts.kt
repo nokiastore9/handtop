@@ -17,10 +17,14 @@ sealed class Shortcut {
     data class Folder(val path: String, val name: String) : Shortcut()
 }
 
+/** A place on the desktop's grid of icons. */
+data class Cell(val column: Int, val row: Int)
+
 /**
- * The desktop's shortcuts, in order, kept in the app's preferences. A fresh desktop has
- * HandTop's own windows; the user adds Linux programs and folders and removes what they do
- * not want, HandTop's own ones included (they can be brought back).
+ * The desktop's shortcuts, in order, kept in the app's preferences, with the grid cell the
+ * user dragged each one to. A fresh desktop has HandTop's own windows; the user adds Linux
+ * programs and folders and removes what they do not want, HandTop's own ones included (they
+ * can be brought back).
  */
 object Shortcuts {
 
@@ -35,6 +39,7 @@ object Shortcuts {
 
     private const val PREFS = "desktop"
     private const val KEY = "shortcuts"
+    private const val KEY_CELLS = "shortcut_cells"
 
     private val listeners = CopyOnWriteArraySet<() -> Unit>()
 
@@ -64,7 +69,39 @@ object Shortcuts {
         return true
     }
 
-    fun remove(context: Context, shortcut: Shortcut) = save(context, load(context).filterNot { same(it, shortcut) })
+    fun remove(context: Context, shortcut: Shortcut) {
+        // A shortcut added again later goes to the first free cell, not to this one.
+        val cells = cells(context) - key(shortcut)
+        prefs(context).edit().putString(KEY_CELLS, cellsJson(cells)).apply()
+        save(context, load(context).filterNot { same(it, shortcut) })
+    }
+
+    /** Identifies a shortcut among the others (for its cell). */
+    fun key(shortcut: Shortcut): String = when (shortcut) {
+        is Shortcut.BuiltIn -> "builtin:${shortcut.id}"
+        is Shortcut.LinuxProgram -> "linux:${shortcut.appId}"
+        is Shortcut.Folder -> "folder:${shortcut.path}"
+    }
+
+    /** Where the user put shortcuts (by [key]); a shortcut without a cell takes the first free one. */
+    fun cells(context: Context): Map<String, Cell> = try {
+        val json = JSONObject(prefs(context).getString(KEY_CELLS, null) ?: "{}")
+        json.keys().asSequence().associateWith { key ->
+            json.getJSONArray(key).let { Cell(it.getInt(0), it.getInt(1)) }
+        }
+    } catch (_: Exception) {
+        emptyMap()
+    }
+
+    /** Remembers where every shortcut is now (after a drag). */
+    fun setCells(context: Context, cells: Map<String, Cell>) {
+        prefs(context).edit().putString(KEY_CELLS, cellsJson(cells)).apply()
+        listeners.forEach { it() }
+    }
+
+    private fun cellsJson(cells: Map<String, Cell>) = JSONObject().apply {
+        cells.forEach { (key, cell) -> put(key, JSONArray().put(cell.column).put(cell.row)) }
+    }.toString()
 
     /** HandTop's own shortcuts that were removed. */
     fun missingBuiltIns(context: Context): List<String> {

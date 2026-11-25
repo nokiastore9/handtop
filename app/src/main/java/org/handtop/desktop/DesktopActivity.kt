@@ -317,6 +317,10 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         items += MenuEntry(getString(R.string.desktop_restore_icons), R.drawable.ic_home, Shortcuts.missingBuiltIns(this).isNotEmpty()) {
             Shortcuts.restoreBuiltIns(this)
         }
+        // Forget where icons were dragged: they line up in columns again.
+        items += MenuEntry(getString(R.string.desktop_arrange_icons), R.drawable.ic_apps, Shortcuts.cells(this).isNotEmpty()) {
+            Shortcuts.setCells(this, emptyMap())
+        }
         items += null
         items += MenuEntry(getString(R.string.desktop_wallpaper), R.drawable.ic_camera) { openWallpapers() }
         items += MenuEntry(getString(R.string.app_settings), R.drawable.ic_settings) { openSettings() }
