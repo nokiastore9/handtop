@@ -223,10 +223,9 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { onBack() }
         }
 
-        // Re-attach sessions that survived an activity re-creation. A new terminal only on a
-        // fresh start: re-created (a scale change, DeX) with every terminal closed, none.
-        if (TermSessions.hosts.isNotEmpty()) TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
-        else if (savedInstanceState == null) openLinuxTerminal()
+        // Re-attach sessions that survived an activity re-creation (a scale or theme change, DeX).
+        // A start opens no window by itself: the desktop comes up empty, as a desktop does.
+        TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
 
         // Linux GUI windows: same for toplevels that are already on screen.
         val wayland = WaylandServer.get(this)

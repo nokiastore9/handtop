@@ -19,7 +19,16 @@ object UiScale {
 
     /** Percent of the system density offered in Settings. */
     val CHOICES = intArrayOf(50, 60, 70, 80, 90, 100, 115, 130)
-    const val DEFAULT = 100
+
+    /** The system density itself: no override. */
+    private const val SYSTEM = 100
+
+    /**
+     * The scale a display starts at until one is chosen in Settings: 70 % on the phone's own
+     * screen, where the system density leaves little room for windows; DeX or a monitor
+     * already has a desktop density.
+     */
+    fun defaultPercent(desktop: Boolean): Int = if (desktop) SYSTEM else 70
 
     private const val PREFS = "ui"
     private const val KEY_PHONE = "scale_phone"
@@ -41,7 +50,7 @@ object UiScale {
     }
 
     fun percent(context: Context, desktop: Boolean): Int =
-        prefs(context).getInt(if (desktop) KEY_DESKTOP else KEY_PHONE, DEFAULT)
+        prefs(context).getInt(if (desktop) KEY_DESKTOP else KEY_PHONE, defaultPercent(desktop))
 
     fun setPercent(context: Context, desktop: Boolean, percent: Int) {
         prefs(context).edit().putInt(if (desktop) KEY_DESKTOP else KEY_PHONE, percent).apply()
@@ -52,12 +61,15 @@ object UiScale {
      * Only densityDpi is set, so orientation, size, font scale etc. keep following the system.
      */
     fun override(base: Context, desktop: Boolean): Configuration? {
-        val percent = percent(base, desktop)
-        if (percent == DEFAULT) return null
+        val dpi = overrideDpi(systemDpi(base), percent(base, desktop)) ?: return null
         return Configuration().apply { // a blank delta: everything "undefined"
-            densityDpi = scaledDpi(systemDpi(base), percent)
+            densityDpi = dpi
         }
     }
+
+    /** The density to force for [percent] of [systemDpi], or null at the system's own (100 %). */
+    fun overrideDpi(systemDpi: Int, percent: Int): Int? =
+        if (percent == SYSTEM) null else scaledDpi(systemDpi, percent)
 
     fun scaledDpi(systemDpi: Int, percent: Int) = (systemDpi * percent / 100f).roundToInt().coerceAtLeast(72)
 
