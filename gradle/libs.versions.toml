@@ -3,6 +3,7 @@ agp = "9.4.0"
 coreKtx = "1.19.0"
 annotation = "1.9.1"
 androidsvg = "1.4"
+junit = "4.13.2"
 # Shared Android config
 compileSdk = "37"
 minSdk = "26"
@@ -14,6 +15,8 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
 # Draws the SVG icons of Linux programs (Apache 2.0).
 androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
+# JVM unit tests.
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

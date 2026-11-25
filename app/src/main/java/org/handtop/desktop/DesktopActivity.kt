@@ -55,6 +55,7 @@ import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.Popups
+import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -129,6 +130,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The theme first: every view below takes its colours and shapes from it.
+        Themes.load(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // Exclusive full screen, drawing under the camera cutout too: the taskbar replaces
         // Android's status bar.

@@ -64,30 +64,44 @@ fun roundedRect(color: Int, radiusPx: Float, strokeColor: Int = 0, strokePx: Int
         if (strokePx > 0) setStroke(strokePx, strokeColor)
     }
 
-/** Colours of the desktop shell. Kept in one place so a theme engine can replace it later. */
+/**
+ * Colours of the desktop shell, from the theme in use ([Themes.current]). Read them while
+ * building views: switching themes builds the desktop again.
+ */
 object Palette {
-    const val TITLE_ACTIVE = 0xFF26324A.toInt()
-    const val TITLE_INACTIVE = 0xFF181E2B.toInt()
-    const val TITLE_TEXT_ACTIVE = 0xFFFFFFFF.toInt()
-    const val TITLE_TEXT_INACTIVE = 0xFF8A94A8.toInt()
-    const val TASKBAR = 0xF0101522.toInt()
-    const val TASKBAR_ITEM_ACTIVE = 0x30FFFFFF
-    const val TASKBAR_INDICATOR = 0xFF4F8CFF.toInt()
-    const val ACCENT = 0xFF4F8CFF.toInt()
-    const val SNAP_PREVIEW_FILL = 0x404F8CFF
-    const val SNAP_PREVIEW_STROKE = 0xB04F8CFF.toInt()
-    const val CLOSE_HOVER = 0xFFE5484D.toInt()
-    const val CLOSE_PRESSED = 0xFFB3261E.toInt()
-    const val MENU_BG = 0xF51A2233.toInt()
-    const val MENU_DIVIDER = 0x22FFFFFF
-    const val TEXT = 0xFFE6EAF2.toInt()
-    const val TEXT_DIM = 0xFF8A94A8.toInt()
-    const val STATUS_ICON_OFF = 0x55E6EAF2
-    const val CHIP = 0x22FFFFFF
-    const val CARD = 0x14FFFFFF
-    const val TEXT_SOFT = 0xFFC3CAD8.toInt()
-    const val BATTERY_LOW = 0xFFE5484D.toInt()
-    const val BATTERY_CHARGING = 0xFF46C46E.toInt()
-    const val KEY_BAR_BG = 0xFF161B26.toInt()
-    const val KEY_ON = 0xFF4F8CFF.toInt()
+    val TITLE_ACTIVE: Int get() = Themes.current.colors.titleActive
+    val TITLE_INACTIVE: Int get() = Themes.current.colors.titleInactive
+    val TITLE_TEXT_ACTIVE: Int get() = Themes.current.colors.titleTextActive
+    val TITLE_TEXT_INACTIVE: Int get() = Themes.current.colors.titleTextInactive
+    val TASKBAR: Int get() = Themes.current.colors.taskbar
+    val TASKBAR_ITEM_ACTIVE: Int get() = Themes.current.colors.taskbarItemActive
+    val TASKBAR_INDICATOR: Int get() = Themes.current.colors.taskbarIndicator
+    val ACCENT: Int get() = Themes.current.colors.accent
+    val SNAP_PREVIEW_FILL: Int get() = Themes.current.colors.snapPreviewFill
+    val SNAP_PREVIEW_STROKE: Int get() = Themes.current.colors.snapPreviewStroke
+    val CLOSE_HOVER: Int get() = Themes.current.colors.closeHover
+    val CLOSE_PRESSED: Int get() = Themes.current.colors.closePressed
+    val MENU_BG: Int get() = Themes.current.colors.menuBg
+    val MENU_DIVIDER: Int get() = Themes.current.colors.menuDivider
+    val TEXT: Int get() = Themes.current.colors.text
+    val TEXT_DIM: Int get() = Themes.current.colors.textDim
+    val STATUS_ICON_OFF: Int get() = Themes.current.colors.statusIconOff
+    val CHIP: Int get() = Themes.current.colors.chip
+    val CARD: Int get() = Themes.current.colors.card
+    val TEXT_SOFT: Int get() = Themes.current.colors.textSoft
+    val BATTERY_LOW: Int get() = Themes.current.colors.batteryLow
+    val BATTERY_CHARGING: Int get() = Themes.current.colors.batteryCharging
+    val KEY_BAR_BG: Int get() = Themes.current.colors.keyBarBg
+    val KEY_ON: Int get() = Themes.current.colors.keyOn
+    val WINDOW_BG: Int get() = Themes.current.colors.windowBg
+    val SIDEBAR_BG: Int get() = Themes.current.colors.sidebarBg
+    val BAR_BG: Int get() = Themes.current.colors.barBg
+    val WARNING: Int get() = Themes.current.colors.warning
+    val SELECTION: Int get() = Themes.current.colors.selection
+    val SELECTION_TEXT: Int get() = Themes.current.colors.selectionText
+    val FIELD_BG: Int get() = Themes.current.colors.fieldBg
+    val FIELD: Int get() = Themes.current.colors.field
+    val DESKTOP_LABEL: Int get() = Themes.current.colors.desktopLabel
+    val FACE: Int get() = Themes.current.colors.face
+    val TEXT_DISABLED: Int get() = Themes.current.colors.textDisabled
 }

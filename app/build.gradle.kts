@@ -33,6 +33,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // JVM unit tests touch plain Kotlin (themes, icon tables); Android stubs answer defaults.
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     // Native helpers of the Wayland compositor (sockets with fd passing, shm, blits).
     externalNativeBuild {
         ndkBuild {
@@ -89,4 +94,5 @@ dependencies {
     implementation(project(":terminal-view"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidsvg)
+    testImplementation(libs.junit)
 }
