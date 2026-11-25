@@ -55,6 +55,7 @@ import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.Popups
+import org.handtop.desktop.ui.ThemeId
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
@@ -120,6 +121,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     fun setInterfaceScale(percent: Int) {
         if (percent == UiScale.percent(this, onDesktopDisplay)) return
         UiScale.setPercent(this, onDesktopDisplay, percent)
+        recreate()
+    }
+
+    /** Settings → Desktop → Theme: save it and build the desktop again in it (sessions survive). */
+    fun applyTheme(id: ThemeId) {
+        if (id == Themes.current.id) return
+        Themes.choose(this, id)
         recreate()
     }
 
@@ -504,6 +512,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             this,
             openLinuxSetup = { openLinuxSetup() },
             setScale = { setInterfaceScale(it) },
+            chooseTheme = { applyTheme(it) },
             openWallpapers = { openWallpapers() },
             touchpadOn = { touchpad.isOn },
             toggleTouchpad = { toggleTouchpad() },

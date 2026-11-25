@@ -35,6 +35,8 @@ import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBars
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.ThemeId
+import org.handtop.desktop.ui.Themes
 import kotlin.math.roundToInt
 import org.handtop.desktop.wm.WindowContent
 
@@ -64,6 +66,8 @@ class SettingsContent(
     /** Whether the screen works as a touchpad now, and switching it. */
     private val touchpadOn: () -> Boolean,
     private val toggleTouchpad: () -> Unit,
+    /** Saves another theme and rebuilds the desktop with it. */
+    private val chooseTheme: (ThemeId) -> Unit,
     /** Open on the last category's page even in a narrow window (back after a scale change). */
     private val startOnPage: Boolean = false,
 ) : LinearLayout(context), WindowContent {
@@ -200,6 +204,10 @@ class SettingsContent(
                     setOnClickListener { Shortcuts.restoreBuiltIns(context) }
                 })
             }, wrap())
+
+            // The look of the whole shell; switching rebuilds the desktop, as a scale change does.
+            addView(heading(R.string.settings_theme_title))
+            addView(themeChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
         }
 
         // Notifications on the taskbar (HandTop hides Android's status bar).
@@ -587,6 +595,27 @@ class SettingsContent(
             isHorizontalScrollBarEnabled = false
             addView(row)
         }
+    }
+
+    private fun themeChoices(): View {
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        for ((id, label) in listOf(ThemeId.MODERN to R.string.theme_modern, ThemeId.CLASSIC to R.string.theme_classic)) {
+            val selected = id == Themes.current.id
+            row.addView(TextView(context).apply {
+                setText(label)
+                textSize = 15f
+                setTextColor(Palette.TEXT)
+                gravity = Gravity.CENTER
+                setPadding(dpi(14), dpi(8), dpi(14), dpi(8))
+                background = roundedRect(if (selected) Palette.ACCENT else Palette.CHIP, dp(10f))
+                foreground = context.selectableBackground()
+                isSelected = selected
+                setOnClickListener { if (!selected) chooseTheme(id) }
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { marginEnd = dpi(6) })
+        }
+        return row
     }
 
     private fun heading(text: Int) = TextView(context).apply {
