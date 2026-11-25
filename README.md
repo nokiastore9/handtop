@@ -12,10 +12,10 @@ No root required. For phones, tablets and external screens, with or without Sams
 
 ## Vibe-coded
 
-HandTop is a vibe-coding project. It is built by talking to an AI coding agent,
-[Claude Code](https://claude.com/claude-code). The agent writes the code, the tests and these docs.
-A human sets the direction, tries every build on a real phone and decides what ships. The commits
-name the AI as their co-author.
+HandTop is a vibe-coding project by **Samson Vardanyan**. It is built by talking to an AI coding
+agent, [Claude Code](https://claude.com/claude-code). The agent writes the code, the tests and these
+docs. Samson sets the direction, tries every build on a real phone and decides what ships. The
+commits name the AI as their co-author.
 
 ## Screenshots
 
@@ -111,7 +111,7 @@ key (see `app/build.gradle.kts`) and left unsigned otherwise.
 
 ## License
 
-[GNU GPL v3](LICENSE). Third-party code keeps its license:
+HandTop © 2026 Samson Vardanyan, under the [GNU GPL v3](LICENSE). Third-party code keeps its license:
 
 - `terminal-emulator`, `terminal-view` — from [Termux](https://github.com/termux/termux-app), Apache 2.0
 - `native/proot` — [termux/proot](https://github.com/termux/proot), GPL v2+
