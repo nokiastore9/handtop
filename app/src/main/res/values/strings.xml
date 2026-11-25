@@ -140,7 +140,7 @@
     <string name="notif_sessions">Open terminals: %1$d</string>
     <string name="notif_installing">Setting up Linux…</string>
 
-    <string name="about_text">HandTop %1$s\nDesktop in your hand.\n\nA desktop for Android: windows, a taskbar and terminals — Android shell and real Linux (Debian, Ubuntu, Alpine or Fedora through proot, no root needed).\n\nCurrent stage: 2 — Linux environment.\n\nLicense: GNU GPL v3.\nThe terminal emulator is based on Termux (Apache 2.0); proot is the Termux fork (GPL v2+), talloc is LGPL v3+.\n\nShortcuts:\nCtrl+Alt+T — new terminal\nAlt+F4 — close window\nCtrl+Shift+C / V — copy / paste\nCtrl+Plus / Ctrl+Minus — font size</string>
+    <string name="about_text">HandTop %1$s\nDesktop in your hand.\n\nA desktop for Android: windows, a taskbar and terminals — Android shell and real Linux (Debian, Ubuntu, Alpine or Fedora through proot, no root needed).\n\nLinux programs with windows open right on the desktop (Wayland and X11), with sound, and draw on the GPU on Snapdragon phones.\n\nLicense: GNU GPL v3.\nThe terminal emulator is based on Termux (Apache 2.0); proot is the Termux fork (GPL v2+), talloc is LGPL v3+.\n\nShortcuts:\nCtrl+Alt+T — new terminal\nAlt+F4 — close window\nCtrl+Shift+C / V — copy / paste\nCtrl+Plus / Ctrl+Minus — font size</string>
     <string name="app_files">Files</string>
     <string name="files_title">Files — %1$s</string>
     <string name="files_phone">Phone</string>

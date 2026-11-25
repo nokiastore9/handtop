@@ -136,7 +136,7 @@
     <string name="notif_sessions">Открыто терминалов: %1$d</string>
     <string name="notif_installing">Настройка Linux…</string>
 
-    <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Linux (Debian, Ubuntu, Alpine или Fedora через proot, без root).\n\nТекущий этап: 2 — Linux-окружение.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
+    <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Linux (Debian, Ubuntu, Alpine или Fedora через proot, без root).\n\nLinux-программы с окнами открываются прямо на рабочем столе (Wayland и X11), со звуком, а на телефонах со Snapdragon рисуют на видеокарте.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
     <string name="app_files">Файлы</string>
     <string name="files_title">Файлы — %1$s</string>
     <string name="files_phone">Телефон</string>

@@ -1,12 +1,14 @@
+<img src="docs/brand/handtop-icon.svg" width="96" alt="HandTop">
+
 # HandTop — Desktop in your hand
 
-**A PC-style desktop for Android: windows, a taskbar, terminals and a real Debian Linux — Linux GUI apps are next.**
-No root required. Built for phones, tablets and Samsung DeX.
+**A PC-style desktop for Android: windows, a taskbar, terminals and real Linux with its desktop apps.**
+No root required. For phones, tablets and external screens, with or without Samsung DeX.
 
-**Рабочий стол как на ПК для Android: окна, панель задач, терминалы и настоящий Debian Linux — следующий шаг: Linux-приложения с окнами.**
-Без root. Для телефонов, планшетов и Samsung DeX.
+**Рабочий стол как на ПК для Android: окна, панель задач, терминалы и настоящий Linux с его программами.**
+Без root. Для телефонов, планшетов и внешних экранов, с Samsung DeX и без него.
 
-> Status: early development (stage 2 of 5).
+> Status: early development. Linux apps with windows, sound and GPU acceleration on Snapdragon already work.
 
 ## What works now / Что уже работает
 
@@ -16,6 +18,14 @@ No root required. Built for phones, tablets and Samsung DeX.
 - **Linux Terminal** through proot as fake root, no root needed. One-tap install of an official
   Docker Hub image (sha256-verified): **Debian 13**, **Ubuntu 26.04 LTS**, **Alpine**, **Fedora** —
   with their package managers (`apt`, `apk`, `dnf`). Switch or remove it in Settings
+- **Linux apps in their own windows**: HandTop is the Wayland compositor, X11 apps run through
+  Xwayland; a Linux apps menu; the clipboard is shared
+- **Sound** from Linux apps (PulseAudio inside Linux, played by Android)
+- **GPU acceleration on Snapdragon** (Adreno): OpenGL 4.6, OpenGL ES 3.2 and Vulkan 1.4 through
+  Mesa Turnip + Zink, shipped in the APK (see [native/mesa](native/mesa/README.md))
+- **Linux sets itself up** after installing: GPU drivers, X11, sound and `gpg` on every
+  distribution, with the progress on the taskbar
+- Files: a file manager for the phone and Linux
 - Phone storage in Linux as `/sdcard` (optional "All files access")
 - Settings: storage access, Android's background process limit, Linux management
 - Android Terminal (the system shell), several terminals at once
@@ -30,9 +40,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 1. Desktop shell + terminal ✔
 2. Linux userland via proot: Debian / Ubuntu / Alpine / Fedora ✔ (optional chroot with root — to do)
-3. Own Wayland compositor: every Linux app is a separate window on the desktop ← **next**
-4. Xwayland, clipboard, file sharing, sound
-5. GPU acceleration (Turnip + Zink on Snapdragon), DeX polish, box64 / Wine
+3. Own Wayland compositor: every Linux app is a separate window on the desktop ✔
+4. Xwayland ✔, clipboard ✔, sound ✔, file sharing
+5. GPU acceleration (Turnip + Zink on Snapdragon) ✔, DeX polish, box64 / Wine
 
 ## Building
 

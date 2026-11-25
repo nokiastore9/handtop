@@ -385,6 +385,14 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             text = getString(R.string.app_name)
             setTextColor(Palette.TEXT)
             textSize = 18f
+            gravity = Gravity.CENTER_VERTICAL
+            // HandTop's mark, as on the Start button.
+            val mark = getDrawable(R.drawable.ic_handtop)?.mutate()?.apply {
+                setTint(Palette.ACCENT)
+                setBounds(0, 0, dpi(22), dpi(22))
+            }
+            setCompoundDrawablesRelative(mark, null, null, null)
+            compoundDrawablePadding = dpi(10)
             setPadding(dpi(14), dpi(4), dpi(14), dpi(10))
         })
         val popup = PopupWindow(panel, dpi(280), WRAP_CONTENT, true)

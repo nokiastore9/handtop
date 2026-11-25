@@ -44,7 +44,7 @@ class Taskbar(
         setBackgroundColor(Palette.TASKBAR)
         elevation = dp(12f)
 
-        startButton = iconButton(R.drawable.ic_star, R.string.start_menu) { onStart(it) }
+        startButton = iconButton(R.drawable.ic_handtop, R.string.start_menu) { onStart(it) }
         startButton.setColorFilter(Palette.ACCENT)
         addView(startButton, LayoutParams(dpi(52), LayoutParams.MATCH_PARENT))
 

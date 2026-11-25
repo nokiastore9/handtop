@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="512" height="512">
+  <!-- HandTop's app icon on Android's adaptive-icon grid (108 units; the visible part is the
+       middle 72, here masked as a rounded square). Same shapes as the app's drawables. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3A6BE8"/><stop offset="1" stop-color="#1E3BA8"/>
+    </linearGradient>
+    <clipPath id="mask"><rect x="18" y="18" width="72" height="72" rx="17"/></clipPath>
+  </defs>
+  <g clip-path="url(#mask)">
+    <rect width="108" height="108" fill="url(#bg)"/>
+    <path fill="#FFFFFF" fill-rule="evenodd" d="M38,30 H48 V49 H60 V30 H70 A8,8 0 0,1 78,38 V70 A8,8 0 0,1 70,78 H60 V59 H48 V78 H38 A8,8 0 0,1 30,70 V38 A8,8 0 0,1 38,30 Z M34.8,35.4 a1.6,1.6 0 1,0 3.2,0 a1.6,1.6 0 1,0 -3.2,0 Z M39.6,35.4 a1.6,1.6 0 1,0 3.2,0 a1.6,1.6 0 1,0 -3.2,0 Z M64,34.6 H73.5 V36.4 H64 Z"/>
+  </g>
+</svg>
