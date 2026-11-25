@@ -1,7 +1,8 @@
-# Builds HandTop's Mesa for Adreno (native/mesa) on an arm64 runner, in Debian 13 like
-# HandTop's Linux. For a tag mesa-<version>-<revision> (the VERSION in build-mesa.sh), the
-# package becomes that tag's GitHub release: HandTop downloads it from there and checks the
-# SHA-256 it pins (GpuDrivers.kt).
+# Builds HandTop's Mesa for Adreno (native/mesa) on arm64 runners, one package per C library:
+# glibc in Debian 13 (for Debian, Ubuntu and Fedora) and musl in Alpine. For a tag
+# mesa-<version>-<revision> (the VERSION in build-mesa.sh), both packages become that tag's
+# GitHub release, where the app build fetches them when native/mesa/prebuilt/ has no copy; the
+# SHA-256 of each is pinned in app/build.gradle.kts.
 name: Mesa for Adreno
 
 on:
@@ -11,16 +12,25 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        include:
+          - libc: glibc
+            image: debian:trixie
+          - libc: musl
+            image: alpine:3.24
     runs-on: ubuntu-24.04-arm
-    container: debian:trixie
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: OUT="$GITHUB_WORKSPACE/out" WORK=/tmp/mesa-build sh native/mesa/build-mesa.sh
+      # In a container started by hand: the actions themselves (Node) do not run on Alpine.
+      - name: Build in ${{ matrix.image }}
+        run: >
+          docker run --rm -v "$PWD:/src" -e OUT=/src/out -e WORK=/tmp/mesa-build
+          ${{ matrix.image }} sh /src/native/mesa/build-mesa.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: handtop-mesa
+          name: handtop-mesa-${{ matrix.libc }}
           path: out/handtop-mesa-*
           if-no-files-found: error
 
@@ -33,10 +43,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: handtop-mesa
+          pattern: handtop-mesa-*
+          merge-multiple: true
           path: out
-      - name: The tag must name the package
-        run: ls -la "out/handtop-$GITHUB_REF_NAME-debian13-arm64.tar.gz"
+      - name: The tag must name the packages
+        run: ls -la "out/handtop-$GITHUB_REF_NAME-glibc-arm64.tar.gz" "out/handtop-$GITHUB_REF_NAME-musl-arm64.tar.gz"
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,4 +55,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" out/* \
             --repo "$GITHUB_REPOSITORY" --latest=false \
             --title "GPU drivers for Adreno: Mesa ${GITHUB_REF_NAME#mesa-}" \
-            --notes "Mesa (Turnip + Zink over KGSL) for HandTop's Linux on Snapdragon phones, Debian 13 arm64. Built by this workflow from native/mesa at ${GITHUB_SHA}: Mesa from archive.mesa3d.org (SHA-256 checked) with the patches in native/mesa/patches. HandTop installs it by itself; you do not need to download it."
+            --notes "Mesa (Turnip + Zink over KGSL) for HandTop's Linux on Snapdragon phones, arm64: glibc (built on Debian 13; Debian, Ubuntu, Fedora) and musl (built on Alpine). Built by this workflow from native/mesa at ${GITHUB_SHA}: Mesa from archive.mesa3d.org (SHA-256 checked) with the patches in native/mesa/patches. The app carries these packages; you do not need to download them."

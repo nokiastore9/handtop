@@ -88,7 +88,7 @@
     <string name="settings_gpu_text">Linux programs draw on the phone\'s Adreno GPU (OpenGL 4.6, OpenGL ES 3.2, Vulkan 1.4) instead of the processor. The drivers come with HandTop and set themselves up. Programs that were open during a change need a restart.</string>
     <string name="settings_gpu_not_in_build">This HandTop build has no GPU drivers: Linux programs draw on the processor</string>
     <string name="settings_gpu_no_adreno">This phone has no Adreno GPU (Snapdragon): Linux programs draw on the processor</string>
-    <string name="settings_gpu_distro">For now only with Debian: Linux programs draw on the processor</string>
+    <string name="settings_gpu_distro">No GPU drivers for this distribution yet: Linux programs draw on the processor</string>
     <string name="settings_gpu_unpacking">Setting up the GPU drivers…</string>
     <string name="settings_gpu_libraries">Installing libraries in Linux…</string>
     <string name="settings_gpu_on">✓ On: %1$s (Mesa %2$s, Turnip + Zink)</string>

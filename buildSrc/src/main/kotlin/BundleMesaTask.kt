@@ -16,16 +16,21 @@ import java.util.zip.GZIPInputStream
  * Puts HandTop's Mesa package (GPU drivers for Adreno, built by native/mesa/build-mesa.sh) into
  * the APK's assets, so the app installs it into Linux without downloading anything.
  *
- * Output: `<outputDirectory>/handtop-mesa.tar` and `handtop-mesa.version`. The tar goes in
- * uncompressed: the APK compresses its assets anyway (and the Android Gradle plugin would
+ * One task per C library ([libc]: glibc or musl, see build-mesa.sh). Output:
+ * `<outputDirectory>/handtop-mesa-<libc>.tar` and `handtop-mesa-<libc>.version`. The tar goes
+ * in uncompressed: the APK compresses its assets anyway (and the Android Gradle plugin would
  * unpack a .gz asset by itself).
  *
- * Mesa for Debian arm64 cannot be built here, so the package comes ready-made: from
+ * Mesa for Linux arm64 cannot be built here, so the package comes ready-made: from
  * `<prebuiltDirectory>` (a build made with the script, on a phone or by GitHub Actions), or
  * else downloaded from the project's release for that version. Either way its SHA-256 must
  * be [sha256]: a different build means updating [version] and [sha256] together.
  */
 abstract class BundleMesaTask : DefaultTask() {
+
+    /** glibc or musl: which build of the package. */
+    @get:Input
+    abstract val libc: Property<String>
 
     /** Mesa version and package revision, e.g. 26.3.1-1 (VERSION in build-mesa.sh). */
     @get:Input
@@ -47,7 +52,7 @@ abstract class BundleMesaTask : DefaultTask() {
 
     @TaskAction
     fun bundle() {
-        val name = "handtop-mesa-${version.get()}-debian13-arm64.tar.gz"
+        val name = "handtop-mesa-${version.get()}-${libc.get()}-arm64.tar.gz"
         val prebuilt = prebuiltDirectory.get().asFile.resolve(name)
         if (!prebuilt.isFile) download(releaseUrl.get().replace("{version}", version.get()) + "/" + name, prebuilt)
         val actual = sha256(prebuilt)
@@ -61,9 +66,9 @@ abstract class BundleMesaTask : DefaultTask() {
         out.deleteRecursively()
         out.mkdirs()
         GZIPInputStream(prebuilt.inputStream().buffered()).use { input ->
-            out.resolve("handtop-mesa.tar").outputStream().use { input.copyTo(it) }
+            out.resolve("handtop-mesa-${libc.get()}.tar").outputStream().use { input.copyTo(it) }
         }
-        out.resolve("handtop-mesa.version").writeText(version.get() + "\n")
+        out.resolve("handtop-mesa-${libc.get()}.version").writeText(version.get() + "\n")
     }
 
     private fun download(url: String, target: File) {

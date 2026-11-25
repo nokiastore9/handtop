@@ -1,13 +1,19 @@
 #!/bin/sh
-# Builds Mesa for HandTop's Linux (Debian 13, arm64) with GPU acceleration on Adreno:
+# Builds Mesa for HandTop's Linux (arm64) with GPU acceleration on Adreno:
 #   - Turnip, the Vulkan driver for Adreno, on KGSL (the GPU driver of Android kernels);
 #   - Zink, OpenGL / OpenGL ES on top of Vulkan.
 # Mesa supports this pairing without DRM ("pseudo-drm"), which Android does not offer to apps.
 #
-# Runs inside the distribution (as root, the default in HandTop) or in any Debian 13 arm64
-# system or container. Installs into $PREFIX, leaving Debian's own Mesa (llvmpipe) untouched,
-# and packs $PREFIX into $OUT/handtop-mesa-<version>-debian13-arm64.tar.gz, the package
-# HandTop downloads from the GitHub release (see GpuDrivers.kt for how it is switched on).
+# Two builds, one per C library, cover HandTop's distributions:
+#   - glibc: built on Debian 13, whose glibc is the oldest of them; runs on Debian, Ubuntu and
+#     Fedora. OpenGL through glvnd, next to the distribution's own Mesa.
+#   - musl: built on Alpine, which has no glvnd; HandTop puts this build first in the musl
+#     loader's search path instead.
+#
+# Runs inside the distribution (as root, the default in HandTop) or in a Debian 13 / Alpine
+# arm64 container. Installs into $PREFIX, leaving the distribution's own Mesa untouched, and
+# packs $PREFIX into $OUT/handtop-mesa-<version>-<glibc|musl>-arm64.tar.gz, the package the
+# APK carries (see GpuDrivers.kt for how HandTop switches it on).
 set -eu
 
 MESA_VERSION=26.3.1
@@ -24,19 +30,35 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 step() { echo; echo "=== $(date '+%H:%M:%S') $*"; }
 
 step "build tools"
-export DEBIAN_FRONTEND=noninteractive
-# A broken third-party repository (say, one whose key is missing) must not stop the build:
-# Debian's own lists are refreshed all the same.
-apt-get update -q || echo "warning: apt-get update reported errors; continuing with Debian's lists"
-apt-get install -y -q --no-install-recommends \
-    build-essential meson ninja-build pkg-config bison flex glslang-tools patch \
-    python3-mako python3-yaml python3-packaging \
-    libdrm-dev libexpat1-dev zlib1g-dev libzstd-dev libglvnd-dev \
-    libwayland-dev libwayland-bin libwayland-egl-backend-dev wayland-protocols \
-    libx11-dev libx11-xcb-dev libxext-dev libxfixes-dev libxrandr-dev libxxf86vm-dev \
-    libxshmfence-dev libxcb1-dev libxcb-glx0-dev libxcb-shm0-dev libxcb-dri3-dev \
-    libxcb-present-dev libxcb-sync-dev libxcb-randr0-dev libxcb-xfixes0-dev libxcb-keysyms1-dev \
-    curl ca-certificates xz-utils
+if [ -f /etc/alpine-release ]; then
+    LIBC=musl
+    GLVND=disabled
+    # One virtual package: "apk del .handtop-mesa-build" removes exactly these afterwards.
+    apk add --virtual .handtop-mesa-build \
+        build-base meson samurai pkgconf bison flex glslang patch \
+        py3-mako py3-yaml py3-packaging \
+        libdrm-dev expat-dev zlib-dev zstd-dev \
+        wayland-dev wayland-protocols \
+        libx11-dev libxext-dev libxfixes-dev libxrandr-dev libxxf86vm-dev libxshmfence-dev \
+        libxcb-dev xcb-util-keysyms-dev linux-headers \
+        curl xz
+else
+    LIBC=glibc
+    GLVND=enabled
+    export DEBIAN_FRONTEND=noninteractive
+    # A broken third-party repository (say, one whose key is missing) must not stop the build:
+    # Debian's own lists are refreshed all the same.
+    apt-get update -q || echo "warning: apt-get update reported errors; continuing with Debian's lists"
+    apt-get install -y -q --no-install-recommends \
+        build-essential meson ninja-build pkg-config bison flex glslang-tools patch \
+        python3-mako python3-yaml python3-packaging \
+        libdrm-dev libexpat1-dev zlib1g-dev libzstd-dev libglvnd-dev \
+        libwayland-dev libwayland-bin libwayland-egl-backend-dev wayland-protocols \
+        libx11-dev libx11-xcb-dev libxext-dev libxfixes-dev libxrandr-dev libxxf86vm-dev \
+        libxshmfence-dev libxcb1-dev libxcb-glx0-dev libxcb-shm0-dev libxcb-dri3-dev \
+        libxcb-present-dev libxcb-sync-dev libxcb-randr0-dev libxcb-xfixes0-dev libxcb-keysyms1-dev \
+        curl ca-certificates xz-utils
+fi
 
 step "source: Mesa $MESA_VERSION"
 mkdir -p "$WORK"
@@ -83,7 +105,7 @@ set -- \
     -Dgallium-drivers=zink \
     -Dvulkan-drivers=freedreno \
     -Dfreedreno-kmds=kgsl \
-    -Dglx=dri -Degl=enabled -Dgles1=disabled -Dgles2=enabled -Dglvnd=enabled \
+    -Dglx=dri -Degl=enabled -Dgles1=disabled -Dgles2=enabled -Dglvnd=$GLVND \
     -Dllvm=disabled -Dvideo-codecs= -Dvulkan-layers= -Dtools= \
     -Dlibunwind=disabled -Dvalgrind=disabled -Dlmsensors=disabled
 if [ -f build/build.ninja ]; then
@@ -100,9 +122,8 @@ step "install into $PREFIX"
 rm -rf "$PREFIX"
 ninja -C build install
 install -Dm755 "$HERE/handtop-gpu" "$PREFIX/bin/handtop-gpu"
-# glvnd's vendor file, by absolute path: HandTop puts it first in /usr/share/glvnd/egl_vendor.d
-# (Debian's Mesa stays as the fallback when Zink cannot start).
-cat > "$PREFIX/share/glvnd/egl_vendor.d/10_handtop-mesa.json" <<EOF
+# glvnd's vendor file, by absolute path: HandTop puts it first in /usr/share/glvnd/egl_vendor.d.
+[ "$GLVND" = enabled ] && cat > "$PREFIX/share/glvnd/egl_vendor.d/10_handtop-mesa.json" <<EOF
 {
     "file_format_version" : "1.0.0",
     "ICD" : {
@@ -112,11 +133,13 @@ cat > "$PREFIX/share/glvnd/egl_vendor.d/10_handtop-mesa.json" <<EOF
 EOF
 echo "$VERSION" > "$PREFIX/VERSION"
 # Check that the run path made it through meson's install.
-objdump -p "$PREFIX/lib/libEGL_mesa.so.0" | grep -q "RUNPATH.*$PREFIX/lib" ||
-    { echo "error: libEGL_mesa.so.0 has no run path $PREFIX/lib"; exit 1; }
+EGL=$PREFIX/lib/libEGL_mesa.so.0
+[ "$GLVND" = enabled ] || EGL=$PREFIX/lib/libEGL.so.1
+objdump -p "$EGL" | grep -q "RUNPATH.*$PREFIX/lib" ||
+    { echo "error: $EGL has no run path $PREFIX/lib"; exit 1; }
 
 step "package"
-PACKAGE="$OUT/handtop-mesa-$VERSION-debian13-arm64.tar.gz"
+PACKAGE="$OUT/handtop-mesa-$VERSION-$LIBC-arm64.tar.gz"
 mkdir -p "$OUT"
 tar -C "$(dirname "$PREFIX")" -czf "$PACKAGE" "$(basename "$PREFIX")"
 (cd "$OUT" && sha256sum "$(basename "$PACKAGE")" | tee "$(basename "$PACKAGE").sha256")

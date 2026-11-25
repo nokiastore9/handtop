@@ -6,22 +6,31 @@ GPU acceleration for HandTop's Linux programs on Snapdragon phones:
   Android kernels (`/dev/kgsl-3d0`, open to every app, no root needed).
 - **Zink** provides OpenGL 4.6 and OpenGL ES 3.2 on top of Vulkan.
 
-Mesa supports this pairing without DRM (`pseudo-drm`). Debian's Mesa is built without KGSL,
-so HandTop builds its own. The package goes into the APK, and HandTop installs it next to
-Debian's Mesa by itself (see below).
+Mesa supports this pairing without DRM (`pseudo-drm`). The distributions' Mesa is built
+without KGSL, so HandTop builds its own, once per C library:
+
+| Package | Built on | Runs on | OpenGL registered through |
+|---|---|---|---|
+| `glibc` | Debian 13 (the oldest glibc of HandTop's distributions) | Debian 13, Ubuntu 26.04, Fedora 45 | glvnd, next to the distribution's Mesa |
+| `musl` | Alpine 3.24 | Alpine | first directory of the musl loader's path (Alpine has no glvnd) |
+
+Both packages go into the APK, and HandTop installs the fitting one by itself (see below).
 
 ## How HandTop uses it
 
-1. **Bundling.** The `bundleMesa` Gradle task puts the package into the APK's assets. It takes
-   the package from `native/mesa/prebuilt/` (not in git), or else from the project's release
-   `mesa-<version>`. It checks the SHA-256 pinned in `app/build.gradle.kts`.
-2. **Installing.** On a phone with Adreno (the KGSL device is open to apps) running Debian 13,
-   `GpuDrivers` unpacks it into `/opt/handtop-mesa`. It installs any of the Debian libraries
-   it needs that are missing, with apt. This happens right after Linux is installed, or at
-   the next Linux session.
+1. **Bundling.** The `bundleMesaGlibc` and `bundleMesaMusl` Gradle tasks put the packages into
+   the APK's assets. Each takes its package from `native/mesa/prebuilt/` (not in git), or else
+   from the project's release `mesa-<version>`, and checks the SHA-256 pinned in
+   `app/build.gradle.kts`.
+2. **Installing.** On a phone with Adreno (the KGSL device is open to apps), `GpuDrivers`
+   unpacks the package for the installed distribution into `/opt/handtop-mesa`. It installs
+   any of the distribution's libraries it needs that are missing (apt, dnf or apk). This
+   happens right after Linux is installed, or at the next Linux session.
 3. **Running.** While acceleration is on, HandTop:
-   - registers the package with glvnd (`/usr/share/glvnd/egl_vendor.d/10_handtop-mesa.json`,
-     `libGLX_handtop.so.0`) and the Vulkan loader (`/usr/share/vulkan/icd.d/`);
+   - registers the package with the Vulkan loader (`/usr/share/vulkan/icd.d/`);
+   - glibc: registers it with glvnd (`/usr/share/glvnd/egl_vendor.d/10_handtop-mesa.json`,
+     `libGLX_handtop.so.0`);
+   - musl: puts `/opt/handtop-mesa/lib` first in `/etc/ld-musl-aarch64.path`;
    - gives every Linux program the variables from `GpuDrivers.environment`.
 
    Switched off in the settings, all of that is removed and llvmpipe draws again.
@@ -30,7 +39,8 @@ Debian's Mesa by itself (see below).
 
 ## Build
 
-Inside HandTop's Debian 13 (arm64), as root, or in any Debian 13 arm64 system or container:
+Inside HandTop's Debian 13 or Alpine (arm64), as root, or in a Debian 13 / Alpine arm64
+container. The distribution decides the package:
 
 ```sh
 sh build-mesa.sh
@@ -38,21 +48,24 @@ sh build-mesa.sh
 
 What the script does:
 
-1. Installs about 1 GB of build tools with apt.
+1. Installs about 1 GB of build tools: with apt on Debian; with apk on Alpine, as the virtual
+   package `.handtop-mesa-build`, which `apk del .handtop-mesa-build` removes again.
 2. Fetches the pinned Mesa release from archive.mesa3d.org and checks its SHA-256.
 3. Applies `patches/`.
 4. Builds Mesa, installs it into `/opt/handtop-mesa`, and packs that directory as
-   `handtop-mesa-<version>-<revision>-debian13-arm64.tar.gz` (about 10 MB), with a `.sha256`.
+   `handtop-mesa-<version>-<revision>-<glibc|musl>-arm64.tar.gz` (about 10 MB), with a
+   `.sha256`.
 
 A new package for the APK means:
 
 1. Put it into `native/mesa/prebuilt/`.
 2. Update the version and the SHA-256 in `app/build.gradle.kts`.
 
-The GitHub Actions workflow `.github/workflows/mesa.yml` builds the same package on an arm64
-runner. For a tag `mesa-<version>-<revision>`, it publishes the package as a release.
+The GitHub Actions workflow `.github/workflows/mesa.yml` builds both packages on an arm64
+runner, in Debian 13 and Alpine containers. For a tag `mesa-<version>-<revision>`, it
+publishes them as a release.
 
-The build takes about 10 minutes on a Snapdragon 8 Gen 3. It resumes after an interruption;
+The build takes about 10 minutes on a Snapdragon 8 Gen 3 (7 minutes on Alpine). It resumes after an interruption;
 delete `mesa-<version>/` to start over.
 
 ## Patches

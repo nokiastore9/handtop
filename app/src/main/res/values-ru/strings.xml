@@ -84,7 +84,7 @@
     <string name="settings_gpu_text">Linux-программы рисуют на видеокарте Adreno (OpenGL 4.6, OpenGL ES 3.2, Vulkan 1.4), а не на процессоре. Драйверы входят в HandTop и ставятся сами. Программы, открытые во время переключения, нужно перезапустить.</string>
     <string name="settings_gpu_not_in_build">В этой сборке HandTop нет драйверов видеокарты: Linux-программы рисует процессор</string>
     <string name="settings_gpu_no_adreno">В телефоне нет видеокарты Adreno (Snapdragon): Linux-программы рисует процессор</string>
-    <string name="settings_gpu_distro">Пока только для Debian: Linux-программы рисует процессор</string>
+    <string name="settings_gpu_distro">Для этого дистрибутива драйверов пока нет: Linux-программы рисует процессор</string>
     <string name="settings_gpu_unpacking">Установка драйверов видеокарты…</string>
     <string name="settings_gpu_libraries">Установка библиотек в Linux…</string>
     <string name="settings_gpu_on">✓ Работает: %1$s (Mesa %2$s, Turnip + Zink)</string>

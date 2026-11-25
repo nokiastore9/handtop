@@ -250,10 +250,10 @@ class SettingsContent(
         val state = GpuDrivers.state
         var button: Int? = null
         gpuStatus.text = when {
-            GpuDrivers.version(context) == null -> context.getString(R.string.settings_gpu_not_in_build)
             !GpuDrivers.hasAdreno() -> context.getString(R.string.settings_gpu_no_adreno)
             !linux -> context.getString(R.string.apps_not_installed)
             !GpuDrivers.fitsDistro(context) -> context.getString(R.string.settings_gpu_distro)
+            GpuDrivers.version(context) == null -> context.getString(R.string.settings_gpu_not_in_build)
             state.phase == GpuDrivers.Phase.UNPACKING -> context.getString(R.string.settings_gpu_unpacking)
             state.phase == GpuDrivers.Phase.LIBRARIES -> context.getString(R.string.settings_gpu_libraries)
             !GpuDrivers.isEnabled(context) -> {

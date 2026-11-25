@@ -61,20 +61,27 @@ val buildProot = tasks.register<BuildProotTask>("buildProot") {
     outputDirectory.set(layout.buildDirectory.dir("generated/proot/jniLibs"))
 }
 
-// GPU drivers for Adreno (native/mesa), shipped inside the APK. A new package build means a new
-// version and SHA-256 here (the package is in native/mesa/prebuilt/ or the project's release).
-val bundleMesa = tasks.register<BundleMesaTask>("bundleMesa") {
-    version.set("26.3.1-2")
-    sha256.set("2a6799b9dc457b3012ca2959ceac6754a1d633b927174b565a46cef66e8f7dab")
-    prebuiltDirectory.set(rootProject.layout.projectDirectory.dir("native/mesa/prebuilt"))
-    releaseUrl.set("https://github.com/nokiastore9/handtop/releases/download/mesa-{version}")
-    outputDirectory.set(layout.buildDirectory.dir("generated/mesa/assets"))
-}
+// GPU drivers for Adreno (native/mesa), shipped inside the APK: one build per C library (glibc
+// for Debian, Ubuntu and Fedora; musl for Alpine). A new package build means a new version and
+// SHA-256 here (the package is in native/mesa/prebuilt/ or the project's release).
+fun bundleMesa(libc: String, packageVersion: String, packageSha256: String) =
+    tasks.register<BundleMesaTask>("bundleMesa${libc.replaceFirstChar { it.uppercase() }}") {
+        this.libc.set(libc)
+        version.set(packageVersion)
+        sha256.set(packageSha256)
+        prebuiltDirectory.set(rootProject.layout.projectDirectory.dir("native/mesa/prebuilt"))
+        releaseUrl.set("https://github.com/nokiastore9/handtop/releases/download/mesa-{version}")
+        outputDirectory.set(layout.buildDirectory.dir("generated/mesa-$libc/assets"))
+    }
+
+val bundleMesaGlibc = bundleMesa("glibc", "26.3.1-2", "2a6799b9dc457b3012ca2959ceac6754a1d633b927174b565a46cef66e8f7dab")
+val bundleMesaMusl = bundleMesa("musl", "26.3.1-2", "aceb7a3a8834a6517a20056fe561bb15021f8260962a4f0691a85dbc6055ae76")
 
 androidComponents {
     onVariants { variant ->
         variant.sources.jniLibs?.addGeneratedSourceDirectory(buildProot, BuildProotTask::outputDirectory)
-        variant.sources.assets?.addGeneratedSourceDirectory(bundleMesa, BundleMesaTask::outputDirectory)
+        variant.sources.assets?.addGeneratedSourceDirectory(bundleMesaGlibc, BundleMesaTask::outputDirectory)
+        variant.sources.assets?.addGeneratedSourceDirectory(bundleMesaMusl, BundleMesaTask::outputDirectory)
     }
 }
 
