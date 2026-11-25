@@ -31,6 +31,12 @@ import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.styleMenuText
+import org.handtop.desktop.ui.styleField
+import org.handtop.desktop.ui.pushButton
+import org.handtop.desktop.ui.bevel
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.Bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.roundedRect
@@ -78,7 +84,14 @@ class Launchpad(
         isFocusableInTouchMode = true
         // Over a blurred desktop (Android 12+) a light veil is enough and lets its colours
         // through; over a sharp one, the icons need a darker one to stand out.
-        setBackgroundColor(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0x990B1023.toInt() else 0xD90B1023.toInt())
+        setBackgroundColor(
+            when {
+                // Classic: an opaque gray surface, nothing shows through.
+                Themes.current.bevelled -> Palette.WINDOW_BG
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> 0x990B1023.toInt()
+                else -> 0xD90B1023.toInt()
+            },
+        )
 
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -95,6 +108,7 @@ class Launchpad(
             background = roundedRect(0x26FFFFFF, dp(20f))
             setPadding(dpi(16), dpi(9), dpi(16), dpi(9))
             // The keyboard stays below the grid: no full-screen text box in landscape.
+            styleField()
             imeOptions = EditorInfo.IME_ACTION_GO or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN
             setOnEditorActionListener { _, _, event ->
                 // A hardware Enter comes here twice, pressed and released: start one program.
@@ -140,10 +154,16 @@ class Launchpad(
         animate().cancel()
         search.setText("")
         visibility = VISIBLE
-        alpha = 0f
-        scaleX = 1.04f
-        scaleY = 1.04f
-        animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(160).start()
+        if (Themes.current.animations) {
+            alpha = 0f
+            scaleX = 1.04f
+            scaleY = 1.04f
+            animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(160).start()
+        } else {
+            alpha = 1f
+            scaleX = 1f
+            scaleY = 1f
+        }
         scroll.scrollTo(0, 0)
         // A hardware keyboard types into the search box at once; on a touch screen the
         // keyboard stays down until the box is tapped.
@@ -157,10 +177,15 @@ class Launchpad(
         if (visibility != VISIBLE || closing) return
         closing = true
         context.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(windowToken, 0)
-        animate().alpha(0f).scaleX(1.04f).scaleY(1.04f).setDuration(120).withEndAction {
+        if (Themes.current.animations) {
+            animate().alpha(0f).scaleX(1.04f).scaleY(1.04f).setDuration(120).withEndAction {
+                visibility = GONE
+                closing = false
+            }.start()
+        } else {
             visibility = GONE
             closing = false
-        }.start()
+        }
         onShown(false)
     }
 
@@ -225,13 +250,9 @@ class Launchpad(
             setTextIsSelectable(true)
             setPadding(0, dpi(10), 0, 0)
         })
-        if (withSetup) message.addView(Button(context).apply {
-            isAllCaps = false
-            setText(R.string.settings_linux_manage)
-            setOnClickListener {
-                close()
-                openLinuxSetup()
-            }
+        if (withSetup) message.addView(context.pushButton(context.getString(R.string.settings_linux_manage)) {
+            close()
+            openLinuxSetup()
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
             topMargin = dpi(12)
         })
@@ -248,7 +269,8 @@ class Launchpad(
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dpi(6), dpi(10), dpi(6), dpi(6))
-            background = context.selectableBackground()
+            // Classic: a pressed tile turns navy with white text, as a chosen list row does.
+            background = if (Themes.current.bevelled) Themes.current.menuItemBackground(context) else context.selectableBackground()
             contentDescription = app.name
             setOnClickListener { tapped(app) }
             setOnTouchListener { _, e ->
@@ -275,11 +297,14 @@ class Launchpad(
         tile.addView(TextView(context).apply {
             text = app.name
             textSize = 13f
-            setTextColor(Palette.TEXT)
             gravity = Gravity.CENTER
             maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
-            setShadowLayer(dp(3f), 0f, dp(1f), Color.BLACK)
+            if (Themes.current.bevelled) styleMenuText(enabled = true)
+            else {
+                setTextColor(Palette.TEXT)
+                setShadowLayer(dp(3f), 0f, dp(1f), Color.BLACK)
+            }
             setPadding(0, dpi(8), 0, 0)
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         return tile
@@ -287,7 +312,7 @@ class Launchpad(
 
     /** For a program that ships no icon: a plain program window (a terminal for terminal programs). */
     private fun noIcon(app: LinuxApp) = FrameLayout(context).apply {
-        background = roundedRect(0x26FFFFFF, dp(14f))
+        background = if (Themes.current.bevelled) context.bevel(Bevel.RAISED) else roundedRect(0x26FFFFFF, dp(14f))
         addView(ImageView(context).apply {
             setImageResource(if (app.terminal) R.drawable.ic_terminal else R.drawable.ic_app_generic)
             setColorFilter(Palette.TEXT_SOFT)

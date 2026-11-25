@@ -65,7 +65,7 @@ class SetupIndicator(context: Context, onClick: () -> Unit) : LinearLayout(conte
             state.failed -> {
                 visibility = View.VISIBLE
                 spinner.visibility = View.GONE
-                label.setTextColor(WARNING)
+                label.setTextColor(Palette.WARNING)
                 label.text = "⚠ " + context.getString(R.string.setup_taskbar_failed)
             }
             else -> visibility = View.GONE
@@ -73,7 +73,4 @@ class SetupIndicator(context: Context, onClick: () -> Unit) : LinearLayout(conte
         tooltipText = label.text
     }
 
-    private companion object {
-        const val WARNING = 0xFFFFB454.toInt()
-    }
 }

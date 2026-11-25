@@ -94,6 +94,27 @@ fun ProgressBar.styleProgress() {
     if (classic) progressBackgroundTintList = ColorStateList.valueOf(Palette.FIELD)
 }
 
+/** A radio button restyled for the theme (classic: the sunken white circle with a dot). */
+fun android.widget.RadioButton.styleRadio() {
+    setTextColor(Palette.TEXT)
+    buttonTintList = ColorStateList.valueOf(Palette.ACCENT)
+    if (!classic) return
+    buttonTintList = null
+    buttonDrawable = StateListDrawable().apply {
+        addState(intArrayOf(android.R.attr.state_checked), RadioMark(context, true))
+        addState(intArrayOf(), RadioMark(context, false))
+    }
+    setPadding(context.dpi(6), 0, 0, 0)
+}
+
+/** A key or a small toggle: classic draws it raised, pressed in while held. */
+fun View.styleKey() {
+    background = if (classic) StateListDrawable().apply {
+        addState(intArrayOf(android.R.attr.state_pressed), context.bevel(Bevel.PRESSED))
+        addState(intArrayOf(), context.bevel(Bevel.RAISED))
+    } else context.selectableBackground()
+}
+
 /** Background of a list (Settings' categories, Files' places): classic draws a sunken white box. */
 fun View.styleListBox() {
     background = if (classic) context.bevel(Bevel.SUNKEN, Palette.FIELD) else android.graphics.drawable.ColorDrawable(Palette.SIDEBAR_BG)
@@ -284,6 +305,9 @@ class ListRow(context: Context, @DrawableRes icon: Int, text: CharSequence) : Li
 /** A classic radio button's circle: sunken, white, with a dot when chosen. */
 private class RadioMark(context: Context, private val checked: Boolean) : Drawable() {
     private val e = max(1f, context.dp(1f).roundToInt().toFloat())
+    private val size = context.dpi(16)
+    override fun getIntrinsicWidth() = size
+    override fun getIntrinsicHeight() = size
     private val c = Themes.current.colors
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 

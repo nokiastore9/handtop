@@ -13,6 +13,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.pushButton
+import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.roundedRect
@@ -43,13 +45,9 @@ class WallpaperContent(
     private val thumbHeight = dpi(80)
 
     init {
-        setBackgroundColor(0xFF0F1420.toInt())
+        setBackgroundColor(Palette.WINDOW_BG)
         column.addView(grid)
-        column.addView(Button(context).apply {
-            isAllCaps = false
-            setText(R.string.wallpaper_choose_image)
-            setOnClickListener { pickImage() }
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+        column.addView(context.pushButton(context.getString(R.string.wallpaper_choose_image)) { pickImage() }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
             topMargin = dpi(10)
         })
         column.addView(TextView(context).apply {
@@ -98,14 +96,16 @@ class WallpaperContent(
         }
         val frame = FrameLayout(context).apply {
             // The chosen wallpaper gets a ring around it.
-            background = if (chosen) roundedRect(0, dp(12f), Palette.ACCENT, dpi(3)) else null
+            val round = if (Themes.current.roundedCorners) dp(12f) else 0f
+            background = if (chosen) roundedRect(0, round, Palette.ACCENT, dpi(3)) else null
             setPadding(dpi(4), dpi(4), dpi(4), dpi(4))
         }
         frame.addView(View(context).apply {
             background = WallpaperDrawable(context, id)
             clipToOutline = true
             outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, outline: Outline) = outline.setRoundRect(0, 0, view.width, view.height, dp(8f))
+                override fun getOutline(view: View, outline: Outline) =
+                    outline.setRoundRect(0, 0, view.width, view.height, if (Themes.current.roundedCorners) dp(8f) else 0f)
             }
         }, FrameLayout.LayoutParams(thumbWidth, thumbHeight))
         tile.addView(frame)

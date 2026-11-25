@@ -18,7 +18,7 @@ class AboutContent(context: Context) : ScrollView(context), WindowContent {
     override val view: View get() = this
 
     init {
-        setBackgroundColor(0xFF0F1420.toInt())
+        setBackgroundColor(Palette.WINDOW_BG)
         val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL

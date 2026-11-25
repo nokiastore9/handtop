@@ -51,7 +51,8 @@ object ClassicTheme : Theme(
         windowBg = FACE,
         sidebarBg = 0xFFFFFFFF.toInt(),
         barBg = FACE,
-        warning = 0xFFFFB454.toInt(),
+        // The modern amber would not read on gray: a dark red.
+        warning = 0xFFA00000.toInt(),
         selection = 0xFF000080.toInt(),
         selectionText = 0xFFFFFFFF.toInt(),
         fieldBg = 0xFFFFFFFF.toInt(),

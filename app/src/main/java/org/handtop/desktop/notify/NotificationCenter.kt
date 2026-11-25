@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.styleButton
 import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.applyTheme
 import org.handtop.desktop.ui.Themes
@@ -207,6 +208,7 @@ class NotificationCenter(private val activity: Activity) {
         })
         addView(Button(activity).apply {
             isAllCaps = false
+            styleButton()
             setText(R.string.notif_access_open)
             setOnClickListener {
                 popup?.dismiss()

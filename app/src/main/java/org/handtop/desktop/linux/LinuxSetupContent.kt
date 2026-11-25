@@ -16,6 +16,9 @@ import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxInstaller.Phase
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.styleRadio
+import org.handtop.desktop.ui.styleProgress
+import org.handtop.desktop.ui.styleButton
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
@@ -46,7 +49,7 @@ class LinuxSetupContent(
     private val setupListener: (LinuxSetup.State) -> Unit = { render() }
 
     init {
-        setBackgroundColor(0xFF0F1420.toInt())
+        setBackgroundColor(Palette.WINDOW_BG)
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dpi(22), dpi(18), dpi(22), dpi(20))
@@ -64,6 +67,7 @@ class LinuxSetupContent(
         installedText.textSize = 15f
         column.addView(installedText)
         openButton.isAllCaps = false
+        openButton.styleButton()
         openButton.setText(R.string.linux_setup_open)
         openButton.setOnClickListener {
             host?.close()
@@ -80,17 +84,17 @@ class LinuxSetupContent(
                 id = View.generateViewId()
                 tag = distro
                 text = context.getString(R.string.linux_distro_option, distro.title, distro.downloadMb)
-                setTextColor(Palette.TEXT)
-                buttonTintList = ColorStateList.valueOf(Palette.ACCENT)
+                styleRadio()
             })
         }
         column.addView(chooser)
-        warning.setTextColor(0xFFFFB454.toInt())
+        warning.setTextColor(Palette.WARNING)
         warning.textSize = 13f
         warning.setPadding(0, dpi(6), 0, dpi(6))
         column.addView(warning)
 
         progress.max = 1000
+        progress.styleProgress()
         column.addView(progress, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpi(8)).apply {
             topMargin = dpi(8)
         })
@@ -99,6 +103,7 @@ class LinuxSetupContent(
         status.setPadding(0, dpi(10), 0, dpi(10))
         column.addView(status)
         installButton.isAllCaps = false
+        installButton.styleButton()
         installButton.setOnClickListener { LinuxInstaller.install(context, selectedDistro()) }
         column.addView(installButton, wrap())
         addView(column)

@@ -481,7 +481,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     /** What is behind the launchpad goes out of focus (Android 12+; before, it is only dimmed). */
     private fun blurDesktop(blur: Boolean) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !Themes.current.blur) return
         val effect = if (blur) RenderEffect.createBlurEffect(dp(18f), dp(18f), Shader.TileMode.CLAMP) else null
         wallpaperView.setRenderEffect(effect)
         icons.setRenderEffect(effect)

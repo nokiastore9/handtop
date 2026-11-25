@@ -15,6 +15,10 @@ import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxSetup.Status
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.styleProgress
+import org.handtop.desktop.ui.bevel
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.Bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.roundedRect
@@ -41,7 +45,8 @@ class SetupProgressView(context: Context) : LinearLayout(context) {
     init {
         orientation = VERTICAL
         setPadding(dpi(14), dpi(12), dpi(14), dpi(12))
-        background = roundedRect(Palette.CARD, dp(10f))
+        // Classic: a white panel with a thin sunken edge instead of a rounded tint.
+        background = if (Themes.current.bevelled) context.bevel(Bevel.SHALLOW, Palette.FIELD) else roundedRect(Palette.CARD, dp(10f))
 
         title.textSize = 16f
         title.setTextColor(Palette.TEXT)
@@ -55,7 +60,7 @@ class SetupProgressView(context: Context) : LinearLayout(context) {
         rows.orientation = VERTICAL
         addView(rows)
         bar.max = 1000
-        bar.progressTintList = ColorStateList.valueOf(Palette.ACCENT)
+        bar.styleProgress()
         addView(bar, LayoutParams(LayoutParams.MATCH_PARENT, dpi(8)).apply { topMargin = dpi(8) })
         detail.textSize = 12f
         detail.typeface = Typeface.MONOSPACE
@@ -65,7 +70,7 @@ class SetupProgressView(context: Context) : LinearLayout(context) {
         detail.setPadding(0, dpi(6), 0, 0)
         addView(detail)
         error.textSize = 13f
-        error.setTextColor(WARNING)
+        error.setTextColor(Palette.WARNING)
         error.setPadding(0, dpi(8), 0, dpi(4))
         addView(error)
         retry.isAllCaps = false
@@ -129,7 +134,7 @@ class SetupProgressView(context: Context) : LinearLayout(context) {
                 textSize = 15f
                 when (status) {
                     Status.DONE -> { text = "✓"; setTextColor(Palette.BATTERY_CHARGING) }
-                    Status.FAILED -> { text = "✗"; setTextColor(WARNING) }
+                    Status.FAILED -> { text = "✗"; setTextColor(Palette.WARNING) }
                     else -> { text = "○"; setTextColor(Palette.TEXT_DIM) }
                 }
             }, FrameLayout.LayoutParams(dpi(22), dpi(22), Gravity.CENTER))
@@ -144,7 +149,4 @@ class SetupProgressView(context: Context) : LinearLayout(context) {
         return line
     }
 
-    private companion object {
-        const val WARNING = 0xFFFFB454.toInt()
-    }
 }
