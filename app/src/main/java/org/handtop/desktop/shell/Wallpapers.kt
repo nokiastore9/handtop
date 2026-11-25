@@ -46,7 +46,7 @@ object Wallpapers {
     const val CUSTOM = "custom"
 
     /** The built-in wallpapers, in the order the chooser shows them. */
-    val BUILT_IN = listOf("twilight", "waves", "dunes", "aurora", "facets", "orbits", "ribbons", "bokeh")
+    val BUILT_IN = listOf("twilight", "waves", "dunes", "aurora", "facets", "orbits", "ribbons", "bokeh", "turquoise")
     private val NAMES = mapOf(
         "twilight" to R.string.wallpaper_twilight,
         "waves" to R.string.wallpaper_waves,
@@ -56,6 +56,7 @@ object Wallpapers {
         "orbits" to R.string.wallpaper_orbits,
         "ribbons" to R.string.wallpaper_ribbons,
         "bokeh" to R.string.wallpaper_bokeh,
+        "turquoise" to R.string.wallpaper_turquoise,
         CUSTOM to R.string.wallpaper_custom,
     )
 

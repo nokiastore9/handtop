@@ -134,6 +134,7 @@
     <string name="wallpaper_orbits">Orbits</string>
     <string name="wallpaper_ribbons">Ribbons</string>
     <string name="wallpaper_bokeh">Bokeh</string>
+    <string name="wallpaper_turquoise">Turquoise</string>
     <string name="wallpaper_custom">Your image</string>
 
     <string name="settings_sound_title">Sound</string>
