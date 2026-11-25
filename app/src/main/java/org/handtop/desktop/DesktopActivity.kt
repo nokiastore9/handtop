@@ -584,7 +584,10 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
         popup.applyTheme(this, theme.panel(this, 14f), 20f)
         popup.isOutsideTouchable = true
-        popup.setOnDismissListener { if (startMenu === popup) startMenu = null }
+        popup.setOnDismissListener {
+            if (startMenu === popup) startMenu = null
+            taskbar.showStartMenu(false)
+        }
 
         // Open just above the taskbar, aligned with the start button.
         val loc = IntArray(2)
@@ -594,6 +597,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         Popups.track(popup)
         panel.hideSystemBarsOfWindow()
         startMenu = popup
+        taskbar.showStartMenu(true)
     }
 
     private fun menuItem(@DrawableRes icon: Int, @StringRes label: Int, enabled: Boolean, onClick: () -> Unit) =
@@ -617,7 +621,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
                 ellipsize = TextUtils.TruncateAt.END
                 setPadding(dpi(14), 0, 0, 0)
             })
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dpi(46))
+            // Classic menus are a little tighter: the whole menu fits above the taskbar on a phone.
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, if (Themes.current.startMenuBand) dpi(40) else dpi(46))
         }
 
     private companion object {

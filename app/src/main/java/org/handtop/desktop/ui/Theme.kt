@@ -115,6 +115,25 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
 
     /** The start menu has a vertical band with HandTop's name along its left side. */
     abstract val startMenuBand: Boolean
+
+    // ---- taskbar ----
+
+    abstract fun taskbarBackground(context: Context): Drawable
+
+    /** A window's button on the taskbar: the [front] window's stands out, a [minimized] one is quieter. */
+    abstract fun taskButton(context: Context, front: Boolean, minimized: Boolean): Drawable
+
+    /** The start button carries the word "Start" next to HandTop's mark. */
+    abstract val startLabel: Boolean
+
+    /** The start button: [open] while the start menu is showing. Null for a plain icon button. */
+    abstract fun startButton(context: Context, open: Boolean): Drawable?
+
+    /** Around the status icons and the clock, or null for none. */
+    abstract fun trayBackground(context: Context): Drawable?
+
+    /** A flat icon button (taskbar, toolbars): only its press shows. */
+    abstract fun toolButton(context: Context): Drawable
 }
 
 /**

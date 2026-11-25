@@ -7,6 +7,8 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.LayerDrawable
+import android.view.Gravity
 import android.graphics.drawable.StateListDrawable
 
 /**
@@ -119,6 +121,35 @@ object ClassicTheme : Theme(
     override fun dividerHeight(context: Context): Int = 2 * kotlin.math.max(1, kotlin.math.round(context.dp(1f)).toInt())
 
     override val startMenuBand = true
+
+    /** Gray, with a light line along the top where it meets the desktop. */
+    override fun taskbarBackground(context: Context): Drawable {
+        val e = kotlin.math.max(1, kotlin.math.round(context.dp(1f)).toInt())
+        return LayerDrawable(arrayOf(ColorDrawable(colors.face), ColorDrawable(colors.innerLight), ColorDrawable(colors.light))).apply {
+            setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
+            setLayerHeight(1, e)
+            setLayerGravity(2, Gravity.TOP or Gravity.FILL_HORIZONTAL)
+            setLayerHeight(2, e)
+            setLayerInsetTop(2, e)
+        }
+    }
+
+    /** A raised button, or pressed in with a fine checker for the window in front. */
+    override fun taskButton(context: Context, front: Boolean, minimized: Boolean): Drawable =
+        InsetDrawable(context.bevel(if (front) Bevel.CHECKERED else Bevel.RAISED, if (front) null else colors.face), 0, context.dpi(5), 0, context.dpi(5))
+
+    override val startLabel = true
+
+    override fun startButton(context: Context, open: Boolean): Drawable? =
+        InsetDrawable(context.bevel(if (open) Bevel.PRESSED else Bevel.RAISED), context.dpi(3), context.dpi(5), 0, context.dpi(5))
+
+    override fun trayBackground(context: Context): Drawable? =
+        InsetDrawable(context.bevel(Bevel.SHALLOW, null), 0, context.dpi(5), context.dpi(3), context.dpi(5))
+
+    override fun toolButton(context: Context): Drawable = StateListDrawable().apply {
+        addState(intArrayOf(android.R.attr.state_pressed), InsetDrawable(context.bevel(Bevel.PRESSED), context.dpi(2)))
+        addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
+    }
 }
 
 private const val FACE = 0xFFC0C0C0.toInt()

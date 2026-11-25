@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
+import android.view.Gravity
 import android.graphics.drawable.StateListDrawable
 
 /** HandTop's own dark look: translucent panels, rounded corners, shadows, blur, motion. */
@@ -94,4 +96,32 @@ object ModernTheme : Theme(
     override fun dividerHeight(context: Context): Int = context.dpi(1)
 
     override val startMenuBand = false
+
+    override fun taskbarBackground(context: Context): Drawable = ColorDrawable(colors.taskbar)
+
+    /** Highlighted background plus a coloured underline for the front window. */
+    override fun taskButton(context: Context, front: Boolean, minimized: Boolean): Drawable {
+        val fill = ColorDrawable(if (front) colors.taskbarItemActive else 0)
+        val bar = GradientDrawable().apply {
+            setColor(if (minimized) this@ModernTheme.colors.textDim else this@ModernTheme.colors.taskbarIndicator)
+            cornerRadius = context.dp(2f)
+        }
+        return LayerDrawable(arrayOf(fill, bar)).apply {
+            val inset = if (front) context.dpi(6) else context.dpi(14)
+            setLayerGravity(1, Gravity.BOTTOM or Gravity.FILL_HORIZONTAL)
+            setLayerHeight(1, context.dpi(3))
+            setLayerInsetLeft(1, inset)
+            setLayerInsetRight(1, inset)
+            setLayerInsetBottom(1, context.dpi(2))
+        }
+    }
+
+    override val startLabel = false
+
+    override fun startButton(context: Context, open: Boolean): Drawable? = null
+
+    override fun trayBackground(context: Context): Drawable? = null
+
+    override fun toolButton(context: Context): Drawable =
+        context.selectableBackground() ?: ColorDrawable(Color.TRANSPARENT)
 }
