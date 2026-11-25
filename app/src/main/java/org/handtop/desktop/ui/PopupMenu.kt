@@ -81,6 +81,7 @@ fun showPopupMenu(anchor: View, rawX: Float, rawY: Float, entries: List<MenuEntr
     if (y + h > root.height) y = maxOf(0, root.height - h)
     popup.height = h
     popup.showAtLocation(root, Gravity.TOP or Gravity.START, x, y)
+    Popups.track(popup)
     column.hideSystemBarsOfWindow()
     return popup
 }

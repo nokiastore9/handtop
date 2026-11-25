@@ -44,6 +44,7 @@ import org.handtop.desktop.shell.Launchpad
 import org.handtop.desktop.shell.Shortcut
 import org.handtop.desktop.shell.Shortcuts
 import org.handtop.desktop.shell.Taskbar
+import org.handtop.desktop.shell.Touchpad
 import org.handtop.desktop.shell.WallpaperContent
 import org.handtop.desktop.shell.WallpaperDrawable
 import org.handtop.desktop.shell.Wallpapers
@@ -53,6 +54,7 @@ import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -85,6 +87,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private lateinit var wallpaperView: View
     private lateinit var icons: DesktopIcons
     private lateinit var launchpad: Launchpad
+    private lateinit var touchpad: Touchpad
     /** Menus and other popups of Linux windows, above every window. */
     private val popupLayer by lazy { PopupLayer(this, WaylandServer.get(this)) }
     private var startMenu: PopupWindow? = null
@@ -146,6 +149,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             this, area,
             onStart = { toggleStartMenu() },
             onKeyboard = { area.activeWindow?.content?.requestKeyboard() },
+            onKeyboardLong = { toggleTouchpad() },
             onSetup = { openLinuxSetup() },
             onApps = { if (launchpad.isOpen) launchpad.close() else openLinuxApps() },
             onWindowButton = { launchpad.close() },
@@ -176,6 +180,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         }
         root = FrameLayout(this).apply { addView(column) }
         setContentView(root)
+        touchpad = Touchpad(root) { x, y -> taskbar.isKeyboardButtonAt(x, y) }
+        root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> touchpad.resize() }
+        // Back after the desktop was rebuilt (a scale change): the touchpad stays on.
+        if (touchpadWanted) root.post {
+            touchpad.start()
+            taskbar.showTouchpad(touchpad.isOn)
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             // Hidden bars report no insets; the cutout is ignored on purpose (it only hides a
@@ -241,6 +252,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     }
 
     override fun onDestroy() {
+        touchpad.stop()
         wallpaper.release()
         ScreenKeeper.onChange = null
         WaylandServer.get(this).let { if (it.host === this) it.host = null }
@@ -381,6 +393,15 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
+    /** A long press on the keyboard button: the screen as a touchpad, or back to touch. */
+    private fun toggleTouchpad() {
+        if (touchpad.isOn) touchpad.stop() else touchpad.start()
+        touchpadWanted = touchpad.isOn
+        taskbar.showTouchpad(touchpad.isOn)
+        area.windows.forEach { (it.content as? SettingsContent)?.refreshTouchpad() }
+        Toast.makeText(this, if (touchpad.isOn) R.string.touchpad_on else R.string.touchpad_off, Toast.LENGTH_LONG).show()
+    }
+
     // ---- Linux GUI windows (WaylandServer.Host) ----
 
     override fun toplevelMapped(toplevel: Toplevel) {
@@ -478,6 +499,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             openLinuxSetup = { openLinuxSetup() },
             setScale = { setInterfaceScale(it) },
             openWallpapers = { openWallpapers() },
+            touchpadOn = { touchpad.isOn },
+            toggleTouchpad = { toggleTouchpad() },
             startOnPage = onPage,
         ), getString(R.string.app_settings), R.drawable.ic_settings))
     }
@@ -541,6 +564,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         taskbar.getLocationInWindow(loc)
         val fromBottom = root.height - loc[1] + dpi(6)
         popup.showAtLocation(root, Gravity.BOTTOM or Gravity.START, loc[0] + dpi(6), fromBottom)
+        Popups.track(popup)
         panel.hideSystemBarsOfWindow()
         startMenu = popup
     }
@@ -569,5 +593,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private companion object {
         const val STATE_SETTINGS_OPEN = "settings_open"
         const val REQUEST_WALLPAPER = 2
+
+        /** The touchpad was on: it stays on when the activity is re-created. */
+        var touchpadWanted = false
     }
 }

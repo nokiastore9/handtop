@@ -41,6 +41,7 @@ import org.handtop.desktop.R
 import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBarsOfWindow
@@ -405,6 +406,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
         anchor.getLocationInWindow(loc)
         val fromBottom = anchor.rootView.height - loc[1] + dpi(6)
         popup.showAtLocation(anchor, Gravity.BOTTOM or Gravity.END, dpi(6), fromBottom)
+        Popups.track(popup)
         calendar.hideSystemBarsOfWindow()
     }
 

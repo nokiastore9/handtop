@@ -61,6 +61,9 @@ class SettingsContent(
     /** Saves a new interface scale (percent) and rebuilds the desktop with it. */
     private val setScale: (Int) -> Unit,
     private val openWallpapers: () -> Unit,
+    /** Whether the screen works as a touchpad now, and switching it. */
+    private val touchpadOn: () -> Boolean,
+    private val toggleTouchpad: () -> Unit,
     /** Open on the last category's page even in a narrow window (back after a scale change). */
     private val startOnPage: Boolean = false,
 ) : LinearLayout(context), WindowContent {
@@ -81,6 +84,8 @@ class SettingsContent(
     private val notifyButton = Button(context)
     private val gpuStatus = TextView(context)
     private val wallpaperStatus = TextView(context)
+    private val touchpadStatus = TextView(context)
+    private val touchpadButton = Button(context)
     private val restoreIconsButton = Button(context)
     private val desktopListener: () -> Unit = { refreshDesktop() }
     private val gpuButton = Button(context)
@@ -165,6 +170,17 @@ class SettingsContent(
             addView(body(R.string.settings_scale_text))
             addView(scaleStatus().styled())
             addView(scaleChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
+
+            // The screen as a touchpad (also: a long press on the taskbar's keyboard button).
+            addView(heading(R.string.settings_touchpad_title))
+            addView(body(R.string.settings_touchpad_text))
+            addView(touchpadStatus.styled())
+            touchpadButton.isAllCaps = false
+            touchpadButton.setOnClickListener {
+                toggleTouchpad()
+                refreshTouchpad()
+            }
+            addView(touchpadButton, wrap())
         }
 
         // Desktop: wallpaper and HandTop's own shortcuts.
@@ -405,6 +421,7 @@ class SettingsContent(
         x11Button.visibility = if (linux && !x11 && !LinuxSetup.isRunning) View.VISIBLE else View.GONE
         refreshGpu()
         refreshDesktop()
+        refreshTouchpad()
         val notifications = Notifications.isAccessGranted(context)
         notifyStatus.setText(if (notifications) R.string.notif_access_granted else R.string.notif_access_denied)
         notifyHint.visibility = if (notifications) View.GONE else View.VISIBLE
@@ -430,6 +447,12 @@ class SettingsContent(
         }
         removeButton.visibility = if (distro != null) View.VISIBLE else View.GONE
         removeButton.isEnabled = distro != null && openTerminals == 0 && !LinuxInstaller.isRunning && !LinuxSetup.isRunning
+    }
+
+    fun refreshTouchpad() {
+        val on = touchpadOn()
+        touchpadStatus.setText(if (on) R.string.settings_touchpad_on else R.string.settings_touchpad_off)
+        touchpadButton.setText(if (on) R.string.settings_gpu_turn_off else R.string.settings_gpu_turn_on)
     }
 
     private fun refreshDesktop() {

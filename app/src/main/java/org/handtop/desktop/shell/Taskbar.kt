@@ -31,6 +31,8 @@ class Taskbar(
     private val area: DesktopArea,
     private val onStart: (View) -> Unit,
     private val onKeyboard: () -> Unit,
+    /** A long press on the keyboard button: the touchpad on or off. */
+    private val onKeyboardLong: () -> Unit,
     /** Opens the Linux System window (from the Linux setup's item). */
     private val onSetup: () -> Unit,
     /** Opens or closes the Linux programs (the launchpad). */
@@ -40,6 +42,7 @@ class Taskbar(
 ) : LinearLayout(context), DesktopArea.Listener {
 
     val startButton: ImageButton
+    private val keyboardButton: ImageButton
     private val strip = LinearLayout(context)
 
     init {
@@ -66,11 +69,28 @@ class Taskbar(
 
         addView(SetupIndicator(context) { onSetup() }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
 
-        addView(iconButton(R.drawable.ic_keyboard, R.string.action_keyboard) { onKeyboard() },
-            LayoutParams(dpi(48), LayoutParams.MATCH_PARENT))
+        keyboardButton = iconButton(R.drawable.ic_keyboard, R.string.action_keyboard) { onKeyboard() }.apply {
+            setOnLongClickListener {
+                onKeyboardLong()
+                true
+            }
+        }
+        addView(keyboardButton, LayoutParams(dpi(48), LayoutParams.MATCH_PARENT))
 
         // HandTop runs full screen: network, battery and clock live here instead of Android's status bar.
         addView(StatusArea(context), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+    }
+
+    /** The keyboard button is at this screen point (it stays a touch button in touchpad mode). */
+    fun isKeyboardButtonAt(rawX: Float, rawY: Float): Boolean {
+        if (!keyboardButton.isShown) return false
+        val at = IntArray(2).also { keyboardButton.getLocationOnScreen(it) }
+        return rawX >= at[0] && rawX < at[0] + keyboardButton.width && rawY >= at[1] && rawY < at[1] + keyboardButton.height
+    }
+
+    /** The keyboard button shows whether the touchpad is on. */
+    fun showTouchpad(on: Boolean) {
+        if (on) keyboardButton.setColorFilter(Palette.ACCENT) else keyboardButton.clearColorFilter()
     }
 
     override fun onWindowsChanged() {

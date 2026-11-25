@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBarsOfWindow
@@ -112,6 +113,7 @@ class NotificationCenter(private val activity: Activity) {
         Notifications.addListener(listener)
         rebuild()
         window.showAtLocation(anchor, Gravity.BOTTOM or Gravity.END, activity.dpi(6), fromBottom)
+        Popups.track(window)
         panel.hideSystemBarsOfWindow()
     }
 
