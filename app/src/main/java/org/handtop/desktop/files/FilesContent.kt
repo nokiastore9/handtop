@@ -82,6 +82,8 @@ class FilesContent(
         fun openWithLinux(app: LinuxApp, linuxPaths: List<String>)
         /** A Linux terminal window whose shell starts in [linuxPath]. */
         fun openTerminalAt(linuxPath: String)
+        /** Puts a shortcut to [dir] on the desktop. */
+        fun addToDesktop(dir: File)
     }
 
     private class Entry(val file: File, val isDir: Boolean, val size: Long, val modified: Long, val mime: String) {
@@ -517,6 +519,7 @@ class FilesContent(
                     }
                     items += MenuEntry(context.getString(R.string.files_terminal_here), R.drawable.ic_terminal) { actions.openTerminalAt(linuxPath) }
                 }
+                items += MenuEntry(context.getString(R.string.shortcut_add), R.drawable.ic_home) { actions.addToDesktop(single.file) }
             } else {
                 items += MenuEntry(context.getString(R.string.files_open_android), R.drawable.ic_phone) { openWithAndroid(single) }
                 if (linuxPath != null) for (app in linuxApps(single.mime).take(MAX_APPS)) {

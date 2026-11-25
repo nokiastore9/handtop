@@ -90,5 +90,4 @@ object Palette {
     const val BATTERY_CHARGING = 0xFF46C46E.toInt()
     const val KEY_BAR_BG = 0xFF161B26.toInt()
     const val KEY_ON = 0xFF4F8CFF.toInt()
-    val WALLPAPER = intArrayOf(0xFF0B1023.toInt(), 0xFF1B2A6B.toInt(), 0xFF3B1D5E.toInt())
 }

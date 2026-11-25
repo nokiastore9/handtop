@@ -42,6 +42,7 @@ class SettingsContent(
     private val openLinuxSetup: () -> Unit,
     /** Saves a new interface scale (percent) and rebuilds the desktop with it. */
     private val setScale: (Int) -> Unit,
+    private val openWallpapers: () -> Unit,
 ) : ScrollView(context), WindowContent {
 
     override val view: View get() = this
@@ -59,6 +60,9 @@ class SettingsContent(
     private val notifyHint = TextView(context)
     private val notifyButton = Button(context)
     private val gpuStatus = TextView(context)
+    private val wallpaperStatus = TextView(context)
+    private val restoreIconsButton = Button(context)
+    private val desktopListener: () -> Unit = { refreshDesktop() }
     private val gpuButton = Button(context)
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
     // Only when a step starts or ends: the setup reports progress several times a second.
@@ -90,6 +94,24 @@ class SettingsContent(
         column.addView(scaleChoices(), LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
         ).apply { bottomMargin = dpi(6) })
+
+        // The desktop: wallpaper and HandTop's own shortcuts.
+        column.addView(heading(R.string.settings_desktop_title))
+        column.addView(body(R.string.settings_desktop_text))
+        column.addView(wallpaperStatus.styled())
+        column.addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(Button(context).apply {
+                isAllCaps = false
+                setText(R.string.desktop_wallpaper)
+                setOnClickListener { openWallpapers() }
+            })
+            addView(restoreIconsButton.apply {
+                isAllCaps = false
+                setText(R.string.desktop_restore_icons)
+                setOnClickListener { Shortcuts.restoreBuiltIns(context) }
+            })
+        }, wrap())
 
         // Notifications on the taskbar (HandTop hides Android's status bar).
         column.addView(heading(R.string.notifications_title))
@@ -182,6 +204,8 @@ class SettingsContent(
         addView(column)
         LinuxInstaller.addListener(listener)
         LinuxSetup.addListener(setupListener)
+        Wallpapers.addListener(desktopListener)
+        Shortcuts.addListener(desktopListener)
         refresh()
     }
 
@@ -191,6 +215,8 @@ class SettingsContent(
     override fun onClosed() {
         LinuxInstaller.removeListener(listener)
         LinuxSetup.removeListener(setupListener)
+        Wallpapers.removeListener(desktopListener)
+        Shortcuts.removeListener(desktopListener)
     }
 
     fun refresh() {
@@ -220,6 +246,7 @@ class SettingsContent(
         )
         x11Button.visibility = if (linux && !x11 && !LinuxSetup.isRunning) View.VISIBLE else View.GONE
         refreshGpu()
+        refreshDesktop()
         val notifications = Notifications.isAccessGranted(context)
         notifyStatus.setText(if (notifications) R.string.notif_access_granted else R.string.notif_access_denied)
         notifyHint.visibility = if (notifications) View.GONE else View.VISIBLE
@@ -245,6 +272,11 @@ class SettingsContent(
         }
         removeButton.visibility = if (distro != null) View.VISIBLE else View.GONE
         removeButton.isEnabled = distro != null && openTerminals == 0 && !LinuxInstaller.isRunning && !LinuxSetup.isRunning
+    }
+
+    private fun refreshDesktop() {
+        wallpaperStatus.text = context.getString(R.string.settings_wallpaper_current, Wallpapers.name(context, Wallpapers.current(context)))
+        restoreIconsButton.visibility = if (Shortcuts.missingBuiltIns(context).isNotEmpty()) View.VISIBLE else View.GONE
     }
 
     /** What the GPU section says and offers: install progress, on/off, or why it does not apply. */

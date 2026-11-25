@@ -89,6 +89,34 @@
     <string name="settings_scale_phone">phone</string>
     <string name="settings_scale_desktop">DeX / monitor</string>
     <string name="settings_scale_size">%1$d×%2$d</string>
+    <!-- Desktop: wallpaper and shortcuts -->
+    <string name="settings_desktop_title">Desktop</string>
+    <string name="settings_desktop_text">Wallpaper and icons. The rest is on the desktop itself: long-press (or right-click) the wallpaper or an icon.</string>
+    <string name="settings_wallpaper_current">Wallpaper: %1$s</string>
+    <string name="desktop_wallpaper">Change wallpaper…</string>
+    <string name="desktop_add_program">Add a Linux program…</string>
+    <string name="desktop_restore_icons">Restore HandTop\'s icons</string>
+    <string name="shortcut_open">Open</string>
+    <string name="shortcut_add">Add to desktop</string>
+    <string name="shortcut_remove">Remove from desktop</string>
+    <string name="shortcut_added">%1$s is on the desktop now</string>
+    <string name="shortcut_exists">%1$s is already on the desktop</string>
+    <string name="shortcut_missing">Cannot open %1$s: it is not there any more</string>
+    <string name="apps_pick_hint">Tap a program to put it on the desktop</string>
+    <string name="wallpaper_title">Wallpaper</string>
+    <string name="wallpaper_choose_image">Choose an image…</string>
+    <string name="wallpaper_hint">An image fills the screen and is cropped to its middle, on the phone and on DeX alike.</string>
+    <string name="wallpaper_failed">Could not open the image</string>
+    <string name="wallpaper_twilight">Twilight</string>
+    <string name="wallpaper_waves">Waves</string>
+    <string name="wallpaper_dunes">Dunes</string>
+    <string name="wallpaper_aurora">Aurora</string>
+    <string name="wallpaper_facets">Facets</string>
+    <string name="wallpaper_orbits">Orbits</string>
+    <string name="wallpaper_ribbons">Ribbons</string>
+    <string name="wallpaper_bokeh">Bokeh</string>
+    <string name="wallpaper_custom">Your image</string>
+
     <string name="settings_sound_title">Sound</string>
     <string name="settings_sound_text">Linux programs play sound through the phone (or DeX) via PulseAudio running inside Linux.</string>
     <string name="settings_sound_missing">PulseAudio is not installed in Linux — no sound yet</string>

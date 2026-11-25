@@ -9,6 +9,7 @@ import android.text.Editable
 import android.text.TextUtils
 import android.text.TextWatcher
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -22,22 +23,36 @@ import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxApp
 import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
+import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.showPopupMenu
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
 import java.util.Locale
 
-/** The Linux apps menu: installed graphical programs with icons and a search box. */
-@SuppressLint("ViewConstructor")
+/**
+ * The Linux apps menu: installed graphical programs with icons and a search box. A long press
+ * or a right click on a program offers to put it on the desktop; while [picking], a tap does
+ * that instead of starting it (the desktop's "Add a Linux program").
+ */
+@SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class LinuxAppsContent(
     context: Context,
     private val launch: (LinuxApp) -> Unit,
     private val openLinuxSetup: () -> Unit,
+    private val addToDesktop: (LinuxApp) -> Unit,
 ) : LinearLayout(context), WindowContent {
+
+    /** A tap puts the program on the desktop (and closes the menu) instead of starting it. */
+    var picking = false
+        set(value) {
+            field = value
+            pickHint.visibility = if (value) VISIBLE else GONE
+        }
 
     override val view: View get() = this
 
@@ -47,6 +62,9 @@ class LinuxAppsContent(
     private val list = LinearLayout(context).apply { orientation = VERTICAL }
     private var apps: List<LinuxApp> = emptyList()
     private val iconPx = dpi(32)
+    private val pickHint = TextView(context)
+    private var rawX = 0f
+    private var rawY = 0f
 
     init {
         orientation = VERTICAL
@@ -68,6 +86,14 @@ class LinuxAppsContent(
             })
         }
         addView(search, LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dpi(8) })
+        pickHint.apply {
+            setText(R.string.apps_pick_hint)
+            textSize = 14f
+            setTextColor(Palette.ACCENT)
+            setPadding(dpi(4), 0, dpi(4), dpi(8))
+            visibility = GONE
+        }
+        addView(pickHint, LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         addView(ScrollView(context).apply { addView(list) }, LayoutParams(MATCH_PARENT, 0, 1f))
         // Filled in onActivated(), which also runs when the window opens.
     }
@@ -132,8 +158,23 @@ class LinuxAppsContent(
         setPadding(dpi(8), dpi(6), dpi(8), dpi(6))
         background = context.selectableBackground()
         setOnClickListener {
-            launch(app)
+            if (picking) addToDesktop(app) else launch(app)
             host?.close()
+        }
+        setOnTouchListener { _, e ->
+            if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+                rawX = e.rawX
+                rawY = e.rawY
+                if (e.buttonState and MotionEvent.BUTTON_SECONDARY != 0) {
+                    menu(app, e.rawX, e.rawY)
+                    return@setOnTouchListener true
+                }
+            }
+            false
+        }
+        setOnLongClickListener {
+            menu(app, rawX, rawY)
+            true
         }
         addView(ImageView(context).apply {
             val icon = LinuxApps.icon(app, iconPx)
@@ -162,6 +203,16 @@ class LinuxAppsContent(
         }
         addView(texts, LayoutParams(0, WRAP_CONTENT, 1f))
         layoutParams = LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+    }
+
+    private fun menu(app: LinuxApp, x: Float, y: Float) {
+        showPopupMenu(this, x, y, listOf(
+            MenuEntry(context.getString(R.string.shortcut_open), R.drawable.ic_linux) {
+                launch(app)
+                host?.close()
+            },
+            MenuEntry(context.getString(R.string.shortcut_add), R.drawable.ic_home) { addToDesktop(app) },
+        ))
     }
 
     private fun message(text: String) = TextView(context).apply {

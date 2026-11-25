@@ -2,12 +2,14 @@ package org.handtop.desktop
 
 import android.Manifest
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.text.TextUtils
 import android.view.Gravity
@@ -21,6 +23,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.Toast
 import android.window.OnBackInvokedDispatcher
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -36,11 +39,17 @@ import org.handtop.desktop.shell.AboutContent
 import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.DesktopIcons
 import org.handtop.desktop.shell.LinuxAppsContent
+import org.handtop.desktop.shell.Shortcut
+import org.handtop.desktop.shell.Shortcuts
 import org.handtop.desktop.shell.Taskbar
+import org.handtop.desktop.shell.WallpaperContent
+import org.handtop.desktop.shell.WallpaperDrawable
+import org.handtop.desktop.shell.Wallpapers
 import org.handtop.desktop.term.ShellSpec
 import org.handtop.desktop.term.TermSessionHost
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.term.TerminalContent
+import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
@@ -56,6 +65,7 @@ import org.handtop.desktop.wayland.ScreenKeeper
 import org.handtop.desktop.wayland.Toplevel
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
+import java.io.File
 
 /**
  * The whole desktop lives in this single activity: wallpaper with icons, the window
@@ -68,6 +78,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private lateinit var column: LinearLayout
     private lateinit var area: DesktopArea
     private lateinit var taskbar: Taskbar
+    private lateinit var wallpaper: WallpaperDrawable
     /** Menus and other popups of Linux windows, above every window. */
     private val popupLayer by lazy { PopupLayer(this, WaylandServer.get(this)) }
     private var startMenu: PopupWindow? = null
@@ -133,17 +144,11 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         )
         area.listener = taskbar
 
-        val icons = DesktopIcons(this).apply {
-            add(R.drawable.ic_linux, R.string.app_terminal_linux) { openLinuxTerminal() }
-            add(R.drawable.ic_apps, R.string.app_linux_apps) { openLinuxApps() }
-            add(R.drawable.ic_files, R.string.app_files) { openFiles() }
-            add(R.drawable.ic_terminal, R.string.app_terminal_android) { openAndroidTerminal() }
-            add(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
-            add(R.drawable.ic_info, R.string.app_about) { openAbout() }
-        }
+        val icons = DesktopIcons(this, open = { openShortcut(it) }, desktopMenu = { desktopMenu() })
+        wallpaper = WallpaperDrawable(this, Wallpapers.current(this), follow = true)
         val desktop = FrameLayout(this).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, Palette.WALLPAPER)
-            addView(icons, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+            background = wallpaper
+            addView(icons, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(area, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(popupLayer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         }
@@ -219,6 +224,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     }
 
     override fun onDestroy() {
+        wallpaper.release()
         ScreenKeeper.onChange = null
         WaylandServer.get(this).let { if (it.host === this) it.host = null }
         startMenu?.dismiss()
@@ -271,6 +277,87 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         val content = LinuxSetupContent(this) { openLinuxTerminal() }
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.linux_setup_title), R.drawable.ic_linux))
     }
+
+    // ---- desktop: shortcuts, its menu, wallpaper ----
+
+    private fun openShortcut(shortcut: Shortcut) {
+        when (shortcut) {
+            is Shortcut.BuiltIn -> when (shortcut.id) {
+                Shortcuts.LINUX_TERMINAL -> openLinuxTerminal()
+                Shortcuts.LINUX_APPS -> openLinuxApps()
+                Shortcuts.FILES -> openFiles()
+                Shortcuts.ANDROID_TERMINAL -> openAndroidTerminal()
+                Shortcuts.SETTINGS -> openSettings()
+                else -> openAbout()
+            }
+            is Shortcut.Folder -> {
+                val dir = File(shortcut.path)
+                if (dir.isDirectory) openFiles(dir) else toast(getString(R.string.shortcut_missing, shortcut.name))
+            }
+            is Shortcut.LinuxProgram -> {
+                if (!LinuxEnv.isInstalled(this)) return openLinuxSetup()
+                // Reading the program's menu entry touches files: not on the main thread.
+                Thread({
+                    val app = LinuxApps.forAppId(applicationContext, shortcut.appId)
+                    runOnUiThread {
+                        if (app != null) launchLinuxApp(app)
+                        else toast(getString(R.string.shortcut_missing, shortcut.name))
+                    }
+                }, "shortcut").start()
+            }
+        }
+    }
+
+    /** A long press or a right click on the wallpaper. */
+    private fun desktopMenu(): List<MenuEntry?> {
+        val items = ArrayList<MenuEntry?>()
+        if (LinuxEnv.isInstalled(this)) {
+            items += MenuEntry(getString(R.string.desktop_add_program), R.drawable.ic_apps) { openLinuxApps(pick = true) }
+        }
+        items += MenuEntry(getString(R.string.desktop_restore_icons), R.drawable.ic_home, Shortcuts.missingBuiltIns(this).isNotEmpty()) {
+            Shortcuts.restoreBuiltIns(this)
+        }
+        items += null
+        items += MenuEntry(getString(R.string.desktop_wallpaper), R.drawable.ic_camera) { openWallpapers() }
+        items += MenuEntry(getString(R.string.app_settings), R.drawable.ic_settings) { openSettings() }
+        return items
+    }
+
+    private fun addToDesktop(shortcut: Shortcut, name: String) {
+        toast(getString(if (Shortcuts.add(this, shortcut)) R.string.shortcut_added else R.string.shortcut_exists, name))
+    }
+
+    private fun openWallpapers() {
+        area.windows.firstOrNull { it.content is WallpaperContent }?.let { area.activate(it); return }
+        val content = WallpaperContent(this) { pickWallpaperImage() }
+        area.addWindow(DesktopWindow(this, area, content, getString(R.string.wallpaper_title), R.drawable.ic_camera))
+    }
+
+    /** Android's photo picker (no permission needed), or the document picker before Android 13. */
+    private fun pickWallpaperImage() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*")
+        } else {
+            Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*")
+        }
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, REQUEST_WALLPAPER)
+        } catch (_: ActivityNotFoundException) {
+            toast(getString(R.string.wallpaper_failed))
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (requestCode != REQUEST_WALLPAPER || resultCode != RESULT_OK || uri == null) return
+        Wallpapers.setCustom(this, uri) { ok -> if (!ok) toast(getString(R.string.wallpaper_failed)) }
+    }
+
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
     // ---- Linux GUI windows (WaylandServer.Host) ----
 
@@ -325,9 +412,19 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     }
 
     /** The Linux apps menu window (one at a time). */
-    private fun openLinuxApps() {
-        area.windows.firstOrNull { it.content is LinuxAppsContent }?.let { area.activate(it); return }
-        val content = LinuxAppsContent(this, launch = { launchLinuxApp(it) }, openLinuxSetup = { openLinuxSetup() })
+    private fun openLinuxApps(pick: Boolean = false) {
+        area.windows.firstOrNull { it.content is LinuxAppsContent }?.let { window ->
+            (window.content as LinuxAppsContent).picking = pick
+            area.activate(window)
+            return
+        }
+        val content = LinuxAppsContent(
+            this,
+            launch = { launchLinuxApp(it) },
+            openLinuxSetup = { openLinuxSetup() },
+            addToDesktop = { addToDesktop(Shortcut.LinuxProgram(it.id, it.name), it.name) },
+        )
+        content.picking = pick
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_linux_apps), R.drawable.ic_apps))
     }
 
@@ -342,13 +439,14 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     }
 
     /** A new file manager window (several can be open, e.g. to copy between them). */
-    private fun openFiles() {
+    private fun openFiles(start: File? = null) {
         val content = FilesContent(this, object : FilesContent.Actions {
             override fun openWithLinux(app: LinuxApp, linuxPaths: List<String>) = launchLinuxApp(app, linuxPaths)
             override fun openTerminalAt(linuxPath: String) {
                 openTerminalWindow(TermSessions.create(this@DesktopActivity, LinuxEnv.shellSpec(this@DesktopActivity, linuxPath)))
             }
-        })
+            override fun addToDesktop(dir: File) = addToDesktop(Shortcut.Folder(dir.path, dir.name), dir.name)
+        }, start)
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_files), R.drawable.ic_files))
     }
 
@@ -358,6 +456,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             this,
             openLinuxSetup = { openLinuxSetup() },
             setScale = { setInterfaceScale(it) },
+            openWallpapers = { openWallpapers() },
         ), getString(R.string.app_settings), R.drawable.ic_settings))
     }
 
@@ -446,5 +545,6 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     private companion object {
         const val STATE_SETTINGS_OPEN = "settings_open"
+        const val REQUEST_WALLPAPER = 2
     }
 }

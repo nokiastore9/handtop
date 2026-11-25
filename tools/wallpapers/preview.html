@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>HandTop wallpapers</title>
+<!-- Shows app/src/main/assets/wallpapers.json the way the app draws it (cover + centre crop)
+     at three screen shapes. Open through a local web server, or with a browser that lets a
+     file:// page read the JSON (e.g. Edge/Chrome with --allow-file-access-from-files). -->
+<style>
+  body { margin: 0; padding: 20px; background: #0C111F; color: #E6EAF2; font: 14px/1.4 system-ui, sans-serif; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  figure { margin: 0; }
+  .shapes { display: flex; gap: 8px; align-items: flex-end; }
+  svg { display: block; border-radius: 6px; }
+  figcaption { margin-top: 6px; color: #8A94A8; }
+</style>
+<div class="grid" id="grid"></div>
+<script>
+const NS = "http://www.w3.org/2000/svg";
+let uid = 0;
+function paint(fill, defs) {
+  if (fill.type === "solid") return { fill: fill.color, opacity: fill.opacity ?? 1 };
+  const id = "g" + (++uid);
+  const g = document.createElementNS(NS, fill.type === "linear" ? "linearGradient" : "radialGradient");
+  g.setAttribute("id", id);
+  g.setAttribute("gradientUnits", "userSpaceOnUse");
+  if (fill.type === "linear") for (const k of ["x1", "y1", "x2", "y2"]) g.setAttribute(k, fill[k]);
+  else for (const k of ["cx", "cy", "r"]) g.setAttribute(k, fill[k]);
+  for (const [offset, color, opacity] of fill.stops) {
+    const s = document.createElementNS(NS, "stop");
+    s.setAttribute("offset", offset); s.setAttribute("stop-color", color); s.setAttribute("stop-opacity", opacity);
+    g.appendChild(s);
+  }
+  defs.appendChild(g);
+  return { fill: `url(#${id})`, opacity: 1 };
+}
+function draw(wp, data, w, h) {
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${data.width} ${data.height}`);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid slice");
+  svg.setAttribute("width", w); svg.setAttribute("height", h);
+  const defs = document.createElementNS(NS, "defs"); svg.appendChild(defs);
+  for (const l of wp.layers) {
+    const p = document.createElementNS(NS, "path");
+    const { fill, opacity } = paint(l.fill, defs);
+    p.setAttribute("d", l.d); p.setAttribute("fill", fill);
+    p.setAttribute("fill-opacity", opacity * (l.opacity ?? 1));
+    if (l.evenOdd) p.setAttribute("fill-rule", "evenodd");
+    svg.appendChild(p);
+  }
+  return svg;
+}
+fetch("../../app/src/main/assets/wallpapers.json").then(r => r.json()).then(data => {
+  const grid = document.getElementById("grid");
+  for (const wp of data.wallpapers) {
+    const fig = document.createElement("figure");
+    const shapes = document.createElement("div"); shapes.className = "shapes";
+    shapes.append(draw(wp, data, 520, 240), draw(wp, data, 160, 120), draw(wp, data, 54, 120));
+    const cap = document.createElement("figcaption");
+    cap.textContent = `${wp.id} · phone landscape 20:9, tablet 4:3, phone portrait`;
+    fig.append(shapes, cap); grid.append(fig);
+  }
+});
+</script>
