@@ -2,7 +2,6 @@ package org.handtop.desktop.linux
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -25,7 +24,7 @@ data class LinuxApp(
     val wmClass: String?,
     /** Lower-case text the search box matches against. */
     val searchText: String,
-    /** A PNG icon inside the root filesystem, if the app has one. */
+    /** The program's icon inside the root filesystem (PNG, SVG or XPM), if it has one. */
     val iconFile: File?,
     /** The Exec line as written, with %f / %F / %u / %U where files go. */
     val execTemplate: String = exec,
@@ -52,7 +51,6 @@ object LinuxApps {
      */
     private val PREFER_X11 = setOf("parole")
     private const val BUS_WAIT_MS = 3_000L
-    private val ICON_SIZES = listOf("256x256", "128x128", "96x96", "64x64", "48x48", "32x32")
 
     private val main = Handler(Looper.getMainLooper())
     private val icons = LruCache<String, Bitmap>(64)
@@ -67,6 +65,7 @@ object LinuxApps {
     /** The menu entries, sorted by name. Reads files: call it off the main thread. */
     fun scan(context: Context): List<LinuxApp> {
         val rootfs = LinuxEnv.rootfs(context)
+        LinuxIcons.refresh(rootfs) // programs may have brought icons since the last scan
         val byId = LinkedHashMap<String, LinuxApp>()
         for (dir in MENU_DIRS) {
             val files = File(rootfs, dir).listFiles { f -> f.name.endsWith(".desktop") } ?: continue
@@ -92,16 +91,12 @@ object LinuxApps {
         return match(known) ?: match(scan(context)) // not known yet, or installed since the last scan
     }
 
-    /** The app's icon at about [sizePx], or null (no PNG icon). */
+    /** The program's own icon at about [sizePx], or null (it has none, or it cannot be read). */
     fun icon(app: LinuxApp, sizePx: Int): Bitmap? {
         val file = app.iconFile ?: return null
         val key = "${file.path}@$sizePx"
         icons.get(key)?.let { return it }
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.path, bounds)
-        var sample = 1
-        while (bounds.outWidth / (sample * 2) >= sizePx && bounds.outHeight / (sample * 2) >= sizePx) sample *= 2
-        val bitmap = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        val bitmap = LinuxIcons.decode(file, sizePx) ?: return null
         icons.put(key, bitmap)
         return bitmap
     }
@@ -262,7 +257,7 @@ object LinuxApps {
             terminal = keys["Terminal"] == "true",
             wmClass = keys["StartupWMClass"],
             searchText = search,
-            iconFile = keys["Icon"]?.let { findIcon(rootfs, it) },
+            iconFile = keys["Icon"]?.let { LinuxIcons.find(rootfs, it) },
             execTemplate = keys["Exec"] ?: exec,
             mimeTypes = list(keys["MimeType"]),
             categories = list(keys["Categories"]),
@@ -278,26 +273,11 @@ object LinuxApps {
     private fun unescape(value: String) =
         value.replace("\\s", " ").replace("\\n", " ").replace("\\t", " ").replace("\\\\", "\\")
 
-    private fun findIcon(rootfs: File, icon: String): File? {
-        if (icon.startsWith("/")) {
-            val file = inRoot(rootfs, File(rootfs, icon.trimStart('/')))
-            return file.takeIf { it.isFile && it.name.endsWith(".png") }
-        }
-        val name = icon.removeSuffix(".png")
-        val candidates = ICON_SIZES.map { "usr/share/icons/hicolor/$it/apps/$name.png" } +
-            "usr/share/pixmaps/$name.png"
-        for (path in candidates) {
-            val file = inRoot(rootfs, File(rootfs, path))
-            if (file.isFile) return file
-        }
-        return null
-    }
-
     /**
      * Follows symbolic links the way they resolve inside Linux: an absolute target means a
      * path in the root filesystem, not on Android.
      */
-    private fun inRoot(rootfs: File, file: File): File {
+    internal fun inRoot(rootfs: File, file: File): File {
         var current = file
         repeat(8) {
             val path = current.toPath()

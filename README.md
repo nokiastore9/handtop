@@ -61,3 +61,4 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - `terminal-emulator`, `terminal-view` — from [Termux](https://github.com/termux/termux-app), Apache 2.0
 - `native/proot` — [termux/proot](https://github.com/termux/proot), GPL v2+
 - `native/talloc` — [talloc](https://talloc.samba.org/), LGPL v3+
+- [AndroidSVG](https://github.com/BigBadaboom/androidsvg) (a dependency) draws the SVG icons of Linux programs, Apache 2.0

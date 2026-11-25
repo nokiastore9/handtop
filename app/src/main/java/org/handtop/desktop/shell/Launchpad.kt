@@ -36,7 +36,6 @@ import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.ui.showPopupMenu
 import java.util.Locale
-import kotlin.math.abs
 
 /**
  * The Linux programs, full screen over the desktop (as macOS Launchpad or GNOME's app grid):
@@ -269,7 +268,7 @@ class Launchpad(
         tile.addView(if (icon != null) ImageView(context).apply {
             setImageBitmap(icon)
             scaleType = ImageView.ScaleType.FIT_CENTER
-        } else letterTile(app), LinearLayout.LayoutParams(iconPx, iconPx))
+        } else noIcon(app), LinearLayout.LayoutParams(iconPx, iconPx))
         tile.addView(TextView(context).apply {
             text = app.name
             textSize = 13f
@@ -283,14 +282,13 @@ class Launchpad(
         return tile
     }
 
-    /** For a program without a PNG icon: its first letter on a colour of its own. */
-    private fun letterTile(app: LinuxApp) = TextView(context).apply {
-        text = app.name.trim().take(1).uppercase(Locale.getDefault())
-        textSize = 26f
-        setTypeface(typeface, Typeface.BOLD)
-        setTextColor(Color.WHITE)
-        gravity = Gravity.CENTER
-        background = roundedRect(LETTER_COLORS[abs(app.id.hashCode()) % LETTER_COLORS.size], dp(14f))
+    /** For a program that ships no icon: a plain program window (a terminal for terminal programs). */
+    private fun noIcon(app: LinuxApp) = FrameLayout(context).apply {
+        background = roundedRect(0x26FFFFFF, dp(14f))
+        addView(ImageView(context).apply {
+            setImageResource(if (app.terminal) R.drawable.ic_terminal else R.drawable.ic_app_generic)
+            setColorFilter(Palette.TEXT_SOFT)
+        }, LayoutParams(iconPx * 3 / 5, iconPx * 3 / 5, Gravity.CENTER))
     }
 
     private fun menu(app: LinuxApp, x: Float, y: Float) {
@@ -357,12 +355,5 @@ class Launchpad(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         backdropTaps.onTouchEvent(event)
         return true
-    }
-
-    private companion object {
-        val LETTER_COLORS = intArrayOf(
-            0xFF3A6BE8.toInt(), 0xFF7A3FD1.toInt(), 0xFF1F9A8F.toInt(), 0xFFD0634E.toInt(),
-            0xFFB8407A.toInt(), 0xFF2E86C1.toInt(), 0xFF8A6A2E.toInt(), 0xFF4F8A3D.toInt(),
-        )
     }
 }

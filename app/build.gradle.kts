@@ -88,4 +88,5 @@ androidComponents {
 dependencies {
     implementation(project(":terminal-view"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidsvg)
 }

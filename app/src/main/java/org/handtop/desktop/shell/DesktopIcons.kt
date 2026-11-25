@@ -146,7 +146,7 @@ class DesktopIcons(
                 label.setText(name)
             }
             is Shortcut.LinuxProgram -> {
-                icon.setImageResource(R.drawable.ic_apps)
+                icon.setImageResource(R.drawable.ic_app_generic) // until its own icon is read
                 icon.setColorFilter(Palette.TEXT_SOFT)
                 label.text = shortcut.name
                 loadLinuxIcon(shortcut, icon)
