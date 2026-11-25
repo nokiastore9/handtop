@@ -16,6 +16,9 @@ import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxInstaller.Phase
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.dialogBuilder
+import org.handtop.desktop.ui.showDialog
 import org.handtop.desktop.ui.styleRadio
 import org.handtop.desktop.ui.styleProgress
 import org.handtop.desktop.ui.styleButton
@@ -25,13 +28,14 @@ import org.handtop.desktop.wm.WindowHost
 
 /**
  * Window that installs (or replaces) the Linux environment and shows the progress, including
- * the setup that follows ([LinuxSetup]: GPU drivers, X11, sound…).
+ * the setup that follows ([LinuxSetup]: GPU drivers, X11, sound…). The text scrolls; the
+ * download progress and the Install button stay at the bottom, visible in a window of any size.
  */
 @SuppressLint("ViewConstructor")
 class LinuxSetupContent(
     context: Context,
     private val openLinuxTerminal: () -> Unit,
-) : ScrollView(context), WindowContent {
+) : LinearLayout(context), WindowContent {
 
     override val view: View get() = this
 
@@ -49,10 +53,11 @@ class LinuxSetupContent(
     private val setupListener: (LinuxSetup.State) -> Unit = { render() }
 
     init {
+        orientation = VERTICAL
         setBackgroundColor(Palette.WINDOW_BG)
         val column = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dpi(22), dpi(18), dpi(22), dpi(20))
+            orientation = VERTICAL
+            setPadding(dpi(22), dpi(18), dpi(22), dpi(12))
         }
         column.addView(label(R.string.linux_setup_heading, 20f, Palette.TEXT))
         // What is going on now comes first: the setup that follows an installation.
@@ -91,22 +96,31 @@ class LinuxSetupContent(
         warning.setTextColor(Palette.WARNING)
         warning.textSize = 13f
         warning.setPadding(0, dpi(6), 0, dpi(6))
-        column.addView(warning)
+        addView(ScrollView(context).apply { addView(column) }, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
 
+        // The action and its progress, below the scrolling text.
+        addView(View(context).apply { background = Themes.current.divider(context) },
+            LayoutParams(LayoutParams.MATCH_PARENT, Themes.current.dividerHeight(context)))
+        val actions = LinearLayout(context).apply {
+            orientation = VERTICAL
+            setPadding(dpi(22), dpi(10), dpi(22), dpi(14))
+        }
+        // What the button would do to an installed system, right above it.
+        actions.addView(warning)
         progress.max = 1000
         progress.styleProgress()
-        column.addView(progress, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpi(8)).apply {
-            topMargin = dpi(8)
+        actions.addView(progress, LayoutParams(LayoutParams.MATCH_PARENT, dpi(8)).apply {
+            topMargin = dpi(4)
         })
         status.setTextColor(Palette.TEXT)
         status.textSize = 14f
-        status.setPadding(0, dpi(10), 0, dpi(10))
-        column.addView(status)
+        status.setPadding(0, dpi(8), 0, dpi(8))
+        actions.addView(status)
         installButton.isAllCaps = false
         installButton.styleButton()
-        installButton.setOnClickListener { LinuxInstaller.install(context, selectedDistro()) }
-        column.addView(installButton, wrap())
-        addView(column)
+        installButton.setOnClickListener { install() }
+        actions.addView(installButton, wrap())
+        addView(actions, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         val current = LinuxEnv.installedDistro(context) ?: Distro.DEFAULT
         chooser.check(chooser.findViewWithTag<RadioButton>(current).id)
@@ -126,6 +140,19 @@ class LinuxSetupContent(
     override fun onClosed() {
         LinuxInstaller.removeListener(listener)
         LinuxSetup.removeListener(setupListener)
+    }
+
+    /** Installs the chosen distribution; replacing an installed one is asked first. */
+    private fun install() {
+        val installed = LinuxEnv.installedDistro(context)
+            ?: return LinuxInstaller.install(context, selectedDistro())
+        showDialog(
+            context.dialogBuilder()
+                .setTitle(R.string.linux_setup_reinstall)
+                .setMessage(context.getString(R.string.linux_replace_warning, installed.title))
+                .setPositiveButton(R.string.linux_setup_reinstall) { _, _ -> LinuxInstaller.install(context, selectedDistro()) }
+                .setNegativeButton(android.R.string.cancel, null),
+        )
     }
 
     private fun selectedDistro(): Distro =
@@ -186,10 +213,7 @@ class LinuxSetupContent(
         setLineSpacing(0f, 1.15f)
     }
 
-    private fun wrap() = LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.WRAP_CONTENT,
-        LinearLayout.LayoutParams.WRAP_CONTENT,
-    )
+    private fun wrap() = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
 
     private fun size(bytes: Long) = Formatter.formatShortFileSize(context, bytes)
 }

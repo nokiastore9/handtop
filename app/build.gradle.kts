@@ -44,6 +44,10 @@ android {
             }
             if (releaseSigning != null) signingConfig = signingConfigs.getByName("release")
         }
+        debug {
+            // The same key, so a development build installs over a release and keeps its data.
+            if (releaseSigning != null) signingConfig = signingConfigs.getByName("release")
+        }
     }
 
     compileOptions {
