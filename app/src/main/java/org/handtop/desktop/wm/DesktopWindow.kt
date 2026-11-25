@@ -24,6 +24,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -69,7 +70,7 @@ class DesktopWindow(
     var iconBitmap: android.graphics.Bitmap? = null
         set(value) {
             field = value
-            if (value != null) iconView.setImageBitmap(value) else iconView.setImageResource(iconRes)
+            if (value != null) iconView.setImageBitmap(value) else iconView.setThemedIcon(iconRes)
             area.notifyWindowsChanged()
         }
 
@@ -97,7 +98,7 @@ class DesktopWindow(
         titleBar.orientation = HORIZONTAL
         titleBar.gravity = Gravity.CENTER_VERTICAL
 
-        iconView.setImageResource(iconRes)
+        iconView.setThemedIcon(iconRes)
         titleBar.addView(iconView, LayoutParams(dpi(18), dpi(18)).apply {
             marginStart = dpi(10)
             marginEnd = dpi(8)
@@ -196,19 +197,17 @@ class DesktopWindow(
         titleView.setTextColor(if (isActiveWindow) Palette.TITLE_TEXT_ACTIVE else Palette.TITLE_TEXT_INACTIVE)
         iconView.alpha = if (isActiveWindow) 1f else 0.6f
         elevation = if (!theme.shadows) 0f else if (isActiveWindow) dp(18f) else dp(6f)
-        maximizeButton.setImageResource(if (mode == Mode.MAXIMIZED) R.drawable.ic_win_restore else R.drawable.ic_win_maximize)
+        maximizeButton.setThemedIcon(if (mode == Mode.MAXIMIZED) R.drawable.ic_win_restore else R.drawable.ic_win_maximize)
         invalidateOutline()
     }
 
     private fun makeButton(@DrawableRes icon: Int, @StringRes desc: Int, danger: Boolean, onClick: () -> Unit) =
         ImageButton(context).apply {
-            setImageResource(icon)
+            setThemedIcon(icon)
             contentDescription = context.getString(desc)
             tooltipText = contentDescription
             scaleType = ImageView.ScaleType.CENTER
             background = Themes.current.titleButton(context, close = danger)
-            // The glyphs are white for the dark title bar; on classic gray buttons they are black.
-            if (!Themes.current.tintIcons) imageTintList = ColorStateList.valueOf(Palette.TEXT)
             isFocusable = false
             setOnClickListener { onClick() }
             layoutParams = LayoutParams(dpi(44), LayoutParams.MATCH_PARENT)

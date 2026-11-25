@@ -31,6 +31,7 @@ import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.styleMenuText
 import org.handtop.desktop.ui.styleField
 import org.handtop.desktop.ui.pushButton
@@ -314,8 +315,7 @@ class Launchpad(
     private fun noIcon(app: LinuxApp) = FrameLayout(context).apply {
         background = if (Themes.current.bevelled) context.bevel(Bevel.RAISED) else roundedRect(0x26FFFFFF, dp(14f))
         addView(ImageView(context).apply {
-            setImageResource(if (app.terminal) R.drawable.ic_terminal else R.drawable.ic_app_generic)
-            setColorFilter(Palette.TEXT_SOFT)
+            setThemedIcon(if (app.terminal) R.drawable.ic_terminal else R.drawable.ic_app_generic, Palette.TEXT_SOFT)
         }, LayoutParams(iconPx * 3 / 5, iconPx * 3 / 5, Gravity.CENTER))
     }
 

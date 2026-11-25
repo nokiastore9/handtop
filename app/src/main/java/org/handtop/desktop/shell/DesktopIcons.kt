@@ -21,6 +21,7 @@ import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -149,18 +150,16 @@ class DesktopIcons(
         when (shortcut) {
             is Shortcut.BuiltIn -> {
                 val (drawable, name) = builtIn(shortcut.id)
-                icon.setImageResource(drawable)
+                icon.setThemedIcon(drawable)
                 label.setText(name)
             }
             is Shortcut.LinuxProgram -> {
-                icon.setImageResource(R.drawable.ic_app_generic) // until its own icon is read
-                icon.setColorFilter(if (Themes.current.bevelled) Palette.DESKTOP_LABEL else Palette.TEXT_SOFT)
+                icon.setThemedIcon(R.drawable.ic_app_generic, Palette.TEXT_SOFT) // until its own icon is read
                 label.text = shortcut.name
                 loadLinuxIcon(shortcut, icon)
             }
             is Shortcut.Folder -> {
-                icon.setImageResource(R.drawable.ic_folder)
-                icon.setColorFilter(FOLDER_COLOR) // as folders look in Files
+                icon.setThemedIcon(R.drawable.ic_folder, FOLDER_COLOR) // as folders look in Files
                 label.text = shortcut.name
             }
         }

@@ -51,8 +51,7 @@ fun showPopupMenu(anchor: View, rawX: Float, rawY: Float, entries: List<MenuEntr
             alpha = if (entry.enabled || Themes.current.embossDisabled) 1f else 0.4f
             if (entry.enabled) setOnClickListener { popup.dismiss(); entry.action() }
             addView(ImageView(context).apply {
-                if (entry.icon != 0) setImageResource(entry.icon)
-                if (entry.tint != 0) setColorFilter(entry.tint)
+                if (entry.icon != 0) setThemedIcon(entry.icon, entry.tint.takeIf { it != 0 })
                 isDuplicateParentStateEnabled = true
             }, LinearLayout.LayoutParams(context.dpi(18), context.dpi(18)))
             addView(TextView(context).apply {

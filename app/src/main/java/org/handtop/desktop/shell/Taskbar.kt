@@ -3,6 +3,7 @@ package org.handtop.desktop.shell
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Typeface
+import android.graphics.drawable.InsetDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -13,7 +14,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Bevel
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
@@ -52,14 +56,11 @@ class Taskbar(
         background = theme.taskbarBackground(context)
         elevation = if (theme.shadows) dp(12f) else 0f
 
-        startButton = if (theme.startLabel) labelledStartButton() else iconButton(R.drawable.ic_handtop, R.string.start_menu) { onStart(it) }.apply {
-            setColorFilter(Palette.ACCENT)
-        }
+        startButton = if (theme.startLabel) labelledStartButton() else iconButton(R.drawable.ic_handtop, R.string.start_menu, Palette.ACCENT) { onStart(it) }
         addView(startButton, LayoutParams(if (theme.startLabel) LayoutParams.WRAP_CONTENT else dpi(52), LayoutParams.MATCH_PARENT))
         // The Linux programs, as GNOME's "Show Applications".
-        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps) { onApps() }.apply {
-            setColorFilter(Palette.TEXT_SOFT)
-        }, LayoutParams(dpi(44), LayoutParams.MATCH_PARENT))
+        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps, Palette.TEXT_SOFT) { onApps() },
+            LayoutParams(dpi(44), LayoutParams.MATCH_PARENT))
 
         strip.orientation = HORIZONTAL
         strip.gravity = Gravity.CENTER_VERTICAL
@@ -126,11 +127,12 @@ class Taskbar(
 
     /** The keyboard button shows whether the touchpad is on. */
     fun showTouchpad(on: Boolean) {
-        when {
-            on -> keyboardButton.setColorFilter(Palette.ACCENT)
-            // The icon is white for the dark taskbar; the classic gray one needs it dark.
-            Themes.current.tintIcons -> keyboardButton.clearColorFilter()
-            else -> keyboardButton.setColorFilter(Palette.TEXT)
+        if (Themes.current.tintIcons) {
+            if (on) keyboardButton.setColorFilter(Palette.ACCENT) else keyboardButton.clearColorFilter()
+        } else {
+            // A colour icon can't change colour: the classic button stays pressed in instead.
+            keyboardButton.background = if (on) InsetDrawable(context.bevel(Bevel.PRESSED), dpi(2), dpi(5), dpi(2), dpi(5))
+            else Themes.current.toolButton(context)
         }
     }
 
@@ -156,7 +158,7 @@ class Taskbar(
         }
         val icon = ImageView(context).apply {
             val bitmap = w.iconBitmap
-            if (bitmap != null) setImageBitmap(bitmap) else setImageResource(w.iconRes)
+            if (bitmap != null) setImageBitmap(bitmap) else setThemedIcon(w.iconRes)
             alpha = if (w.minimized) 0.6f else 1f
         }
         item.addView(icon, LayoutParams(dpi(20), dpi(20)))
@@ -177,8 +179,8 @@ class Taskbar(
         return item
     }
 
-    private fun iconButton(icon: Int, desc: Int, onClick: (View) -> Unit) = ImageButton(context).apply {
-        setImageResource(icon)
+    private fun iconButton(icon: Int, desc: Int, tint: Int? = null, onClick: (View) -> Unit) = ImageButton(context).apply {
+        setThemedIcon(icon, tint)
         contentDescription = context.getString(desc)
         tooltipText = contentDescription
         scaleType = ImageView.ScaleType.CENTER

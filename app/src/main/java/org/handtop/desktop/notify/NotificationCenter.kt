@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.styleButton
 import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.applyTheme
@@ -186,7 +187,7 @@ class NotificationCenter(private val activity: Activity) {
 
         if (item.clearable) {
             card.addView(ImageButton(activity).apply {
-                setImageResource(R.drawable.ic_win_close)
+                setThemedIcon(R.drawable.ic_win_close)
                 contentDescription = activity.getString(R.string.notif_dismiss)
                 tooltipText = contentDescription
                 scaleType = ImageView.ScaleType.CENTER_INSIDE

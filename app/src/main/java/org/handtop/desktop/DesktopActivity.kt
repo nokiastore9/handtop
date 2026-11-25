@@ -55,6 +55,7 @@ import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.ThemeId
 import org.handtop.desktop.ui.Themes
@@ -610,7 +611,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             alpha = if (enabled || Themes.current.embossDisabled) 1f else 0.45f
             if (enabled) setOnClickListener { onClick() }
             addView(ImageView(context).apply {
-                setImageResource(icon)
+                setThemedIcon(icon)
                 isDuplicateParentStateEnabled = true
             }, LinearLayout.LayoutParams(dpi(22), dpi(22)))
             addView(TextView(context).apply {

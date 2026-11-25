@@ -29,6 +29,7 @@ import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.styleListBox
 import org.handtop.desktop.ui.showDialog
 import org.handtop.desktop.ui.pushButton
@@ -172,8 +173,7 @@ class SettingsContent(
                 arrange()
             }
             addView(ImageView(context).apply {
-                setImageResource(R.drawable.ic_arrow_back)
-                setColorFilter(Palette.TEXT)
+                setThemedIcon(R.drawable.ic_arrow_back, Palette.TEXT)
             }, LayoutParams(dpi(36), dpi(24)))
             addView(pageTitle.apply {
                 textSize = 17f

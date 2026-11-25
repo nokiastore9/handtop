@@ -47,6 +47,7 @@ import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.styleListBox
 import org.handtop.desktop.ui.styleField
 import org.handtop.desktop.ui.showDialog
@@ -373,8 +374,7 @@ class FilesContent(
                 }
                 setOnClickListener { navigate(place.dir) }
                 addView(ImageView(context).apply {
-                    setImageResource(place.icon)
-                    setColorFilter(if (!chosen) Palette.TEXT_SOFT else if (bevelled) Palette.SELECTION_TEXT else Palette.ACCENT)
+                    setThemedIcon(place.icon, if (chosen) Palette.ACCENT else Palette.TEXT_SOFT)
                 }, LayoutParams(dpi(18), dpi(18)))
                 addView(TextView(context).apply {
                     text = place.label
@@ -813,8 +813,7 @@ class FilesContent(
                 icon.clearColorFilter()
                 icon.setImageBitmap(thumb)
             } else {
-                icon.setImageResource(FileKinds.iconOf(entry.mime))
-                icon.setColorFilter(FileKinds.colorOf(entry.mime))
+                icon.setThemedIcon(FileKinds.iconOf(entry.mime), FileKinds.colorOf(entry.mime))
                 if (entry.mime.startsWith("image/") || entry.mime.startsWith("video/")) loadThumbnail(entry, icon)
             }
         }
@@ -859,8 +858,7 @@ class FilesContent(
     }
 
     private fun toolButton(icon: Int, label: Int, onClick: (View) -> Unit) = ImageButton(context).apply {
-        setImageResource(icon)
-        setColorFilter(Palette.TEXT_SOFT)
+        setThemedIcon(icon, Palette.TEXT_SOFT)
         contentDescription = context.getString(label)
         tooltipText = contentDescription
         background = if (bevelled) Themes.current.toolButton(context) else context.selectableBackground(borderless = true)

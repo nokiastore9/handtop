@@ -269,7 +269,8 @@ class OnOff(
 /** A row of a list with an icon and a label; [setChosen] marks the current one. */
 class ListRow(context: Context, @DrawableRes icon: Int, text: CharSequence) : LinearLayout(context) {
 
-    private val iconView = ImageView(context).apply { setImageResource(icon) }
+    private val icon = icon
+    private val iconView = ImageView(context)
     private val label = TextView(context).apply {
         this.text = text
         textSize = 15f
@@ -293,10 +294,10 @@ class ListRow(context: Context, @DrawableRes icon: Int, text: CharSequence) : Li
         if (classic) {
             background = if (chosen) android.graphics.drawable.ColorDrawable(c.selection) else null
             label.setTextColor(if (chosen) c.selectionText else c.text)
-            iconView.setColorFilter(if (chosen) c.selectionText else c.text)
+            iconView.setThemedIcon(icon)
         } else {
             background = if (chosen) roundedRect(Palette.CHIP, dp(8f)) else null
-            iconView.setColorFilter(if (chosen) Palette.ACCENT else Palette.TEXT_SOFT)
+            iconView.setThemedIcon(icon, if (chosen) Palette.ACCENT else Palette.TEXT_SOFT)
             label.setTextColor(if (chosen) Palette.TEXT else Palette.TEXT_SOFT)
         }
     }
