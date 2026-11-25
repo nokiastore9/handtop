@@ -1,6 +1,9 @@
 package org.handtop.desktop.ui
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
@@ -87,6 +90,35 @@ object ClassicTheme : Theme(
     }
 
     override val titleBold = true
+
+    override fun panel(context: Context, cornerDp: Float): Drawable = context.bevel(Bevel.RAISED)
+
+    override fun menuItemBackground(context: Context): Drawable = StateListDrawable().apply {
+        val highlight = ColorDrawable(colors.selection)
+        addState(intArrayOf(-android.R.attr.state_enabled), ColorDrawable(Color.TRANSPARENT))
+        addState(intArrayOf(android.R.attr.state_pressed), highlight)
+        addState(intArrayOf(android.R.attr.state_hovered), highlight)
+        addState(intArrayOf(android.R.attr.state_focused), highlight)
+        addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
+    }
+
+    override fun menuTextColors(): ColorStateList = ColorStateList(
+        arrayOf(
+            intArrayOf(-android.R.attr.state_enabled),
+            intArrayOf(android.R.attr.state_pressed),
+            intArrayOf(android.R.attr.state_hovered),
+            intArrayOf(android.R.attr.state_focused),
+            intArrayOf(),
+        ),
+        intArrayOf(colors.textDisabled, colors.selectionText, colors.selectionText, colors.selectionText, colors.text),
+    )
+
+    override val embossDisabled = true
+
+    override fun divider(context: Context): Drawable = context.bevel(Bevel.ETCHED, null)
+    override fun dividerHeight(context: Context): Int = 2 * kotlin.math.max(1, kotlin.math.round(context.dp(1f)).toInt())
+
+    override val startMenuBand = true
 }
 
 private const val FACE = 0xFFC0C0C0.toInt()

@@ -29,6 +29,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.CalendarView
+import android.view.ContextThemeWrapper
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -41,6 +42,9 @@ import org.handtop.desktop.R
 import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.applyTheme
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.ThemeId
 import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -396,10 +400,12 @@ class StatusArea(context: Context) : LinearLayout(context) {
     }
 
     private fun showCalendar(anchor: View) {
-        val calendar = CalendarView(context)
+        // Android's calendar takes its colours from the context's theme: dark text on the
+        // classic gray panel, light text on the modern dark one.
+        val themed = if (Themes.current.id == ThemeId.CLASSIC) ContextThemeWrapper(context, R.style.HandTop_ClassicCalendar) else context
+        val calendar = CalendarView(themed)
         val popup = PopupWindow(calendar, WRAP_CONTENT, WRAP_CONTENT, true)
-        popup.setBackgroundDrawable(roundedRect(Palette.MENU_BG, dp(14f)))
-        popup.elevation = dp(20f)
+        popup.applyTheme(context, Themes.current.panel(context, 14f), 20f)
         popup.isOutsideTouchable = true
         // Just above the taskbar, at the right edge, like a desktop tray calendar.
         val loc = IntArray(2)

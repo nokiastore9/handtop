@@ -1,6 +1,7 @@
 package org.handtop.desktop.ui
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 
 /** The themes HandTop can wear; [key] is how the choice is stored. */
@@ -93,6 +94,27 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
     abstract fun titleButton(context: Context, close: Boolean, checked: Boolean = false): Drawable
 
     abstract val titleBold: Boolean
+
+    // ---- menus and popups ----
+
+    /** Background of a popup panel: menus, the start menu, the calendar, notifications. */
+    abstract fun panel(context: Context, cornerDp: Float): Drawable
+
+    /** Background of one menu line, showing when it is pressed or under the pointer. */
+    abstract fun menuItemBackground(context: Context): Drawable
+
+    /** Text of a menu line: normal, highlighted (with [menuItemBackground]) and disabled. */
+    abstract fun menuTextColors(): ColorStateList
+
+    /** Disabled text is engraved: a light copy one point down and right. */
+    abstract val embossDisabled: Boolean
+
+    /** The line between groups of menu items, and its height in pixels. */
+    abstract fun divider(context: Context): Drawable
+    abstract fun dividerHeight(context: Context): Int
+
+    /** The start menu has a vertical band with HandTop's name along its left side. */
+    abstract val startMenuBand: Boolean
 }
 
 /**

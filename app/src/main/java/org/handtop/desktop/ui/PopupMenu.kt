@@ -34,8 +34,8 @@ fun showPopupMenu(anchor: View, rawX: Float, rawY: Float, entries: List<MenuEntr
     val popup = PopupWindow(ScrollView(context).apply { addView(column) }, WRAP_CONTENT, WRAP_CONTENT, true)
     for (entry in entries) {
         if (entry == null) {
-            column.addView(View(context).apply { setBackgroundColor(Palette.MENU_DIVIDER) },
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, context.dpi(1)).apply {
+            column.addView(menuDivider(context),
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Themes.current.dividerHeight(context)).apply {
                     setMargins(context.dpi(8), context.dpi(4), context.dpi(8), context.dpi(4))
                 })
             continue
@@ -45,17 +45,19 @@ fun showPopupMenu(anchor: View, rawX: Float, rawY: Float, entries: List<MenuEntr
             gravity = Gravity.CENTER_VERTICAL
             setPadding(context.dpi(12), 0, context.dpi(18), 0)
             minimumWidth = context.dpi(200)
-            background = context.selectableBackground()
+            background = Themes.current.menuItemBackground(context)
             isEnabled = entry.enabled
-            alpha = if (entry.enabled) 1f else 0.4f
+            // Disabled lines: dimmed in the modern look, engraved gray text in the classic one.
+            alpha = if (entry.enabled || Themes.current.embossDisabled) 1f else 0.4f
             if (entry.enabled) setOnClickListener { popup.dismiss(); entry.action() }
             addView(ImageView(context).apply {
                 if (entry.icon != 0) setImageResource(entry.icon)
                 if (entry.tint != 0) setColorFilter(entry.tint)
+                isDuplicateParentStateEnabled = true
             }, LinearLayout.LayoutParams(context.dpi(18), context.dpi(18)))
             addView(TextView(context).apply {
                 text = entry.label
-                setTextColor(Palette.TEXT)
+                styleMenuText(entry.enabled)
                 textSize = 14f
                 isSingleLine = true
                 ellipsize = TextUtils.TruncateAt.END
@@ -63,8 +65,7 @@ fun showPopupMenu(anchor: View, rawX: Float, rawY: Float, entries: List<MenuEntr
             })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, context.dpi(38)))
     }
-    popup.setBackgroundDrawable(roundedRect(Palette.MENU_BG, context.dp(10f)))
-    popup.elevation = context.dp(16f)
+    popup.applyTheme(context, Themes.current.panel(context, 10f), 16f)
     popup.isOutsideTouchable = true
 
     // Fit on screen: measure, then flip left / up as needed (window coordinates).

@@ -1,6 +1,7 @@
 package org.handtop.desktop.ui
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -79,4 +80,18 @@ object ModernTheme : Theme(
     }
 
     override val titleBold = false
+
+    override fun panel(context: Context, cornerDp: Float): Drawable = roundedRect(colors.menuBg, context.dp(cornerDp))
+
+    override fun menuItemBackground(context: Context): Drawable =
+        context.selectableBackground() ?: ColorDrawable(Color.TRANSPARENT)
+
+    override fun menuTextColors(): ColorStateList = ColorStateList.valueOf(colors.text)
+
+    override val embossDisabled = false
+
+    override fun divider(context: Context): Drawable = ColorDrawable(colors.menuDivider)
+    override fun dividerHeight(context: Context): Int = context.dpi(1)
+
+    override val startMenuBand = false
 }

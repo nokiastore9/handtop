@@ -44,6 +44,7 @@ import org.handtop.desktop.shell.Launchpad
 import org.handtop.desktop.shell.Shortcut
 import org.handtop.desktop.shell.Shortcuts
 import org.handtop.desktop.shell.Taskbar
+import org.handtop.desktop.shell.StartBand
 import org.handtop.desktop.shell.Touchpad
 import org.handtop.desktop.shell.WallpaperContent
 import org.handtop.desktop.shell.WallpaperDrawable
@@ -57,6 +58,9 @@ import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.ThemeId
 import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.applyTheme
+import org.handtop.desktop.ui.menuDivider
+import org.handtop.desktop.ui.styleMenuText
 import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -537,11 +541,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         launchpad.close()
         startMenu?.let { if (it.isShowing) { it.dismiss(); return } }
 
+        val theme = Themes.current
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dpi(6), dpi(10), dpi(6), dpi(6))
+            if (theme.startMenuBand) setPadding(0, dpi(3), 0, dpi(3)) else setPadding(dpi(6), dpi(10), dpi(6), dpi(6))
         }
-        panel.addView(TextView(this).apply {
+        // Classic: HandTop's name runs up a band along the menu instead of a heading.
+        if (!theme.startMenuBand) panel.addView(TextView(this).apply {
             text = getString(R.string.app_name)
             setTextColor(Palette.TEXT)
             textSize = 18f
@@ -555,7 +561,14 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             compoundDrawablePadding = dpi(10)
             setPadding(dpi(14), dpi(4), dpi(14), dpi(10))
         })
-        val popup = PopupWindow(panel, dpi(280), WRAP_CONTENT, true)
+        val content: View = if (!theme.startMenuBand) panel else LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val edge = dpi(3)
+            setPadding(edge, edge, edge, edge)
+            addView(StartBand(context), LinearLayout.LayoutParams(dpi(26), MATCH_PARENT))
+            addView(panel, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }
+        val popup = PopupWindow(content, dpi(280), WRAP_CONTENT, true)
         fun item(@DrawableRes icon: Int, @StringRes label: Int, enabled: Boolean = true, action: () -> Unit = {}) {
             panel.addView(menuItem(icon, label, enabled) { popup.dismiss(); action() })
         }
@@ -565,12 +578,11 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         item(R.drawable.ic_files, R.string.app_files) { openFiles() }
         item(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
         item(R.drawable.ic_info, R.string.app_about) { openAbout() }
-        panel.addView(View(this).apply { setBackgroundColor(Palette.MENU_DIVIDER) },
-            LinearLayout.LayoutParams(MATCH_PARENT, dpi(1)).apply { setMargins(dpi(8), dpi(6), dpi(8), dpi(6)) })
+        panel.addView(menuDivider(this),
+            LinearLayout.LayoutParams(MATCH_PARENT, theme.dividerHeight(this)).apply { setMargins(dpi(8), dpi(6), dpi(8), dpi(6)) })
         item(R.drawable.ic_power, R.string.action_exit) { exitAll() }
 
-        popup.setBackgroundDrawable(roundedRect(Palette.MENU_BG, dp(14f)))
-        popup.elevation = dp(20f)
+        popup.applyTheme(this, theme.panel(this, 14f), 20f)
         popup.isOutsideTouchable = true
         popup.setOnDismissListener { if (startMenu === popup) startMenu = null }
 
@@ -589,14 +601,17 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dpi(14), 0, dpi(14), 0)
-            background = selectableBackground()
+            background = Themes.current.menuItemBackground(context)
             isEnabled = enabled
-            alpha = if (enabled) 1f else 0.45f
+            alpha = if (enabled || Themes.current.embossDisabled) 1f else 0.45f
             if (enabled) setOnClickListener { onClick() }
-            addView(ImageView(context).apply { setImageResource(icon) }, LinearLayout.LayoutParams(dpi(22), dpi(22)))
+            addView(ImageView(context).apply {
+                setImageResource(icon)
+                isDuplicateParentStateEnabled = true
+            }, LinearLayout.LayoutParams(dpi(22), dpi(22)))
             addView(TextView(context).apply {
                 setText(label)
-                setTextColor(Palette.TEXT)
+                styleMenuText(enabled)
                 textSize = 15f
                 isSingleLine = true
                 ellipsize = TextUtils.TruncateAt.END
