@@ -5,30 +5,29 @@
 **A PC-style desktop for Android: windows, a taskbar, terminals and real Linux with its desktop apps.**
 No root required. For phones, tablets and external screens, with or without Samsung DeX.
 
-**Рабочий стол как на ПК для Android: окна, панель задач, терминалы и настоящий Linux с его программами.**
-Без root. Для телефонов, планшетов и внешних экранов, с Samsung DeX и без него.
-
 > [!WARNING]
 > **Early version — 0.3.0 (preview).** HandTop is young and changes fast, so expect rough edges,
 > bugs and things that will be reworked. So far it has been tested on one phone, a Samsung Galaxy
 > S24 Ultra (Snapdragon 8 Gen 3). There is no ready-made APK yet: build it yourself (see
 > [Building](#building)). Ideas and bug reports are welcome.
->
-> **Ранняя версия — 0.3.0 (предварительная).** HandTop молод и быстро меняется, поэтому возможны
-> шероховатости, ошибки и переделки. Пока он проверен на одном телефоне: Samsung Galaxy S24 Ultra
-> (Snapdragon 8 Gen 3). Готового APK ещё нет, его нужно собрать самому (см. [Building](#building)).
-> Идеи и сообщения об ошибках приветствуются.
 
-## Screenshots / Скриншоты
+## Vibe-coded
+
+HandTop is a vibe-coding project. It is built by talking to an AI coding agent,
+[Claude Code](https://claude.com/claude-code). The agent writes the code, the tests and these docs.
+A human sets the direction, tries every build on a real phone and decides what ships. The commits
+name the AI as their co-author.
+
+## Screenshots
 
 | | |
 |---|---|
 | ![Linux terminal and XTerm on the desktop](docs/screenshots/01-desktop.jpg) | ![glmark2 on the Adreno GPU](docs/screenshots/02-gpu.jpg) |
-| The Linux terminal and an X11 program (htop in XTerm)<br>Терминал Linux и X11-программа (htop в XTerm) | 3D on the Adreno GPU: glmark2 through Mesa Turnip + Zink<br>3D на видеокарте Adreno: glmark2 через Mesa Turnip + Zink |
+| The Linux terminal and an X11 program (htop in XTerm) | 3D on the Adreno GPU: glmark2 through Mesa Turnip + Zink |
 | ![The Classic theme](docs/screenshots/03-classic.jpg) | ![Choosing a Linux distribution](docs/screenshots/04-linux.jpg) |
-| The Classic theme<br>Классическая тема | Choose a distribution: Debian, Ubuntu, Alpine, Fedora<br>Выбор дистрибутива: Debian, Ubuntu, Alpine, Fedora |
+| The Classic theme | Choose a distribution: Debian, Ubuntu, Alpine, Fedora |
 
-## What works now / Что уже работает
+## What works now
 
 - Desktop with wallpapers (9 built-in or your own picture) and shortcuts you can add, remove and drag;
   taskbar with clock, start menu, notifications
@@ -60,10 +59,10 @@ No root required. For phones, tablets and external screens, with or without Sams
 - Mouse: right-click menu, wheel scrolling, hover highlights
 - Shortcuts: `Ctrl+Alt+T` new terminal, `Alt+F4` close, `Ctrl+Shift+C/V` copy/paste, `Ctrl +/-` font size
 
-## Known limitations / Известные ограничения
+## Known limitations
 
-- Tested on one phone so far (Galaxy S24 Ultra). Other phones and other Android versions
-  from other makers have not been tried yet.
+- Tested on one phone so far (Galaxy S24 Ultra). Other phones, makers and Android versions have
+  not been tried yet.
 - GPU acceleration needs a Snapdragon (Adreno) GPU. On other phones Linux programs draw on the CPU,
   which is much slower.
 - Frames of Linux programs are copied through shared memory (no zero-copy yet), so very light
@@ -73,13 +72,13 @@ No root required. For phones, tablets and external screens, with or without Sams
 - No ready-made APK yet.
 - x86 Linux programs (box64) and Windows programs (Wine) are not supported yet.
 
-## Version history / История версий
+## Version history
 
 See [CHANGELOG.md](CHANGELOG.md).
 
 ## Roadmap
 
-See [docs/ROADMAP.md](docs/ROADMAP.md).
+The detailed plan and notes are in [docs/ROADMAP.md](docs/ROADMAP.md) (in Russian).
 
 1. Desktop shell + terminal ✔
 2. Linux userland via proot: Debian / Ubuntu / Alpine / Fedora ✔ (optional chroot with root — to do)

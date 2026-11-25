@@ -1,9 +1,9 @@
-# Version history / История версий
+# Version history
 
 What changed in each version of HandTop. No builds have been published yet: the dates are when
 each version was finished.
 
-## 0.3.0 — 2026-11-25 · early preview / ранняя предварительная версия
+## 0.3.0 — 2026-11-25 · early preview
 
 The first version meant to be shown publicly. Everything since 0.2.0:
 
