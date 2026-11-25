@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.Settings
 import android.os.Environment
 import android.system.Os
+import android.system.OsConstants
 import android.util.Log
 import org.handtop.desktop.R
 import org.handtop.desktop.audio.SoundBridge
@@ -69,7 +70,50 @@ object LinuxEnv {
         SoundBridge.ensureRunning(context)
         X11Display.ensureRunning(context)
         LinuxBookmarks.update(context)
-        GpuDrivers.installIfNeeded(context) // Adreno: HandTop's Mesa, without the user asking
+        LinuxSetup.startIfNeeded(context) // GPU drivers, X11, sound…: without the user asking
+    }
+
+    /**
+     * Stops everything that runs from the installed distribution (X11, sound, session bus,
+     * programs from the menu), before it is replaced or removed: left running, it would keep
+     * serving the deleted system, and the new one would get no X11 display or sound until
+     * HandTop restarts. Linux terminals are closed by then. Main thread.
+     */
+    fun stopServices(context: Context) {
+        X11Display.stop()
+        SoundBridge.stop()
+        SessionBus.stop()
+        killLinuxProcesses(context)
+    }
+
+    /**
+     * Kills every proot of this app and every Linux process under one. proot ignores SIGTERM,
+     * and a proot killed with SIGKILL leaves its processes running, so each is killed itself.
+     * They are recognised by their executable: proot, or its loader, which is what a process
+     * running under proot shows in /proc.
+     */
+    private fun killLinuxProcesses(context: Context) {
+        val nativeDir = context.applicationInfo.nativeLibraryDir
+        val self = android.os.Process.myPid()
+        var killed = 0
+        for (dir in File("/proc").listFiles() ?: emptyArray()) {
+            val pid = dir.name.toIntOrNull() ?: continue
+            if (pid == self) continue
+            val exe = try {
+                Os.readlink("/proc/$pid/exe") // other apps' processes: not readable, skipped
+            } catch (_: Exception) {
+                continue
+            }
+            if (exe == "$nativeDir/libproot.so" || exe == "$nativeDir/libproot-loader.so") {
+                try {
+                    Os.kill(pid, OsConstants.SIGKILL)
+                    killed++
+                } catch (_: Exception) {
+                    // already gone
+                }
+            }
+        }
+        if (killed > 0) Log.i("HandTopLinux", "stopped $killed Linux processes")
     }
 
     /** A login shell inside the installed distribution, as fake root, through proot, in [cwd]. */
@@ -113,6 +157,11 @@ object LinuxEnv {
         |    *) PATH="${'$'}PATH:/usr/local/games:/usr/games" ;;
         |esac
         |export PATH
+        |
+        |# HandTop is still setting Linux up (GPU drivers, X11, sound): new terminals say so.
+        |case ${'$'}- in
+        |    *i*) if [ -r /tmp/handtop-setup-running ]; then cat /tmp/handtop-setup-running; fi ;;
+        |esac
         |""".trimMargin()
 
     /** [program] (argv inside Linux) with the HandTop environment, through proot. */

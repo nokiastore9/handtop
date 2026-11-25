@@ -30,13 +30,10 @@ object X11Display {
     private val main: Handler = mainAsync()
     private var process: Process? = null
 
-    fun isInstalled(context: Context) = File(LinuxEnv.rootfs(context), "usr/bin/Xwayland").exists()
-
-    /** Installs Xwayland with the distribution's package manager. */
-    fun installCommand(distroId: String?): String = when (distroId) {
-        "alpine" -> "apk add xwayland"
-        "fedora" -> "dnf install -y xorg-x11-server-Xwayland"
-        else -> "apt-get update && apt-get install -y --no-install-recommends xwayland"
+    /** Xwayland and the keyboard layouts it cannot start without (Alpine installs them apart). */
+    fun isInstalled(context: Context): Boolean {
+        val rootfs = LinuxEnv.rootfs(context)
+        return File(rootfs, "usr/bin/Xwayland").exists() && File(rootfs, "usr/share/X11/xkb/rules/evdev").exists()
     }
 
     val isRunning get() = process?.isAlive == true
@@ -105,6 +102,17 @@ object X11Display {
                 restartAfterExit(app)
             }
         }, "xwayland-wait").start()
+    }
+
+    /**
+     * Stops Xwayland on purpose (no restart): before the distribution it runs from is
+     * replaced or removed. The next Linux session starts the new system's own. Main thread.
+     */
+    fun stop() {
+        val running = process ?: return
+        process = null // the exit watcher sees it is no longer ours and does not restart it
+        running.destroy() // proot ignores it: LinuxEnv.stopServices kills the Linux processes
+        Log.i(TAG, "Xwayland stopped")
     }
 
     /** When Xwayland exited unexpectedly lately, to stop restarting one that cannot run. */

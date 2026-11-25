@@ -54,6 +54,25 @@
     <string name="linux_setup_reinstall">Установить заново</string>
     <string name="linux_setup_retry">Повторить</string>
     <string name="linux_setup_open">Открыть терминал Linux</string>
+
+    <!-- Linux setup: what HandTop installs into a distribution by itself (LinuxSetup) -->
+    <string name="setup_title">Настройка Linux для HandTop</string>
+    <string name="setup_text">HandTop ставит то, что нужно Linux-программам на телефоне. Терминал уже можно открыть, но программы, запущенные до конца настройки, будут работать без того, что ещё не установлено.</string>
+    <string name="setup_step_gpu">Драйверы видеокарты (%1$s)</string>
+    <string name="setup_step_x11">X11-программы (Xwayland)</string>
+    <string name="setup_step_sound">Звук (PulseAudio)</string>
+    <string name="setup_step_keys">Ключи сторонних репозиториев (gpg)</string>
+    <string name="setup_unpacking_gpu">Распаковка драйверов…</string>
+    <string name="setup_ready">✓ Linux готов к работе</string>
+    <string name="setup_failed">Настроено не всё: %1$s. Вывод менеджера пакетов — в %2$s (в Linux).</string>
+    <string name="setup_retry">Повторить</string>
+    <string name="setup_error_code">менеджер пакетов завершился с кодом %1$d</string>
+    <string name="setup_error_missing">не установлено: %1$s</string>
+    <string name="setup_taskbar">Настройка Linux %1$d/%2$d</string>
+    <string name="setup_taskbar_failed">Настройка Linux не удалась</string>
+    <string name="setup_terminal_note">HandTop ещё настраивает Linux (драйверы видеокарты, X11, звук) — ход настройки на панели задач. Когда закончит, откройте новый терминал.</string>
+    <string name="settings_setup_pending">Устанавливается… (настройка Linux, см. панель задач)</string>
+    <string name="notif_setup">Настройка Linux: %1$s (%2$d/%3$d)</string>
     <string name="linux_phase_resolving">Поиск образа…</string>
     <string name="linux_phase_downloading">Загрузка: %1$s из %2$s</string>
     <string name="linux_phase_extracting">Распаковка: %1$d%%</string>
@@ -72,7 +91,6 @@
     <string name="settings_sound_on">✓ Звук работает</string>
     <string name="settings_sound_off">PulseAudio установлен, но не запущен (откройте терминал или приложение Linux)</string>
     <string name="settings_sound_install">Установить поддержку звука</string>
-    <string name="terminal_press_enter">Нажмите Enter, чтобы закрыть</string>
     <string name="settings_x11_title">Программы X11</string>
     <string name="settings_x11_text">Linux-программы, которые умеют только X11 (без Wayland), работают через Xwayland и тоже получают окна рабочего стола. Терминалы, открытые до установки, нужно открыть заново.</string>
     <string name="settings_x11_missing">Xwayland не установлен в Linux — X11-программы не запустятся</string>
@@ -85,8 +103,6 @@
     <string name="settings_gpu_not_in_build">В этой сборке HandTop нет драйверов видеокарты: Linux-программы рисует процессор</string>
     <string name="settings_gpu_no_adreno">В телефоне нет видеокарты Adreno (Snapdragon): Linux-программы рисует процессор</string>
     <string name="settings_gpu_distro">Для этого дистрибутива драйверов пока нет: Linux-программы рисует процессор</string>
-    <string name="settings_gpu_unpacking">Установка драйверов видеокарты…</string>
-    <string name="settings_gpu_libraries">Установка библиотек в Linux…</string>
     <string name="settings_gpu_on">✓ Работает: %1$s (Mesa %2$s, Turnip + Zink)</string>
     <string name="settings_gpu_off">Выключено: Linux-программы рисует процессор</string>
     <string name="settings_gpu_missing">Драйверы видеокарты ещё не установлены</string>
@@ -119,7 +135,6 @@
     <string name="notif_title">HandTop работает</string>
     <string name="notif_sessions">Открыто терминалов: %1$d</string>
     <string name="notif_installing">Настройка Linux…</string>
-    <string name="notif_gpu_installing">Установка драйверов видеокарты…</string>
 
     <string name="about_text">HandTop %1$s\nDesktop in your hand — рабочий стол в твоей руке.\n\nРабочий стол для Android: окна, панель задач и терминалы — Android и настоящий Linux (Debian, Ubuntu, Alpine или Fedora через proot, без root).\n\nТекущий этап: 2 — Linux-окружение.\n\nЛицензия: GNU GPL v3.\nЭмулятор терминала основан на Termux (Apache 2.0); proot — форк Termux (GPL v2+), talloc — LGPL v3+.\n\nГорячие клавиши:\nCtrl+Alt+T — новый терминал\nAlt+F4 — закрыть окно\nCtrl+Shift+C / V — копировать / вставить\nCtrl+Плюс / Ctrl+Минус — размер шрифта</string>
     <string name="app_files">Файлы</string>

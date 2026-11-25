@@ -22,10 +22,11 @@ Both packages go into the APK, and HandTop installs the fitting one by itself (s
    the APK's assets. Each takes its package from `native/mesa/prebuilt/` (not in git), or else
    from the project's release `mesa-<version>`, and checks the SHA-256 pinned in
    `app/build.gradle.kts`.
-2. **Installing.** On a phone with Adreno (the KGSL device is open to apps), `GpuDrivers`
-   unpacks the package for the installed distribution into `/opt/handtop-mesa`. It installs
-   any of the distribution's libraries it needs that are missing (apt, dnf or apk). This
-   happens right after Linux is installed, or at the next Linux session.
+2. **Installing.** On a phone with Adreno (the KGSL device is open to apps), HandTop's Linux
+   setup (`LinuxSetup`, its first step) unpacks the package for the installed distribution
+   into `/opt/handtop-mesa` and installs any of the distribution's libraries it needs that are
+   missing (apt, dnf or apk). This happens right after Linux is installed, or at the next
+   Linux session; the progress shows in the Linux System window and on the taskbar.
 3. **Running.** While acceleration is on, HandTop:
    - registers the package with the Vulkan loader (`/usr/share/vulkan/icd.d/`);
    - glibc: registers it with glvnd (`/usr/share/glvnd/egl_vendor.d/10_handtop-mesa.json`,

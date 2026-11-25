@@ -28,19 +28,13 @@ object SoundBridge {
     private const val IDLE_MS = 1000
     private const val FIFO_NAME = "handtop-audio"
     private const val CONFIG = "etc/handtop/pulse.pa"
+    private val ALSA_PLUGIN_DIRS = listOf("usr/lib/aarch64-linux-gnu/alsa-lib", "usr/lib64/alsa-lib", "usr/lib/alsa-lib")
 
     private var pulse: Process? = null
     private var reader: Thread? = null
 
     /** PulseAudio is installed in the distribution. */
     fun isAvailable(context: Context) = File(LinuxEnv.rootfs(context), "usr/bin/pulseaudio").exists()
-
-    /** Installs PulseAudio, the ALSA→PulseAudio plugin and test tools with the distro's package manager. */
-    fun installCommand(distroId: String?): String = when (distroId) {
-        "alpine" -> "apk add pulseaudio pulseaudio-utils alsa-plugins-pulse alsa-utils"
-        "fedora" -> "dnf install -y pulseaudio pulseaudio-utils alsa-plugins-pulseaudio alsa-utils"
-        else -> "apt-get update && apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils libasound2-plugins alsa-utils"
-    }
 
     val isRunning get() = pulse?.isAlive == true
 
@@ -98,12 +92,23 @@ object SoundBridge {
                 """.trimIndent() + "\n",
             )
         }
-        // ALSA programs (aplay, SDL with ALSA…) through PulseAudio, when the plugin is there.
-        val plugin = File(rootfs, "usr/lib/aarch64-linux-gnu/alsa-lib/libasound_module_pcm_pulse.so")
+        // ALSA programs (aplay, SDL with ALSA…) through PulseAudio, when the plugin is there
+        // (Debian / Ubuntu, Fedora and Alpine keep it in different places).
+        val plugin = ALSA_PLUGIN_DIRS.any { File(rootfs, "$it/libasound_module_pcm_pulse.so").exists() }
         val asound = File(rootfs, "etc/asound.conf")
-        if (plugin.exists() && !asound.exists()) {
+        if (plugin && !asound.exists()) {
             asound.writeText("# Written by HandTop: ALSA plays through PulseAudio.\npcm.!default { type pulse }\nctl.!default { type pulse }\n")
         }
+    }
+
+    /**
+     * Stops PulseAudio: before the distribution it runs from is replaced or removed. The
+     * player keeps waiting for the FIFO, which the next PulseAudio creates again.
+     */
+    @Synchronized
+    fun stop() {
+        pulse?.destroy() // proot ignores it: LinuxEnv.stopServices kills the Linux processes
+        pulse = null
     }
 
     /** Reads the FIFO and plays it; reopens it whenever PulseAudio restarts. */

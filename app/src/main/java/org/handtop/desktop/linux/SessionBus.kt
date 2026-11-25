@@ -37,6 +37,12 @@ object SessionBus {
     /** The bus socket on Android's side, for HandTop's own services (see InhibitBus). */
     fun socketPath(context: Context): String = socket(context).path
 
+    /** Stops the bus: before the distribution it runs from is replaced or removed. */
+    fun stop() {
+        process?.destroy() // proot ignores it: LinuxEnv.stopServices kills the Linux processes
+        process = null
+    }
+
     /** Starts the bus once (no-op when running or D-Bus is not installed). Main thread. */
     fun ensureRunning(context: Context) {
         if (isRunning || !isAvailable(context)) return

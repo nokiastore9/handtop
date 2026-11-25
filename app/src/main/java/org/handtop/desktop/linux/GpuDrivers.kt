@@ -1,15 +1,12 @@
 package org.handtop.desktop.linux
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.system.Os
 import android.util.Log
-import org.handtop.desktop.service.SessionService
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.IOException
-import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * GPU acceleration for Linux programs on Snapdragon phones: HandTop's Mesa build (see
@@ -21,7 +18,7 @@ import java.util.concurrent.CopyOnWriteArraySet
  * the oldest of the glibc distributions HandTop offers, so it also runs on Ubuntu and Fedora;
  * and musl, built on Alpine. The one that fits is unpacked into /opt/handtop-mesa of the
  * distribution; nothing is downloaded except, when missing, a few of the distribution's own
- * libraries ([Target]).
+ * libraries ([Target]). This is the first step of [LinuxSetup], which runs it.
  *
  * How it is used: while acceleration is on, HandTop registers the package with the Vulkan
  * loader and, for OpenGL, with glvnd (glibc) or as the first directory of the musl loader's
@@ -53,14 +50,13 @@ object GpuDrivers {
     /**
      * What acceleration needs from a distribution: where its libraries live, the packages the
      * Mesa build links to (plus glvnd and the Vulkan loader that load it), each with a library
-     * that shows the package is installed, and how to install them.
+     * that shows the package is installed ([LinuxSetup] installs the missing ones).
      */
     private class Target(
         /** Which package of the APK runs there: glibc or musl. */
         val libc: String,
         val libDir: String,
         val libraries: Map<String, String>,
-        val install: (List<String>) -> String,
     ) {
         val glvnd get() = libc == "glibc"
     }
@@ -93,12 +89,6 @@ object GpuDrivers {
             "zlib1g" to "libz.so.1",
             "libzstd1" to "libzstd.so.1",
         ),
-        install = { packages ->
-            "export DEBIAN_FRONTEND=noninteractive; " +
-                "apt-get update -q || true; " + // a broken third-party repository must not stop it
-                "apt-get install -y -q --no-install-recommends -o DPkg::Lock::Timeout=300 " +
-                packages.joinToString(" ")
-        },
     )
 
     private val FEDORA = Target(
@@ -122,7 +112,6 @@ object GpuDrivers {
             "zlib-ng-compat" to "libz.so.1",
             "libzstd" to "libzstd.so.1",
         ),
-        install = { packages -> "dnf install -y --setopt=install_weak_deps=False " + packages.joinToString(" ") },
     )
 
     private val ALPINE = Target(
@@ -143,7 +132,6 @@ object GpuDrivers {
             "libstdc++" to "libstdc++.so.6",
             "libgcc" to "libgcc_s.so.1",
         ),
-        install = { packages -> "apk add " + packages.joinToString(" ") },
     )
 
     private fun target(context: Context): Target? = when (LinuxEnv.installedDistro(context)) {
@@ -153,30 +141,7 @@ object GpuDrivers {
         null -> null
     }
 
-    // ---- what the settings show ----
-
-    enum class Phase { IDLE, UNPACKING, LIBRARIES, DONE, FAILED }
-
-    data class State(val phase: Phase, val done: Long = 0, val total: Long = 0, val error: String? = null)
-
-    @Volatile
-    var state = State(Phase.IDLE)
-        private set
-
-    val isRunning get() = state.phase in setOf(Phase.UNPACKING, Phase.LIBRARIES)
-
-    private val listeners = CopyOnWriteArraySet<(State) -> Unit>()
-    private val main = Handler(Looper.getMainLooper())
-
-    fun addListener(listener: (State) -> Unit) {
-        listeners += listener
-    }
-
-    fun removeListener(listener: (State) -> Unit) {
-        listeners -= listener
-    }
-
-    private val bundledVersions = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val bundledVersions = ConcurrentHashMap<String, String>()
 
     /**
      * Mesa version and package revision (e.g. 26.3.1-2) of the APK's package for the installed
@@ -215,17 +180,11 @@ object GpuDrivers {
     fun setEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
         register(context)
-        if (enabled) installIfNeeded(context)
+        if (enabled) LinuxSetup.startIfNeeded(context)
     }
 
     /** Linux programs started now draw on the GPU. */
-    fun isActive(context: Context): Boolean {
-        val rootfs = LinuxEnv.rootfs(context)
-        val version = version(context) ?: return false
-        val target = target(context) ?: return false
-        return hasAdreno() && isEnabled(context) &&
-            installedVersion(rootfs) == version && missingPackages(rootfs, target).isEmpty()
-    }
+    fun isActive(context: Context) = isWanted(context) && isReady(context)
 
     /** Variables for every Linux program while acceleration is on. */
     fun environment(context: Context): List<String> = if (!isActive(context)) emptyList() else listOf(
@@ -274,52 +233,27 @@ object GpuDrivers {
         }
     }
 
-    /**
-     * Starts the installation when acceleration applies, is wanted and is not there yet: from
-     * the start of a Linux session, so a fresh system gets it without the user doing anything.
-     * A failure is not retried by itself until HandTop restarts (the settings offer a retry).
-     */
-    fun installIfNeeded(context: Context) {
-        if (isRunning || state.phase == Phase.FAILED) return
-        val version = version(context) ?: return
-        val target = target(context) ?: return
-        if (!hasAdreno() || !isEnabled(context)) return
+    /** Acceleration applies here and is wanted: Adreno, a package for the distribution, switched on. */
+    fun isWanted(context: Context) = hasAdreno() && isEnabled(context) && version(context) != null
+
+    /** The package and the libraries it needs are in place. */
+    fun isReady(context: Context): Boolean {
+        val target = target(context) ?: return false
         val rootfs = LinuxEnv.rootfs(context)
-        if (installedVersion(rootfs) == version && missingPackages(rootfs, target).isEmpty()) return
-        install(context)
+        return installedVersion(rootfs) == version(context) && missingPackages(rootfs, target).isEmpty()
     }
 
-    /** Unpacks the package from the APK, then installs the libraries it needs. */
-    fun install(context: Context) {
-        if (isRunning) return
-        val app = context.applicationContext
-        publish(State(Phase.UNPACKING), app)
-        Thread({
-            val result = try {
-                installNow(app)
-                State(Phase.DONE)
-            } catch (e: Exception) {
-                Log.e(TAG, "GPU drivers not installed", e)
-                State(Phase.FAILED, error = e.message ?: e.javaClass.simpleName)
-            }
-            publish(result, app)
-            main.post { register(app) }
-        }, "GpuDrivers").start()
+    /** Unpacks the APK's package into the distribution unless that version is there. Blocking. */
+    fun unpackIfNeeded(context: Context) {
+        val rootfs = LinuxEnv.rootfs(context)
+        val version = version(context) ?: throw IOException("this HandTop build has no GPU drivers")
+        val target = target(context) ?: throw IOException("no GPU drivers for this distribution")
+        if (installedVersion(rootfs) != version) unpack(context, rootfs, target.libc, version)
     }
 
-    private fun installNow(app: Context) {
-        val rootfs = LinuxEnv.rootfs(app)
-        val version = version(app) ?: throw IOException("this HandTop build has no GPU drivers")
-        val target = target(app) ?: throw IOException("no GPU drivers for this distribution")
-        if (installedVersion(rootfs) != version) unpack(app, rootfs, target.libc, version)
-        val missing = missingPackages(rootfs, target)
-        if (missing.isNotEmpty()) {
-            publish(State(Phase.LIBRARIES), app)
-            installPackages(app, rootfs, target.install(missing))
-            val still = missingPackages(rootfs, target)
-            if (still.isNotEmpty()) throw IOException("not installed: ${still.joinToString(" ")}")
-        }
-    }
+    /** The distribution's packages the drivers still need. */
+    fun missingPackages(context: Context): List<String> =
+        target(context)?.let { missingPackages(LinuxEnv.rootfs(context), it) } ?: emptyList()
 
     /** Unpacks next to the current version and swaps it in once complete. */
     private fun unpack(app: Context, rootfs: File, libc: String, version: String) {
@@ -340,20 +274,6 @@ object GpuDrivers {
         } finally {
             FileTrees.delete(staging)
         }
-    }
-
-    /** The package manager in the distribution, without a terminal; its output goes to /tmp. */
-    private fun installPackages(app: Context, rootfs: File, command: String) {
-        val spec = LinuxEnv.commandSpec(app, command)
-        val log = File(rootfs, "tmp/handtop-gpu-install.log")
-        val process = ProcessBuilder(listOf(spec.executable) + spec.args.drop(1))
-            .directory(File(spec.cwd))
-            .redirectErrorStream(true)
-            .redirectOutput(ProcessBuilder.Redirect.to(log))
-            .apply { environment().apply { clear(); putAll(spec.env) } }
-            .start()
-        val code = process.waitFor()
-        if (code != 0) throw IOException("package installation failed ($code), see /tmp/handtop-gpu-install.log")
     }
 
     private fun missingPackages(rootfs: File, target: Target): List<String> =
@@ -398,15 +318,6 @@ object GpuDrivers {
         Os.readlink(file.path)
     } catch (_: Exception) {
         null
-    }
-
-    private fun publish(newState: State, app: Context) {
-        main.post {
-            val phaseChanged = newState.phase != state.phase
-            state = newState
-            listeners.forEach { it(newState) }
-            if (phaseChanged) SessionService.update(app)
-        }
     }
 
     private fun prefs(context: Context) =

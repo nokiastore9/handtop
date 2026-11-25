@@ -20,6 +20,7 @@ import org.handtop.desktop.audio.SoundBridge
 import org.handtop.desktop.linux.GpuDrivers
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxInstaller
+import org.handtop.desktop.linux.LinuxSetup
 import org.handtop.desktop.linux.X11Display
 import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
@@ -41,8 +42,6 @@ class SettingsContent(
     private val openLinuxSetup: () -> Unit,
     /** Saves a new interface scale (percent) and rebuilds the desktop with it. */
     private val setScale: (Int) -> Unit,
-    /** Runs a command in a new Linux terminal window (title, command). */
-    private val runInTerminal: (String, String) -> Unit,
 ) : ScrollView(context), WindowContent {
 
     override val view: View get() = this
@@ -62,7 +61,15 @@ class SettingsContent(
     private val gpuStatus = TextView(context)
     private val gpuButton = Button(context)
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
-    private val gpuListener: (GpuDrivers.State) -> Unit = { refreshGpu() }
+    // Only when a step starts or ends: the setup reports progress several times a second.
+    private var setupSteps: Any? = null
+    private val setupListener: (LinuxSetup.State) -> Unit = { state ->
+        val steps = state.running to state.steps
+        if (steps != setupSteps) {
+            setupSteps = steps
+            refresh()
+        }
+    }
 
     // Interface scale of the screen this window is on (declared before init, which uses them).
     private val onDesktop = UiScale.isDesktop(context)
@@ -106,10 +113,7 @@ class SettingsContent(
         column.addView(soundStatus.styled())
         soundButton.isAllCaps = false
         soundButton.setText(R.string.settings_sound_install)
-        soundButton.setOnClickListener {
-            val distro = LinuxEnv.installedDistro(context)?.id
-            runInTerminal(context.getString(R.string.settings_sound_title), SoundBridge.installCommand(distro))
-        }
+        soundButton.setOnClickListener { LinuxSetup.start(context) }
         column.addView(soundButton, wrap())
 
         // X11 programs through Xwayland.
@@ -118,10 +122,7 @@ class SettingsContent(
         column.addView(x11Status.styled())
         x11Button.isAllCaps = false
         x11Button.setText(R.string.settings_x11_install)
-        x11Button.setOnClickListener {
-            val distro = LinuxEnv.installedDistro(context)?.id
-            runInTerminal(context.getString(R.string.settings_x11_title), X11Display.installCommand(distro))
-        }
+        x11Button.setOnClickListener { LinuxSetup.start(context) }
         column.addView(x11Button, wrap())
 
         // The GPU for Linux programs (Adreno).
@@ -180,7 +181,7 @@ class SettingsContent(
 
         addView(column)
         LinuxInstaller.addListener(listener)
-        GpuDrivers.addListener(gpuListener)
+        LinuxSetup.addListener(setupListener)
         refresh()
     }
 
@@ -189,7 +190,7 @@ class SettingsContent(
 
     override fun onClosed() {
         LinuxInstaller.removeListener(listener)
-        GpuDrivers.removeListener(gpuListener)
+        LinuxSetup.removeListener(setupListener)
     }
 
     fun refresh() {
@@ -199,23 +200,25 @@ class SettingsContent(
         soundStatus.setText(
             when {
                 !linux -> R.string.apps_not_installed
+                !sound && LinuxSetup.isPending(LinuxSetup.Step.SOUND) -> R.string.settings_setup_pending
                 !sound -> R.string.settings_sound_missing
                 SoundBridge.isRunning -> R.string.settings_sound_on
                 else -> R.string.settings_sound_off
             },
         )
-        soundButton.visibility = if (linux && !sound) View.VISIBLE else View.GONE
+        soundButton.visibility = if (linux && !sound && !LinuxSetup.isRunning) View.VISIBLE else View.GONE
         val x11 = linux && X11Display.isInstalled(context)
         if (x11) X11Display.ensureRunning(context)
         x11Status.setText(
             when {
                 !linux -> R.string.apps_not_installed
+                !x11 && LinuxSetup.isPending(LinuxSetup.Step.X11) -> R.string.settings_setup_pending
                 !x11 -> R.string.settings_x11_missing
                 X11Display.isReady(context) -> R.string.settings_x11_on
                 else -> R.string.settings_x11_off
             },
         )
-        x11Button.visibility = if (linux && !x11) View.VISIBLE else View.GONE
+        x11Button.visibility = if (linux && !x11 && !LinuxSetup.isRunning) View.VISIBLE else View.GONE
         refreshGpu()
         val notifications = Notifications.isAccessGranted(context)
         notifyStatus.setText(if (notifications) R.string.notif_access_granted else R.string.notif_access_denied)
@@ -236,26 +239,24 @@ class SettingsContent(
         val distro = LinuxEnv.installedDistro(context)
         val openTerminals = TermSessions.linuxSessionCount()
         linuxStatus.text = when {
-            LinuxInstaller.isRunning -> context.getString(R.string.settings_linux_busy)
+            LinuxInstaller.isRunning || LinuxSetup.isRunning -> context.getString(R.string.settings_linux_busy)
             distro == null -> context.getString(R.string.settings_linux_none)
             else -> context.getString(R.string.linux_installed, distro.title)
         }
         removeButton.visibility = if (distro != null) View.VISIBLE else View.GONE
-        removeButton.isEnabled = distro != null && openTerminals == 0 && !LinuxInstaller.isRunning
+        removeButton.isEnabled = distro != null && openTerminals == 0 && !LinuxInstaller.isRunning && !LinuxSetup.isRunning
     }
 
     /** What the GPU section says and offers: install progress, on/off, or why it does not apply. */
     private fun refreshGpu() {
         val linux = LinuxEnv.isInstalled(context)
-        val state = GpuDrivers.state
         var button: Int? = null
         gpuStatus.text = when {
             !GpuDrivers.hasAdreno() -> context.getString(R.string.settings_gpu_no_adreno)
             !linux -> context.getString(R.string.apps_not_installed)
             !GpuDrivers.fitsDistro(context) -> context.getString(R.string.settings_gpu_distro)
             GpuDrivers.version(context) == null -> context.getString(R.string.settings_gpu_not_in_build)
-            state.phase == GpuDrivers.Phase.UNPACKING -> context.getString(R.string.settings_gpu_unpacking)
-            state.phase == GpuDrivers.Phase.LIBRARIES -> context.getString(R.string.settings_gpu_libraries)
+            LinuxSetup.isPending(LinuxSetup.Step.GPU) -> context.getString(R.string.settings_setup_pending)
             !GpuDrivers.isEnabled(context) -> {
                 button = R.string.settings_gpu_turn_on
                 context.getString(R.string.settings_gpu_off)
@@ -268,9 +269,9 @@ class SettingsContent(
                     GpuDrivers.version(context)?.substringBefore('-') ?: "",
                 )
             }
-            state.phase == GpuDrivers.Phase.FAILED -> {
+            LinuxSetup.hasFailed(LinuxSetup.Step.GPU) -> {
                 button = R.string.settings_gpu_retry
-                context.getString(R.string.settings_gpu_failed, state.error ?: "")
+                context.getString(R.string.settings_gpu_failed, LinuxSetup.state.error ?: "")
             }
             else -> {
                 button = R.string.settings_gpu_install
@@ -285,7 +286,7 @@ class SettingsContent(
         when {
             !GpuDrivers.isEnabled(context) -> GpuDrivers.setEnabled(context, true)
             GpuDrivers.isActive(context) -> GpuDrivers.setEnabled(context, false)
-            else -> GpuDrivers.install(context)
+            else -> LinuxSetup.start(context)
         }
         refreshGpu()
     }

@@ -125,7 +125,12 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         LinuxEnv.migrate(this)
 
         area = DesktopArea(this)
-        taskbar = Taskbar(this, area, onStart = { toggleStartMenu() }, onKeyboard = { area.activeWindow?.content?.requestKeyboard() })
+        taskbar = Taskbar(
+            this, area,
+            onStart = { toggleStartMenu() },
+            onKeyboard = { area.activeWindow?.content?.requestKeyboard() },
+            onSetup = { openLinuxSetup() },
+        )
         area.listener = taskbar
 
         val icons = DesktopIcons(this).apply {
@@ -326,14 +331,6 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_linux_apps), R.drawable.ic_apps))
     }
 
-    /** A Linux terminal window that runs [command] and waits for Enter before closing. */
-    private fun runInLinuxTerminal(title: String, command: String) {
-        if (!LinuxEnv.isInstalled(this)) return openLinuxSetup()
-        LinuxEnv.startServices(this)
-        val script = "$command; echo; printf '%s' '${getString(R.string.terminal_press_enter)}'; read _"
-        openTerminalWindow(TermSessions.create(this, LinuxEnv.commandSpec(this, script).copy(title = title)))
-    }
-
     private fun launchLinuxApp(app: LinuxApp, paths: List<String> = emptyList()) {
         if (app.terminal) {
             // Terminal programs (htop, mc, vim…) get a terminal window of their own.
@@ -361,7 +358,6 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             this,
             openLinuxSetup = { openLinuxSetup() },
             setScale = { setInterfaceScale(it) },
-            runInTerminal = { title, command -> runInLinuxTerminal(title, command) },
         ), getString(R.string.app_settings), R.drawable.ic_settings))
     }
 

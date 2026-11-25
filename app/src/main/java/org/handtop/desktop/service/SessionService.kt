@@ -15,13 +15,13 @@ import androidx.core.app.ServiceCompat
 import org.handtop.desktop.DesktopActivity
 import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxApps
-import org.handtop.desktop.linux.GpuDrivers
 import org.handtop.desktop.linux.LinuxInstaller
+import org.handtop.desktop.linux.LinuxSetup
 import org.handtop.desktop.term.TermSessions
 
 /**
  * Foreground service that keeps the app process — and with it the shell and Linux
- * processes — alive while terminals are open or Linux is being installed.
+ * processes — alive while terminals are open or Linux is being installed or set up.
  */
 class SessionService : Service() {
 
@@ -49,7 +49,10 @@ class SessionService : Service() {
         )
         val text = when {
             LinuxInstaller.isRunning -> getString(R.string.notif_installing)
-            GpuDrivers.isRunning -> getString(R.string.notif_gpu_installing)
+            LinuxSetup.isRunning -> LinuxSetup.state.let { setup ->
+                val step = setup.steps.getOrNull(setup.position - 1)?.first
+                getString(R.string.notif_setup, step?.let { LinuxSetup.title(this, it) } ?: "", setup.position, setup.steps.size)
+            }
             else -> getString(R.string.notif_sessions, TermSessions.hosts.size)
         }
         return Notification.Builder(this, CHANNEL_ID)
@@ -67,7 +70,7 @@ class SessionService : Service() {
         private const val TAG = "SessionService"
 
         private fun isNeeded() =
-            TermSessions.hosts.isNotEmpty() || LinuxInstaller.isRunning || GpuDrivers.isRunning ||
+            TermSessions.hosts.isNotEmpty() || LinuxInstaller.isRunning || LinuxSetup.isRunning ||
                 LinuxApps.running.isNotEmpty()
 
         /** Start, refresh or stop the service to match the current sessions / installs. */

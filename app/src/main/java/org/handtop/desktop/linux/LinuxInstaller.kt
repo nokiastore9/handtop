@@ -15,6 +15,8 @@ import java.io.InputStream
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
 /**
@@ -54,19 +56,22 @@ object LinuxInstaller {
     /** Installs [distro], replacing whatever is installed. Linux terminals must be closed. */
     fun install(context: Context, distro: Distro) = runJob(context, State(Phase.RESOLVING, distro)) { app ->
         download(app, distro)
-        // GPU drivers right away, so that the first terminal already gets them (Adreno only).
-        GpuDrivers.installIfNeeded(app)
+        // Then what Linux programs need on a phone (GPU drivers, X11, sound…), right away.
+        LinuxSetup.start(app)
         State(Phase.DONE, distro)
     }
 
     /** Deletes the root filesystem. Linux terminals must be closed. */
     fun uninstall(context: Context) = runJob(context, State(Phase.REMOVING)) { app ->
+        onMain { LinuxEnv.stopServices(app) }
         FileTrees.delete(LinuxEnv.rootfs(app))
         State(Phase.IDLE)
     }
 
     private fun runJob(context: Context, first: State, job: (Context) -> State) {
-        if (isRunning) return
+        // The setup installs packages into the system this would replace or remove.
+        if (isRunning || LinuxSetup.isRunning) return
+        LinuxSetup.reset()
         val app = context.applicationContext
         publish(first, app)
         Thread({
@@ -156,6 +161,7 @@ object LinuxInstaller {
         publish(State(Phase.CONFIGURING, distro), app)
         configure(rootfs)
         val current = LinuxEnv.rootfs(app)
+        onMain { LinuxEnv.stopServices(app) }
         FileTrees.delete(current)
         if (!rootfs.renameTo(current)) throw IOException("Cannot move $rootfs to $current")
         LinuxEnv.writeMarker(app, distro, layers.map { it.digest })
@@ -177,6 +183,19 @@ object LinuxInstaller {
         // World-writable sticky /tmp, also bound as /dev/shm.
         val tmp = File(rootfs, "tmp").apply { mkdirs() }
         Os.chmod(tmp.path, 0x3FF) // 01777
+    }
+
+    /** Runs [block] on the main thread and waits for it (from the installer's thread). */
+    private fun onMain(block: () -> Unit) {
+        val done = CountDownLatch(1)
+        main.post {
+            try {
+                block()
+            } finally {
+                done.countDown()
+            }
+        }
+        done.await(10, TimeUnit.SECONDS)
     }
 
     private fun writeFile(file: File, text: String) {

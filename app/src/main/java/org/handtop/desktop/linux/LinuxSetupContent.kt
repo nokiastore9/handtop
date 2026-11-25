@@ -20,7 +20,10 @@ import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
 
-/** Window that installs (or replaces) the Linux environment and shows the progress. */
+/**
+ * Window that installs (or replaces) the Linux environment and shows the progress, including
+ * the setup that follows ([LinuxSetup]: GPU drivers, X11, sound…).
+ */
 @SuppressLint("ViewConstructor")
 class LinuxSetupContent(
     context: Context,
@@ -38,7 +41,9 @@ class LinuxSetupContent(
     private val progress = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal)
     private val status = TextView(context)
     private val installButton = Button(context)
+    private val setupProgress = SetupProgressView(context)
     private val listener: (LinuxInstaller.State) -> Unit = { render() }
+    private val setupListener: (LinuxSetup.State) -> Unit = { render() }
 
     init {
         setBackgroundColor(0xFF0F1420.toInt())
@@ -47,6 +52,10 @@ class LinuxSetupContent(
             setPadding(dpi(22), dpi(18), dpi(22), dpi(20))
         }
         column.addView(label(R.string.linux_setup_heading, 20f, Palette.TEXT))
+        // What is going on now comes first: the setup that follows an installation.
+        column.addView(setupProgress, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+        ).apply { topMargin = dpi(12) })
         column.addView(label(R.string.linux_setup_intro, 14f, Palette.TEXT_DIM).apply {
             setPadding(0, dpi(10), 0, dpi(14))
         })
@@ -99,6 +108,7 @@ class LinuxSetupContent(
         chooser.setOnCheckedChangeListener { _, _ -> render() }
 
         LinuxInstaller.addListener(listener)
+        LinuxSetup.addListener(setupListener)
         render()
     }
 
@@ -110,6 +120,7 @@ class LinuxSetupContent(
 
     override fun onClosed() {
         LinuxInstaller.removeListener(listener)
+        LinuxSetup.removeListener(setupListener)
     }
 
     private fun selectedDistro(): Distro =
@@ -159,7 +170,8 @@ class LinuxSetupContent(
                 else -> R.string.linux_setup_install
             }
         )
-        installButton.isEnabled = !(installed != null && openTerminals > 0)
+        // Not while the setup installs packages into the system a reinstall would replace.
+        installButton.isEnabled = !(installed != null && openTerminals > 0) && !LinuxSetup.isRunning
     }
 
     private fun label(text: Int, sizeSp: Float, color: Int) = TextView(context).apply {

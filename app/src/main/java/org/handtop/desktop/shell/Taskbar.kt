@@ -21,13 +21,18 @@ import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
 
-/** Bottom panel: start button, one button per open window, keyboard button and status / clock. */
+/**
+ * Bottom panel: start button, one button per open window, the Linux setup while it runs,
+ * keyboard button and status / clock.
+ */
 @SuppressLint("ViewConstructor")
 class Taskbar(
     context: Context,
     private val area: DesktopArea,
     private val onStart: (View) -> Unit,
     private val onKeyboard: () -> Unit,
+    /** Opens the Linux System window (from the Linux setup's item). */
+    private val onSetup: () -> Unit,
 ) : LinearLayout(context), DesktopArea.Listener {
 
     val startButton: ImageButton
@@ -50,6 +55,8 @@ class Taskbar(
             addView(strip, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
         }
         addView(scroller, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+
+        addView(SetupIndicator(context) { onSetup() }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
 
         addView(iconButton(R.drawable.ic_keyboard, R.string.action_keyboard) { onKeyboard() },
             LayoutParams(dpi(48), LayoutParams.MATCH_PARENT))
