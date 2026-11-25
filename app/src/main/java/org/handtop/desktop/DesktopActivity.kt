@@ -190,7 +190,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         keepScreenOn(ScreenKeeper.active)
         wayland.mappedToplevels().forEach { toplevelMapped(it) }
         // Re-created after changing the scale: keep the Settings window where the user was.
-        if (savedInstanceState?.getBoolean(STATE_SETTINGS_OPEN) == true) openSettings()
+        if (savedInstanceState?.getBoolean(STATE_SETTINGS_OPEN) == true) openSettings(onPage = true)
 
         requestNotificationPermission()
     }
@@ -454,13 +454,14 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_files), R.drawable.ic_files))
     }
 
-    private fun openSettings() {
+    private fun openSettings(onPage: Boolean = false) {
         area.windows.firstOrNull { it.content is SettingsContent }?.let { area.activate(it); return }
         area.addWindow(DesktopWindow(this, area, SettingsContent(
             this,
             openLinuxSetup = { openLinuxSetup() },
             setScale = { setInterfaceScale(it) },
             openWallpapers = { openWallpapers() },
+            startOnPage = onPage,
         ), getString(R.string.app_settings), R.drawable.ic_settings))
     }
 

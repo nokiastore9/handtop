@@ -10,8 +10,11 @@ import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import android.widget.Button
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -35,7 +38,22 @@ import org.handtop.desktop.ui.selectableBackground
 import kotlin.math.roundToInt
 import org.handtop.desktop.wm.WindowContent
 
-/** HandTop settings: interface scale, phone storage for Linux, Android's process limit, Linux. */
+/** The groups of [SettingsContent], in the order the list shows them. */
+enum class SettingsCategory(@param:DrawableRes val icon: Int, @param:StringRes val title: Int) {
+    DISPLAY(R.drawable.ic_display, R.string.settings_cat_display),
+    DESKTOP(R.drawable.ic_home, R.string.settings_cat_desktop),
+    NOTIFICATIONS(R.drawable.ic_bell, R.string.settings_cat_notifications),
+    LINUX(R.drawable.ic_linux, R.string.settings_cat_linux),
+    GRAPHICS(R.drawable.ic_chip, R.string.settings_cat_graphics),
+    ANDROID(R.drawable.ic_phone, R.string.settings_cat_android),
+}
+
+/**
+ * HandTop settings, in categories ([SettingsCategory]). A wide window shows the categories on
+ * the left and the chosen one on the right; a narrow one (a phone) shows the list, then one
+ * category with a way back. The last category stays chosen, also after the interface scale
+ * rebuilds the desktop.
+ */
 @SuppressLint("ViewConstructor")
 class SettingsContent(
     context: Context,
@@ -43,7 +61,9 @@ class SettingsContent(
     /** Saves a new interface scale (percent) and rebuilds the desktop with it. */
     private val setScale: (Int) -> Unit,
     private val openWallpapers: () -> Unit,
-) : ScrollView(context), WindowContent {
+    /** Open on the last category's page even in a narrow window (back after a scale change). */
+    private val startOnPage: Boolean = false,
+) : LinearLayout(context), WindowContent {
 
     override val view: View get() = this
 
@@ -80,134 +100,272 @@ class SettingsContent(
     private val currentScale = UiScale.percent(context, onDesktop)
     private val systemDpi = UiScale.systemDpi(context)
 
+    // ---- categories ----
+
+    private val pages = SettingsCategory.entries.associateWith { page(it) }
+    private val categoryRows = HashMap<SettingsCategory, View>()
+    private val sidebar = LinearLayout(context).apply {
+        orientation = VERTICAL
+        setPadding(dpi(8), dpi(10), dpi(8), dpi(10))
+    }
+    private val sidebarScroll = ScrollView(context).apply {
+        setBackgroundColor(0xFF141A28.toInt())
+        addView(sidebar)
+    }
+    private val pageTitle = TextView(context)
+    private val backBar = LinearLayout(context)
+    private val pageScroll = ScrollView(context)
+    private val right = LinearLayout(context).apply { orientation = VERTICAL }
+    private var current = SettingsCategory.entries.getOrNull(prefs().getInt(KEY_CATEGORY, 0)) ?: SettingsCategory.DISPLAY
+    /** The window is too narrow for the list and a page side by side. */
+    private var narrow = false
+    /** In a narrow window: a page is shown, not the list. */
+    private var pageOpen = false
+    private var measured = false
+
     init {
+        orientation = HORIZONTAL
         setBackgroundColor(0xFF0F1420.toInt())
-        val column = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dpi(22), dpi(14), dpi(22), dpi(20))
+
+        for (category in SettingsCategory.entries) {
+            val row = categoryRow(category)
+            categoryRows[category] = row
+            sidebar.addView(row, LayoutParams(LayoutParams.MATCH_PARENT, dpi(44)).apply { bottomMargin = dpi(2) })
         }
 
-        // Interface scale: first, it is what a phone screen needs most.
-        column.addView(heading(R.string.settings_scale_title))
-        column.addView(body(R.string.settings_scale_text))
-        column.addView(scaleStatus().styled())
-        column.addView(scaleChoices(), LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-        ).apply { bottomMargin = dpi(6) })
+        // A narrow window's way back to the list: an arrow and the category's name.
+        backBar.apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpi(8), 0, dpi(14), 0)
+            background = context.selectableBackground()
+            contentDescription = context.getString(R.string.settings_all)
+            setOnClickListener {
+                pageOpen = false
+                arrange()
+            }
+            addView(ImageView(context).apply {
+                setImageResource(R.drawable.ic_arrow_back)
+                setColorFilter(Palette.TEXT)
+            }, LayoutParams(dpi(36), dpi(24)))
+            addView(pageTitle.apply {
+                textSize = 17f
+                setTextColor(Palette.TEXT)
+                setPadding(dpi(6), 0, 0, 0)
+            })
+        }
+        right.addView(backBar, LayoutParams(LayoutParams.MATCH_PARENT, dpi(48)))
+        right.addView(pageScroll, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
+        addView(sidebarScroll, LayoutParams(dpi(SIDEBAR_DP), LayoutParams.MATCH_PARENT))
+        addView(right, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
 
-        // The desktop: wallpaper and HandTop's own shortcuts.
-        column.addView(heading(R.string.settings_desktop_title))
-        column.addView(body(R.string.settings_desktop_text))
-        column.addView(wallpaperStatus.styled())
-        column.addView(LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            addView(Button(context).apply {
-                isAllCaps = false
-                setText(R.string.desktop_wallpaper)
-                setOnClickListener { openWallpapers() }
-            })
-            addView(restoreIconsButton.apply {
-                isAllCaps = false
-                setText(R.string.desktop_restore_icons)
-                setOnClickListener { Shortcuts.restoreBuiltIns(context) }
-            })
-        }, wrap())
+        // Display: the interface scale, what a phone screen needs most.
+        pages.getValue(SettingsCategory.DISPLAY).apply {
+            addView(heading(R.string.settings_scale_title))
+            addView(body(R.string.settings_scale_text))
+            addView(scaleStatus().styled())
+            addView(scaleChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
+        }
+
+        // Desktop: wallpaper and HandTop's own shortcuts.
+        pages.getValue(SettingsCategory.DESKTOP).apply {
+            addView(body(R.string.settings_desktop_text))
+            addView(wallpaperStatus.styled())
+            addView(LinearLayout(context).apply {
+                orientation = HORIZONTAL
+                addView(Button(context).apply {
+                    isAllCaps = false
+                    setText(R.string.desktop_wallpaper)
+                    setOnClickListener { openWallpapers() }
+                })
+                addView(restoreIconsButton.apply {
+                    isAllCaps = false
+                    setText(R.string.desktop_restore_icons)
+                    setOnClickListener { Shortcuts.restoreBuiltIns(context) }
+                })
+            }, wrap())
+        }
 
         // Notifications on the taskbar (HandTop hides Android's status bar).
-        column.addView(heading(R.string.notifications_title))
-        column.addView(body(R.string.settings_notif_text))
-        column.addView(notifyStatus.styled())
-        notifyHint.apply {
-            setText(R.string.notif_access_restricted)
-            textSize = 12f
-            setTextColor(Palette.TEXT_DIM)
-            setPadding(0, 0, 0, dpi(4))
+        pages.getValue(SettingsCategory.NOTIFICATIONS).apply {
+            addView(body(R.string.settings_notif_text))
+            addView(notifyStatus.styled())
+            notifyHint.apply {
+                setText(R.string.notif_access_restricted)
+                textSize = 12f
+                setTextColor(Palette.TEXT_DIM)
+                setPadding(0, 0, 0, dpi(4))
+            }
+            addView(notifyHint)
+            notifyButton.isAllCaps = false
+            notifyButton.setText(R.string.notif_access_open)
+            notifyButton.setOnClickListener { NotificationCenter.openAccessSettings(context) }
+            addView(notifyButton, wrap())
         }
-        column.addView(notifyHint)
-        notifyButton.isAllCaps = false
-        notifyButton.setText(R.string.notif_access_open)
-        notifyButton.setOnClickListener { NotificationCenter.openAccessSettings(context) }
-        column.addView(notifyButton, wrap())
 
-        // Sound from Linux programs.
-        column.addView(heading(R.string.settings_sound_title))
-        column.addView(body(R.string.settings_sound_text))
-        column.addView(soundStatus.styled())
-        soundButton.isAllCaps = false
-        soundButton.setText(R.string.settings_sound_install)
-        soundButton.setOnClickListener { LinuxSetup.start(context) }
-        column.addView(soundButton, wrap())
+        // Linux: the system itself, and the phone's storage inside it.
+        pages.getValue(SettingsCategory.LINUX).apply {
+            addView(heading(R.string.settings_linux_title))
+            addView(linuxStatus.styled())
+            addView(Button(context).apply {
+                isAllCaps = false
+                setText(R.string.settings_linux_manage)
+                setOnClickListener { openLinuxSetup() }
+            }, wrap())
+            removeButton.isAllCaps = false
+            removeButton.setText(R.string.settings_linux_remove)
+            removeButton.setOnClickListener { confirmRemove() }
+            addView(removeButton, wrap())
 
-        // X11 programs through Xwayland.
-        column.addView(heading(R.string.settings_x11_title))
-        column.addView(body(R.string.settings_x11_text))
-        column.addView(x11Status.styled())
-        x11Button.isAllCaps = false
-        x11Button.setText(R.string.settings_x11_install)
-        x11Button.setOnClickListener { LinuxSetup.start(context) }
-        column.addView(x11Button, wrap())
+            addView(heading(R.string.settings_storage_title))
+            addView(body(R.string.settings_storage_text))
+            addView(storageStatus.styled())
+            storageButton.isAllCaps = false
+            storageButton.setText(R.string.settings_storage_grant)
+            storageButton.setOnClickListener { LinuxEnv.requestStorageAccess(context) }
+            addView(storageButton, wrap())
+        }
 
-        // The GPU for Linux programs (Adreno).
-        column.addView(heading(R.string.settings_gpu_title))
-        column.addView(body(R.string.settings_gpu_text))
-        column.addView(gpuStatus.styled())
-        gpuButton.isAllCaps = false
-        gpuButton.setOnClickListener { gpuButtonClicked() }
-        column.addView(gpuButton, wrap())
+        // Graphics and sound of Linux programs: the GPU (Adreno), X11 through Xwayland, sound.
+        pages.getValue(SettingsCategory.GRAPHICS).apply {
+            addView(heading(R.string.settings_gpu_title))
+            addView(body(R.string.settings_gpu_text))
+            addView(gpuStatus.styled())
+            gpuButton.isAllCaps = false
+            gpuButton.setOnClickListener { gpuButtonClicked() }
+            addView(gpuButton, wrap())
 
-        // Phone storage.
-        column.addView(heading(R.string.settings_storage_title))
-        column.addView(body(R.string.settings_storage_text))
-        column.addView(storageStatus.styled())
-        storageButton.isAllCaps = false
-        storageButton.setText(R.string.settings_storage_grant)
-        storageButton.setOnClickListener { LinuxEnv.requestStorageAccess(context) }
-        column.addView(storageButton, wrap())
+            addView(heading(R.string.settings_x11_title))
+            addView(body(R.string.settings_x11_text))
+            addView(x11Status.styled())
+            x11Button.isAllCaps = false
+            x11Button.setText(R.string.settings_x11_install)
+            x11Button.setOnClickListener { LinuxSetup.start(context) }
+            addView(x11Button, wrap())
 
-        // Android's phantom process killer.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            column.addView(heading(R.string.settings_processes_title))
-            column.addView(body(R.string.settings_processes_text))
-            column.addView(processStatus.styled())
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                column.addView(body(R.string.settings_processes_how_14))
-                column.addView(Button(context).apply {
-                    isAllCaps = false
-                    setText(R.string.settings_processes_open)
-                    setOnClickListener { openDeveloperOptions() }
-                }, wrap())
+            addView(heading(R.string.settings_sound_title))
+            addView(body(R.string.settings_sound_text))
+            addView(soundStatus.styled())
+            soundButton.isAllCaps = false
+            soundButton.setText(R.string.settings_sound_install)
+            soundButton.setOnClickListener { LinuxSetup.start(context) }
+            addView(soundButton, wrap())
+        }
+
+        // Android: its limit on background processes (Android 12+).
+        pages.getValue(SettingsCategory.ANDROID).apply {
+            addView(heading(R.string.settings_processes_title))
+            addView(body(R.string.settings_processes_text))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                addView(processStatus.styled())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    addView(body(R.string.settings_processes_how_14))
+                    addView(Button(context).apply {
+                        isAllCaps = false
+                        setText(R.string.settings_processes_open)
+                        setOnClickListener { openDeveloperOptions() }
+                    }, wrap())
+                } else {
+                    addView(body(R.string.settings_processes_how_12))
+                    addView(TextView(context).apply {
+                        text = ADB_COMMAND
+                        typeface = android.graphics.Typeface.MONOSPACE
+                        setTextColor(Palette.TEXT)
+                        setTextIsSelectable(true)
+                        setPadding(0, dpi(4), 0, dpi(4))
+                    })
+                }
             } else {
-                column.addView(body(R.string.settings_processes_how_12))
-                column.addView(TextView(context).apply {
-                    text = ADB_COMMAND
-                    typeface = android.graphics.Typeface.MONOSPACE
-                    setTextColor(Palette.TEXT)
-                    setTextIsSelectable(true)
-                    setPadding(0, dpi(4), 0, dpi(4))
-                })
+                addView(body(R.string.settings_processes_none).apply { setTextColor(Palette.TEXT) })
             }
         }
 
-        // The Linux system.
-        column.addView(heading(R.string.settings_linux_title))
-        column.addView(linuxStatus.styled())
-        column.addView(Button(context).apply {
-            isAllCaps = false
-            setText(R.string.settings_linux_manage)
-            setOnClickListener { openLinuxSetup() }
-        }, wrap())
-        removeButton.isAllCaps = false
-        removeButton.setText(R.string.settings_linux_remove)
-        removeButton.setOnClickListener { confirmRemove() }
-        column.addView(removeButton, wrap())
-
-        addView(column)
+        show(current)
         LinuxInstaller.addListener(listener)
         LinuxSetup.addListener(setupListener)
         Wallpapers.addListener(desktopListener)
         Shortcuts.addListener(desktopListener)
         refresh()
     }
+
+    /** Shows [category] (and, in a narrow window, its page instead of the list). */
+    fun show(category: SettingsCategory) {
+        current = category
+        prefs().edit().putInt(KEY_CATEGORY, category.ordinal).apply()
+        pageScroll.removeAllViews()
+        pageScroll.addView(pages.getValue(category))
+        pageScroll.scrollTo(0, 0)
+        pageTitle.setText(category.title)
+        categoryRows.forEach { (c, row) -> styleRow(row, c == category) }
+        pageOpen = true
+        arrange()
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val now = w < dpi(NARROW_DP)
+        // Opened in a narrow window: the list first, so the categories are seen.
+        if (!measured && now && !startOnPage) pageOpen = false
+        measured = true
+        if (now != narrow || !pageOpen) {
+            narrow = now
+            post { arrange() }
+        }
+    }
+
+    /** List and page side by side, or one of them, as the width allows. */
+    private fun arrange() {
+        val showList = !narrow || !pageOpen
+        val showPage = !narrow || pageOpen
+        sidebarScroll.visibility = if (showList) VISIBLE else GONE
+        right.visibility = if (showPage) VISIBLE else GONE
+        backBar.visibility = if (narrow) VISIBLE else GONE
+        sidebarScroll.layoutParams = (sidebarScroll.layoutParams as LayoutParams).apply {
+            width = if (narrow) 0 else dpi(SIDEBAR_DP)
+            weight = if (narrow) 1f else 0f
+        }
+        // In the list of a narrow window nothing is "current": every row leads to a page.
+        categoryRows.forEach { (c, row) -> styleRow(row, !narrow && c == current) }
+        // A narrow window names the page in its bar already.
+        pages.values.forEach { it.getChildAt(0).visibility = if (narrow) GONE else VISIBLE }
+    }
+
+    private fun categoryRow(category: SettingsCategory): View = LinearLayout(context).apply {
+        orientation = HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dpi(12), 0, dpi(12), 0)
+        foreground = context.selectableBackground()
+        contentDescription = context.getString(category.title)
+        setOnClickListener { show(category) }
+        addView(ImageView(context).apply { setImageResource(category.icon) }, LayoutParams(dpi(20), dpi(20)))
+        addView(TextView(context).apply {
+            setText(category.title)
+            textSize = 15f
+            isSingleLine = true
+            setPadding(dpi(12), 0, 0, 0)
+        })
+    }
+
+    private fun styleRow(row: View, chosen: Boolean) {
+        row as LinearLayout
+        row.background = if (chosen) roundedRect(Palette.CHIP, dp(8f)) else null
+        (row.getChildAt(0) as ImageView).setColorFilter(if (chosen) Palette.ACCENT else Palette.TEXT_SOFT)
+        (row.getChildAt(1) as TextView).setTextColor(if (chosen) Palette.TEXT else Palette.TEXT_SOFT)
+    }
+
+    /** A category's page: its title, then what the init puts in. */
+    private fun page(category: SettingsCategory) = LinearLayout(context).apply {
+        orientation = VERTICAL
+        setPadding(dpi(22), dpi(14), dpi(22), dpi(20))
+        addView(TextView(context).apply {
+            setText(category.title)
+            textSize = 21f
+            setTextColor(Palette.TEXT)
+            setPadding(0, 0, 0, dpi(6))
+        })
+    }
+
+    private fun prefs() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** Called when the window is activated and when HandTop comes back from Settings. */
     override fun onActivated() = refresh()
@@ -435,6 +593,12 @@ class SettingsContent(
     )
 
     private companion object {
+        const val PREFS = "settings"
+        const val KEY_CATEGORY = "category"
+        /** Narrower than this, the list and a page take turns. */
+        const val NARROW_DP = 560
+        const val SIDEBAR_DP = 210
+
         /** Set to "false" by Developer options → "Disable child process restrictions" (Android 14+). */
         const val PHANTOM_SETTING = "settings_enable_monitor_phantom_procs"
         const val ADB_COMMAND = "adb shell device_config put activity_manager max_phantom_processes 2147483647"

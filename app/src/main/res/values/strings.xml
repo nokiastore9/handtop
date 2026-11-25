@@ -90,7 +90,14 @@
     <string name="settings_scale_desktop">DeX / monitor</string>
     <string name="settings_scale_size">%1$d×%2$d</string>
     <!-- Desktop: wallpaper and shortcuts -->
-    <string name="settings_desktop_title">Desktop</string>
+    <string name="settings_cat_display">Display</string>
+    <string name="settings_cat_desktop">Desktop</string>
+    <string name="settings_cat_notifications">Notifications</string>
+    <string name="settings_cat_linux">Linux</string>
+    <string name="settings_cat_graphics">Graphics and sound</string>
+    <string name="settings_cat_android">Android</string>
+    <string name="settings_all">All settings</string>
+    <string name="settings_processes_none">Android before version 12 sets no such limit: nothing to do here.</string>
     <string name="settings_desktop_text">Wallpaper and icons. The rest is on the desktop itself: long-press (or right-click) the wallpaper or an icon.</string>
     <string name="settings_wallpaper_current">Wallpaper: %1$s</string>
     <string name="desktop_wallpaper">Change wallpaper…</string>

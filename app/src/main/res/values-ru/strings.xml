@@ -86,7 +86,14 @@
     <string name="settings_scale_phone">телефон</string>
     <string name="settings_scale_desktop">DeX / монитор</string>
     <!-- Desktop: wallpaper and shortcuts -->
-    <string name="settings_desktop_title">Рабочий стол</string>
+    <string name="settings_cat_display">Экран</string>
+    <string name="settings_cat_desktop">Рабочий стол</string>
+    <string name="settings_cat_notifications">Уведомления</string>
+    <string name="settings_cat_linux">Linux</string>
+    <string name="settings_cat_graphics">Графика и звук</string>
+    <string name="settings_cat_android">Android</string>
+    <string name="settings_all">Все настройки</string>
+    <string name="settings_processes_none">До Android 12 такого ограничения нет: здесь ничего делать не нужно.</string>
     <string name="settings_desktop_text">Обои и значки. Остальное — на самом рабочем столе: долгое нажатие (или правый клик) по обоям или значку.</string>
     <string name="settings_wallpaper_current">Обои: %1$s</string>
     <string name="desktop_wallpaper">Сменить обои…</string>
