@@ -11,3 +11,8 @@ captures/
 *.apk
 *.aab
 native/mesa/prebuilt/
+
+# Release signing: the key and its passwords never go into git.
+keystore.properties
+*.jks
+*.keystore
