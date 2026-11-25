@@ -117,6 +117,7 @@
     <string name="theme_classic">Classic</string>
     <string name="settings_touchpad_title">Touchpad</string>
     <string name="settings_touchpad_text">The screen as a laptop touchpad, with a pointer: slide a finger to move it, tap to click, tap twice to double-click. Hold the finger still, then let go for a right click or move it to drag. Two fingers: tap for a right click, move to scroll. A long press on the taskbar\'s keyboard button turns it on and off too.</string>
+    <string name="settings_touchpad_check">Use the screen as a touchpad</string>
     <string name="settings_touchpad_on">On</string>
     <string name="settings_touchpad_off">Off</string>
     <string name="touchpad_off">Touch control again</string>

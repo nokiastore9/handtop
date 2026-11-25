@@ -113,6 +113,7 @@
     <string name="theme_classic">Классическая</string>
     <string name="settings_touchpad_title">Тачпад</string>
     <string name="settings_touchpad_text">Экран как тачпад ноутбука, с указателем: ведите пальцем — указатель двигается, касание — щелчок, два касания — двойной щелчок. Задержите палец: отпустите — правый щелчок, поведите — перетаскивание. Два пальца: касание — правый щелчок, движение — прокрутка. Включается и выключается также долгим нажатием на кнопку клавиатуры на панели задач.</string>
+    <string name="settings_touchpad_check">Экран как тачпад</string>
     <string name="settings_touchpad_on">Включён</string>
     <string name="settings_touchpad_off">Выключен</string>
     <string name="touchpad_off">Снова управление касанием</string>

@@ -10,6 +10,13 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+    <!-- Dialogs in the classic theme: dark text; HandTop gives the window a raised gray frame. -->
+    <style name="HandTop.ClassicDialog" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">#FF000080</item>
+        <item name="android:textColorPrimary">#FF000000</item>
+        <item name="android:textColorSecondary">#FF000000</item>
+    </style>
+
     <!-- Android's calendar on the classic gray panel: dark text, the classic navy for today. -->
     <style name="HandTop.ClassicCalendar" parent="@android:style/Theme.Material.Light">
         <item name="android:colorAccent">#FF000080</item>

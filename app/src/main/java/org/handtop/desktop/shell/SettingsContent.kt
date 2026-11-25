@@ -29,6 +29,15 @@ import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.styleListBox
+import org.handtop.desktop.ui.showDialog
+import org.handtop.desktop.ui.pushButton
+import org.handtop.desktop.ui.groupBox
+import org.handtop.desktop.ui.dialogBuilder
+import org.handtop.desktop.ui.choices
+import org.handtop.desktop.ui.bodyText
+import org.handtop.desktop.ui.OnOff
+import org.handtop.desktop.ui.ListRow
 import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -75,24 +84,33 @@ class SettingsContent(
     override val view: View get() = this
 
     private val storageStatus = TextView(context)
-    private val storageButton = Button(context)
+    private val storageButton = context.pushButton()
     private val processStatus = TextView(context)
     private val linuxStatus = TextView(context)
-    private val removeButton = Button(context)
+    private val removeButton = context.pushButton()
     private val notifyStatus = TextView(context)
     private val soundStatus = TextView(context)
-    private val soundButton = Button(context)
+    private val soundButton = context.pushButton()
     private val x11Status = TextView(context)
-    private val x11Button = Button(context)
+    private val x11Button = context.pushButton()
     private val notifyHint = TextView(context)
-    private val notifyButton = Button(context)
+    private val notifyButton = context.pushButton()
     private val gpuStatus = TextView(context)
     private val wallpaperStatus = TextView(context)
-    private val touchpadStatus = TextView(context)
-    private val touchpadButton = Button(context)
-    private val restoreIconsButton = Button(context)
+    private val touchpad = OnOff(
+        context,
+        checkLabel = context.getString(R.string.settings_touchpad_check),
+        statusOn = context.getString(R.string.settings_touchpad_on),
+        statusOff = context.getString(R.string.settings_touchpad_off),
+        turnOn = context.getString(R.string.settings_gpu_turn_on),
+        turnOff = context.getString(R.string.settings_gpu_turn_off),
+    ) {
+        toggleTouchpad()
+        refreshTouchpad()
+    }
+    private val restoreIconsButton = context.pushButton()
     private val desktopListener: () -> Unit = { refreshDesktop() }
-    private val gpuButton = Button(context)
+    private val gpuButton = context.pushButton()
     private val listener: (LinuxInstaller.State) -> Unit = { refresh() }
     // Only when a step starts or ends: the setup reports progress several times a second.
     private var setupSteps: Any? = null
@@ -118,7 +136,7 @@ class SettingsContent(
         setPadding(dpi(8), dpi(10), dpi(8), dpi(10))
     }
     private val sidebarScroll = ScrollView(context).apply {
-        setBackgroundColor(0xFF141A28.toInt())
+        styleListBox()
         addView(sidebar)
     }
     private val pageTitle = TextView(context)
@@ -134,7 +152,7 @@ class SettingsContent(
 
     init {
         orientation = HORIZONTAL
-        setBackgroundColor(0xFF0F1420.toInt())
+        setBackgroundColor(Palette.WINDOW_BG)
 
         for (category in SettingsCategory.entries) {
             val row = categoryRow(category)
@@ -165,143 +183,129 @@ class SettingsContent(
         }
         right.addView(backBar, LayoutParams(LayoutParams.MATCH_PARENT, dpi(48)))
         right.addView(pageScroll, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
-        addView(sidebarScroll, LayoutParams(dpi(SIDEBAR_DP), LayoutParams.MATCH_PARENT))
+        // Classic: the list is a sunken box with some gray around it.
+        addView(sidebarScroll, LayoutParams(dpi(SIDEBAR_DP), LayoutParams.MATCH_PARENT).apply {
+            if (Themes.current.bevelled) setMargins(dpi(6), dpi(6), 0, dpi(6))
+        })
         addView(right, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
 
         // Display: the interface scale, what a phone screen needs most.
         pages.getValue(SettingsCategory.DISPLAY).apply {
-            addView(heading(R.string.settings_scale_title))
-            addView(body(R.string.settings_scale_text))
-            addView(scaleStatus().styled())
-            addView(scaleChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
-
+            addView(group(R.string.settings_scale_title).apply {
+                addView(body(R.string.settings_scale_text))
+                addView(scaleStatus().styled())
+                addView(scaleChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
+            })
             // The screen as a touchpad (also: a long press on the taskbar's keyboard button).
-            addView(heading(R.string.settings_touchpad_title))
-            addView(body(R.string.settings_touchpad_text))
-            addView(touchpadStatus.styled())
-            touchpadButton.isAllCaps = false
-            touchpadButton.setOnClickListener {
-                toggleTouchpad()
-                refreshTouchpad()
-            }
-            addView(touchpadButton, wrap())
+            addView(group(R.string.settings_touchpad_title).apply {
+                addView(body(R.string.settings_touchpad_text))
+                addView(touchpad)
+            })
         }
 
-        // Desktop: wallpaper and HandTop's own shortcuts.
+        // Desktop: wallpaper and HandTop's own shortcuts, and the theme.
         pages.getValue(SettingsCategory.DESKTOP).apply {
-            addView(body(R.string.settings_desktop_text))
-            addView(wallpaperStatus.styled())
-            addView(LinearLayout(context).apply {
-                orientation = HORIZONTAL
-                addView(Button(context).apply {
-                    isAllCaps = false
-                    setText(R.string.desktop_wallpaper)
-                    setOnClickListener { openWallpapers() }
-                })
-                addView(restoreIconsButton.apply {
-                    isAllCaps = false
-                    setText(R.string.desktop_restore_icons)
-                    setOnClickListener { Shortcuts.restoreBuiltIns(context) }
-                })
-            }, wrap())
-
+            addView(context.groupBox(null).apply {
+                addView(body(R.string.settings_desktop_text))
+                addView(wallpaperStatus.styled())
+                addView(LinearLayout(context).apply {
+                    orientation = HORIZONTAL
+                    addView(context.pushButton(context.getString(R.string.desktop_wallpaper)) { openWallpapers() })
+                    addView(restoreIconsButton.apply {
+                        setText(R.string.desktop_restore_icons)
+                        setOnClickListener { Shortcuts.restoreBuiltIns(context) }
+                    }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { marginStart = dpi(6) })
+                }, wrap())
+            })
             // The look of the whole shell; switching rebuilds the desktop, as a scale change does.
-            addView(heading(R.string.settings_theme_title))
-            addView(themeChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
+            addView(group(R.string.settings_theme_title).apply {
+                addView(themeChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
+            })
         }
 
         // Notifications on the taskbar (HandTop hides Android's status bar).
         pages.getValue(SettingsCategory.NOTIFICATIONS).apply {
-            addView(body(R.string.settings_notif_text))
-            addView(notifyStatus.styled())
-            notifyHint.apply {
-                setText(R.string.notif_access_restricted)
-                textSize = 12f
-                setTextColor(Palette.TEXT_DIM)
-                setPadding(0, 0, 0, dpi(4))
-            }
-            addView(notifyHint)
-            notifyButton.isAllCaps = false
-            notifyButton.setText(R.string.notif_access_open)
-            notifyButton.setOnClickListener { NotificationCenter.openAccessSettings(context) }
-            addView(notifyButton, wrap())
+            addView(context.groupBox(null).apply {
+                addView(body(R.string.settings_notif_text))
+                addView(notifyStatus.styled())
+                notifyHint.apply {
+                    setText(R.string.notif_access_restricted)
+                    textSize = 12f
+                    setTextColor(Palette.TEXT_DIM)
+                    setPadding(0, 0, 0, dpi(4))
+                }
+                addView(notifyHint)
+                notifyButton.setText(R.string.notif_access_open)
+                notifyButton.setOnClickListener { NotificationCenter.openAccessSettings(context) }
+                addView(notifyButton, wrap())
+            })
         }
 
         // Linux: the system itself, and the phone's storage inside it.
         pages.getValue(SettingsCategory.LINUX).apply {
-            addView(heading(R.string.settings_linux_title))
-            addView(linuxStatus.styled())
-            addView(Button(context).apply {
-                isAllCaps = false
-                setText(R.string.settings_linux_manage)
-                setOnClickListener { openLinuxSetup() }
-            }, wrap())
-            removeButton.isAllCaps = false
-            removeButton.setText(R.string.settings_linux_remove)
-            removeButton.setOnClickListener { confirmRemove() }
-            addView(removeButton, wrap())
-
-            addView(heading(R.string.settings_storage_title))
-            addView(body(R.string.settings_storage_text))
-            addView(storageStatus.styled())
-            storageButton.isAllCaps = false
-            storageButton.setText(R.string.settings_storage_grant)
-            storageButton.setOnClickListener { LinuxEnv.requestStorageAccess(context) }
-            addView(storageButton, wrap())
+            addView(group(R.string.settings_linux_title).apply {
+                addView(linuxStatus.styled())
+                addView(context.pushButton(context.getString(R.string.settings_linux_manage)) { openLinuxSetup() }, wrap())
+                removeButton.setText(R.string.settings_linux_remove)
+                removeButton.setOnClickListener { confirmRemove() }
+                addView(removeButton, wrap().apply { topMargin = dpi(4) })
+            })
+            addView(group(R.string.settings_storage_title).apply {
+                addView(body(R.string.settings_storage_text))
+                addView(storageStatus.styled())
+                storageButton.setText(R.string.settings_storage_grant)
+                storageButton.setOnClickListener { LinuxEnv.requestStorageAccess(context) }
+                addView(storageButton, wrap())
+            })
         }
 
         // Graphics and sound of Linux programs: the GPU (Adreno), X11 through Xwayland, sound.
         pages.getValue(SettingsCategory.GRAPHICS).apply {
-            addView(heading(R.string.settings_gpu_title))
-            addView(body(R.string.settings_gpu_text))
-            addView(gpuStatus.styled())
-            gpuButton.isAllCaps = false
-            gpuButton.setOnClickListener { gpuButtonClicked() }
-            addView(gpuButton, wrap())
-
-            addView(heading(R.string.settings_x11_title))
-            addView(body(R.string.settings_x11_text))
-            addView(x11Status.styled())
-            x11Button.isAllCaps = false
-            x11Button.setText(R.string.settings_x11_install)
-            x11Button.setOnClickListener { LinuxSetup.start(context) }
-            addView(x11Button, wrap())
-
-            addView(heading(R.string.settings_sound_title))
-            addView(body(R.string.settings_sound_text))
-            addView(soundStatus.styled())
-            soundButton.isAllCaps = false
-            soundButton.setText(R.string.settings_sound_install)
-            soundButton.setOnClickListener { LinuxSetup.start(context) }
-            addView(soundButton, wrap())
+            addView(group(R.string.settings_gpu_title).apply {
+                addView(body(R.string.settings_gpu_text))
+                addView(gpuStatus.styled())
+                gpuButton.setOnClickListener { gpuButtonClicked() }
+                addView(gpuButton, wrap())
+            })
+            addView(group(R.string.settings_x11_title).apply {
+                addView(body(R.string.settings_x11_text))
+                addView(x11Status.styled())
+                x11Button.setText(R.string.settings_x11_install)
+                x11Button.setOnClickListener { LinuxSetup.start(context) }
+                addView(x11Button, wrap())
+            })
+            addView(group(R.string.settings_sound_title).apply {
+                addView(body(R.string.settings_sound_text))
+                addView(soundStatus.styled())
+                soundButton.setText(R.string.settings_sound_install)
+                soundButton.setOnClickListener { LinuxSetup.start(context) }
+                addView(soundButton, wrap())
+            })
         }
 
         // Android: its limit on background processes (Android 12+).
         pages.getValue(SettingsCategory.ANDROID).apply {
-            addView(heading(R.string.settings_processes_title))
-            addView(body(R.string.settings_processes_text))
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                addView(processStatus.styled())
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    addView(body(R.string.settings_processes_how_14))
-                    addView(Button(context).apply {
-                        isAllCaps = false
-                        setText(R.string.settings_processes_open)
-                        setOnClickListener { openDeveloperOptions() }
-                    }, wrap())
+            addView(group(R.string.settings_processes_title).apply {
+                addView(body(R.string.settings_processes_text))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    addView(processStatus.styled())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        addView(body(R.string.settings_processes_how_14))
+                        addView(context.pushButton(context.getString(R.string.settings_processes_open)) { openDeveloperOptions() }, wrap())
+                    } else {
+                        addView(body(R.string.settings_processes_how_12))
+                        addView(TextView(context).apply {
+                            text = ADB_COMMAND
+                            typeface = android.graphics.Typeface.MONOSPACE
+                            setTextColor(Palette.TEXT)
+                            setTextIsSelectable(true)
+                            setPadding(0, dpi(4), 0, dpi(4))
+                        })
+                    }
                 } else {
-                    addView(body(R.string.settings_processes_how_12))
-                    addView(TextView(context).apply {
-                        text = ADB_COMMAND
-                        typeface = android.graphics.Typeface.MONOSPACE
-                        setTextColor(Palette.TEXT)
-                        setTextIsSelectable(true)
-                        setPadding(0, dpi(4), 0, dpi(4))
-                    })
+                    addView(body(R.string.settings_processes_none).apply { setTextColor(Palette.TEXT) })
                 }
-            } else {
-                addView(body(R.string.settings_processes_none).apply { setTextColor(Palette.TEXT) })
-            }
+            })
         }
 
         show(current)
@@ -354,28 +358,10 @@ class SettingsContent(
         pages.values.forEach { it.getChildAt(0).visibility = if (narrow) GONE else VISIBLE }
     }
 
-    private fun categoryRow(category: SettingsCategory): View = LinearLayout(context).apply {
-        orientation = HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(dpi(12), 0, dpi(12), 0)
-        foreground = context.selectableBackground()
-        contentDescription = context.getString(category.title)
-        setOnClickListener { show(category) }
-        addView(ImageView(context).apply { setImageResource(category.icon) }, LayoutParams(dpi(20), dpi(20)))
-        addView(TextView(context).apply {
-            setText(category.title)
-            textSize = 15f
-            isSingleLine = true
-            setPadding(dpi(12), 0, 0, 0)
-        })
-    }
+    private fun categoryRow(category: SettingsCategory): View =
+        ListRow(context, category.icon, context.getString(category.title)).apply { setOnClickListener { show(category) } }
 
-    private fun styleRow(row: View, chosen: Boolean) {
-        row as LinearLayout
-        row.background = if (chosen) roundedRect(Palette.CHIP, dp(8f)) else null
-        (row.getChildAt(0) as ImageView).setColorFilter(if (chosen) Palette.ACCENT else Palette.TEXT_SOFT)
-        (row.getChildAt(1) as TextView).setTextColor(if (chosen) Palette.TEXT else Palette.TEXT_SOFT)
-    }
+    private fun styleRow(row: View, chosen: Boolean) = (row as ListRow).setChosen(chosen)
 
     /** A category's page: its title, then what the init puts in. */
     private fun page(category: SettingsCategory) = LinearLayout(context).apply {
@@ -458,9 +444,7 @@ class SettingsContent(
     }
 
     fun refreshTouchpad() {
-        val on = touchpadOn()
-        touchpadStatus.setText(if (on) R.string.settings_touchpad_on else R.string.settings_touchpad_off)
-        touchpadButton.setText(if (on) R.string.settings_gpu_turn_off else R.string.settings_gpu_turn_on)
+        touchpad.set(touchpadOn())
     }
 
     private fun refreshDesktop() {
@@ -533,14 +517,13 @@ class SettingsContent(
 
     private fun confirmRemove() {
         val distro = LinuxEnv.installedDistro(context) ?: return
-        AlertDialog.Builder(context)
-            .setTitle(R.string.settings_linux_remove)
-            .setMessage(context.getString(R.string.settings_linux_remove_confirm, distro.title))
-            .setPositiveButton(R.string.settings_linux_remove) { _, _ -> LinuxInstaller.uninstall(context) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .create()
-            .apply { window?.hideSystemBars() } // stay full screen while the dialog is open
-            .show()
+        showDialog(
+            context.dialogBuilder()
+                .setTitle(R.string.settings_linux_remove)
+                .setMessage(context.getString(R.string.settings_linux_remove_confirm, distro.title))
+                .setPositiveButton(R.string.settings_linux_remove) { _, _ -> LinuxInstaller.uninstall(context) }
+                .setNegativeButton(android.R.string.cancel, null),
+        )
     }
 
     // ---- interface scale ----
@@ -555,83 +538,36 @@ class SettingsContent(
         )
     }
 
-    /** One chip per choice: the percent and the screen size it gives, in points. */
+    /** One choice per scale: the percent and the screen size it gives, in points. */
     private fun scaleChoices(): View {
-        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         val metrics = context.resources.displayMetrics
-        for (percent in UiScale.CHOICES) {
-            val points = 160f / UiScale.scaledDpi(systemDpi, percent)
-            val selected = percent == currentScale
-            val chip = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                setPadding(dpi(12), dpi(6), dpi(12), dpi(6))
-                background = roundedRect(if (selected) Palette.ACCENT else Palette.CHIP, dp(10f))
-                foreground = context.selectableBackground()
-                isSelected = selected
-                setOnClickListener { if (!selected) setScale(percent) }
-            }
-            chip.addView(TextView(context).apply {
-                text = context.getString(R.string.status_percent, percent)
-                textSize = 15f
-                setTextColor(Palette.TEXT)
-                gravity = Gravity.CENTER
-            })
-            chip.addView(TextView(context).apply {
-                text = context.getString(
+        val choices = UiScale.CHOICES.toList()
+        return context.choices(
+            labels = choices.map { context.getString(R.string.status_percent, it) },
+            sublabels = choices.map { percent ->
+                val points = 160f / UiScale.scaledDpi(systemDpi, percent)
+                context.getString(
                     R.string.settings_scale_size,
                     (metrics.widthPixels * points).roundToInt(),
                     (metrics.heightPixels * points).roundToInt(),
                 )
-                textSize = 11f
-                setTextColor(if (selected) Palette.TEXT else Palette.TEXT_DIM)
-                gravity = Gravity.CENTER
-            })
-            row.addView(chip, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { marginEnd = dpi(6) })
-        }
-        return HorizontalScrollView(context).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(row)
-        }
+            },
+            selected = choices.indexOf(currentScale),
+        ) { setScale(choices[it]) }
     }
 
     private fun themeChoices(): View {
-        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((id, label) in listOf(ThemeId.MODERN to R.string.theme_modern, ThemeId.CLASSIC to R.string.theme_classic)) {
-            val selected = id == Themes.current.id
-            row.addView(TextView(context).apply {
-                setText(label)
-                textSize = 15f
-                setTextColor(Palette.TEXT)
-                gravity = Gravity.CENTER
-                setPadding(dpi(14), dpi(8), dpi(14), dpi(8))
-                background = roundedRect(if (selected) Palette.ACCENT else Palette.CHIP, dp(10f))
-                foreground = context.selectableBackground()
-                isSelected = selected
-                setOnClickListener { if (!selected) chooseTheme(id) }
-            }, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { marginEnd = dpi(6) })
-        }
-        return row
+        val themes = listOf(ThemeId.MODERN to R.string.theme_modern, ThemeId.CLASSIC to R.string.theme_classic)
+        return context.choices(
+            labels = themes.map { context.getString(it.second) },
+            sublabels = null,
+            selected = themes.indexOfFirst { it.first == Themes.current.id },
+        ) { chooseTheme(themes[it].first) }
     }
 
-    private fun heading(text: Int) = TextView(context).apply {
-        setText(text)
-        textSize = 17f
-        setTextColor(Palette.TEXT)
-        setPadding(0, dpi(14), 0, dpi(4))
-    }
+    private fun group(title: Int) = context.groupBox(context.getString(title))
 
-    private fun body(text: Int) = TextView(context).apply {
-        setText(text)
-        textSize = 13f
-        setTextColor(Palette.TEXT_DIM)
-        setLineSpacing(0f, 1.15f)
-        setPadding(0, 0, 0, dpi(4))
-    }
+    private fun body(text: Int) = context.bodyText(context.getString(text))
 
     private fun TextView.styled() = apply {
         textSize = 14f

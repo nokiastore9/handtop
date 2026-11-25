@@ -62,6 +62,7 @@ object ModernTheme : Theme(
     override val shadows = true
     override val tintIcons = true
     override val roundedCorners = true
+    override val bevelled = false
 
     override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
         GradientDrawable().apply {

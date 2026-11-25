@@ -69,6 +69,7 @@ object ClassicTheme : Theme(
     override val shadows = false
     override val tintIcons = false
     override val roundedCorners = false
+    override val bevelled = true
 
     override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
         context.bevel(Bevel.RAISED)

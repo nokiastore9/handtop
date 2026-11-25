@@ -82,6 +82,9 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
     abstract val tintIcons: Boolean
     abstract val roundedCorners: Boolean
 
+    /** Controls are drawn as classic 3D: raised buttons, sunken lists and fields, etched groups. */
+    abstract val bevelled: Boolean
+
     // ---- windows ----
 
     /** The frame around a window: [floating] is false when maximized or snapped to a side. */
