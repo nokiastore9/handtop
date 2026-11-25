@@ -21,6 +21,8 @@ import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
@@ -71,6 +73,11 @@ class DesktopIcons(
     private var dragStartY = 0f
     private var dropCell: Cell? = null
     private val dropPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x33FFFFFF }
+    private val dropOutline = Paint().apply {
+        color = Palette.DESKTOP_LABEL
+        style = Paint.Style.STROKE
+        strokeWidth = dp(2f)
+    }
     private val dropRect = RectF()
 
     private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
@@ -131,7 +138,8 @@ class DesktopIcons(
         item.setOnTouchListener { view, e -> itemTouch(view, shortcut, e) }
         val icon = ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
         val label = TextView(context).apply {
-            setTextColor(Palette.TEXT)
+            // On the wallpaper, whatever the theme: light text with a shadow.
+            setTextColor(Palette.DESKTOP_LABEL)
             textSize = 12f
             gravity = Gravity.CENTER
             maxLines = 2
@@ -142,18 +150,16 @@ class DesktopIcons(
         when (shortcut) {
             is Shortcut.BuiltIn -> {
                 val (drawable, name) = builtIn(shortcut.id)
-                icon.setImageResource(drawable)
+                icon.setThemedIcon(drawable)
                 label.setText(name)
             }
             is Shortcut.LinuxProgram -> {
-                icon.setImageResource(R.drawable.ic_app_generic) // until its own icon is read
-                icon.setColorFilter(Palette.TEXT_SOFT)
+                icon.setThemedIcon(R.drawable.ic_app_generic, Palette.TEXT_SOFT) // until its own icon is read
                 label.text = shortcut.name
                 loadLinuxIcon(shortcut, icon)
             }
             is Shortcut.Folder -> {
-                icon.setImageResource(R.drawable.ic_folder)
-                icon.setColorFilter(FOLDER_COLOR) // as folders look in Files
+                icon.setThemedIcon(R.drawable.ic_folder, FOLDER_COLOR) // as folders look in Files
                 label.text = shortcut.name
             }
         }
@@ -222,7 +228,11 @@ class DesktopIcons(
         val target = dropCell
         dragging = null
         dropCell = null
-        view.animate().translationX(0f).translationY(0f).translationZ(0f).alpha(1f).setDuration(120).start()
+        if (Themes.current.animations) {
+            view.animate().translationX(0f).translationY(0f).translationZ(0f).alpha(1f).setDuration(120).start()
+        } else {
+            view.translationX = 0f; view.translationY = 0f; view.translationZ = 0f; view.alpha = 1f
+        }
         invalidate()
         if (!drop || target == null || index < 0 || index >= placed.size) return
         val from = placed[index]
@@ -323,7 +333,8 @@ class DesktopIcons(
         val x = paddingLeft + cell.column * (cellWidth + gap).toFloat()
         val y = paddingTop + cell.row * (cellHeight + gap).toFloat()
         dropRect.set(x, y, x + cellWidth, y + cellHeight)
-        canvas.drawRoundRect(dropRect, dp(10f), dp(10f), dropPaint)
+        if (Themes.current.roundedCorners) canvas.drawRoundRect(dropRect, dp(10f), dp(10f), dropPaint)
+        else canvas.drawRect(dropRect, dropOutline) // classic: nothing translucent, just an outline
     }
 
     companion object {

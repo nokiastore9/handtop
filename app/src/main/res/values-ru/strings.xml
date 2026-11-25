@@ -108,8 +108,12 @@
     <string name="apps_pick_hint">Нажмите на программу, чтобы добавить её на рабочий стол</string>
     <string name="launchpad_search">Поиск программ</string>
     <string name="touchpad_on">Тачпад включён. Выключить — долгое нажатие на кнопку клавиатуры.</string>
+    <string name="settings_theme_title">Тема</string>
+    <string name="theme_modern">Современная</string>
+    <string name="theme_classic">Классическая</string>
     <string name="settings_touchpad_title">Тачпад</string>
     <string name="settings_touchpad_text">Экран как тачпад ноутбука, с указателем: ведите пальцем — указатель двигается, касание — щелчок, два касания — двойной щелчок. Задержите палец: отпустите — правый щелчок, поведите — перетаскивание. Два пальца: касание — правый щелчок, движение — прокрутка. Включается и выключается также долгим нажатием на кнопку клавиатуры на панели задач.</string>
+    <string name="settings_touchpad_check">Экран как тачпад</string>
     <string name="settings_touchpad_on">Включён</string>
     <string name="settings_touchpad_off">Выключен</string>
     <string name="touchpad_off">Снова управление касанием</string>
@@ -126,6 +130,7 @@
     <string name="wallpaper_orbits">Орбиты</string>
     <string name="wallpaper_ribbons">Ленты</string>
     <string name="wallpaper_bokeh">Боке</string>
+    <string name="wallpaper_turquoise">Бирюзовый</string>
     <string name="wallpaper_custom">Своя картинка</string>
 
     <string name="settings_sound_title">Звук</string>

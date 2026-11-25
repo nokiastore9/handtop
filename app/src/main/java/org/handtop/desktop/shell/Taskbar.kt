@@ -2,9 +2,8 @@ package org.handtop.desktop.shell
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
+import android.graphics.Typeface
+import android.graphics.drawable.InsetDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -15,6 +14,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Bevel
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
@@ -41,23 +44,23 @@ class Taskbar(
     private val onWindowButton: () -> Unit,
 ) : LinearLayout(context), DesktopArea.Listener {
 
-    val startButton: ImageButton
+    /** The start button; the start menu opens from it. */
+    val startButton: View
     private val keyboardButton: ImageButton
     private val strip = LinearLayout(context)
 
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setBackgroundColor(Palette.TASKBAR)
-        elevation = dp(12f)
+        val theme = Themes.current
+        background = theme.taskbarBackground(context)
+        elevation = if (theme.shadows) dp(12f) else 0f
 
-        startButton = iconButton(R.drawable.ic_handtop, R.string.start_menu) { onStart(it) }
-        startButton.setColorFilter(Palette.ACCENT)
-        addView(startButton, LayoutParams(dpi(52), LayoutParams.MATCH_PARENT))
+        startButton = if (theme.startLabel) labelledStartButton() else iconButton(R.drawable.ic_handtop, R.string.start_menu, Palette.ACCENT) { onStart(it) }
+        addView(startButton, LayoutParams(if (theme.startLabel) LayoutParams.WRAP_CONTENT else dpi(52), LayoutParams.MATCH_PARENT))
         // The Linux programs, as GNOME's "Show Applications".
-        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps) { onApps() }.apply {
-            setColorFilter(Palette.TEXT_SOFT)
-        }, LayoutParams(dpi(44), LayoutParams.MATCH_PARENT))
+        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps, Palette.TEXT_SOFT) { onApps() },
+            LayoutParams(dpi(44), LayoutParams.MATCH_PARENT))
 
         strip.orientation = HORIZONTAL
         strip.gravity = Gravity.CENTER_VERTICAL
@@ -76,9 +79,43 @@ class Taskbar(
             }
         }
         addView(keyboardButton, LayoutParams(dpi(48), LayoutParams.MATCH_PARENT))
+        showTouchpad(false)
 
         // HandTop runs full screen: network, battery and clock live here instead of Android's status bar.
-        addView(StatusArea(context), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+        addView(StatusArea(context).apply { background = theme.trayBackground(context) },
+            LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+    }
+
+    /** The classic start button: HandTop's mark and the word "Start", raised, pressed in while the menu is open. */
+    private fun labelledStartButton() = LinearLayout(context).apply {
+        orientation = HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        background = Themes.current.startButton(context, open = false)
+        setPadding(dpi(12), 0, dpi(10), 0)
+        contentDescription = context.getString(R.string.start_menu)
+        isFocusable = false
+        setOnClickListener { onStart(it) }
+        addView(ImageView(context).apply {
+            setImageResource(R.drawable.ic_handtop)
+            setColorFilter(Palette.ACCENT)
+        }, LayoutParams(dpi(20), dpi(20)))
+        addView(TextView(context).apply {
+            setText(R.string.start_menu)
+            setTextColor(Palette.TEXT)
+            textSize = 14f
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(dpi(6), 0, 0, 0)
+        })
+    }
+
+    /** The start menu opened or closed: the classic start button stays pressed in meanwhile. */
+    fun showStartMenu(open: Boolean) {
+        Themes.current.startButton(context, open)?.let {
+            // Keep the padding: a bevel background brings its own.
+            val l = startButton.paddingLeft; val r = startButton.paddingRight
+            startButton.background = it
+            startButton.setPadding(l, 0, r, 0)
+        }
     }
 
     /** The keyboard button is at this screen point (it stays a touch button in touchpad mode). */
@@ -90,7 +127,13 @@ class Taskbar(
 
     /** The keyboard button shows whether the touchpad is on. */
     fun showTouchpad(on: Boolean) {
-        if (on) keyboardButton.setColorFilter(Palette.ACCENT) else keyboardButton.clearColorFilter()
+        if (Themes.current.tintIcons) {
+            if (on) keyboardButton.setColorFilter(Palette.ACCENT) else keyboardButton.clearColorFilter()
+        } else {
+            // A colour icon can't change colour: the classic button stays pressed in instead.
+            keyboardButton.background = if (on) InsetDrawable(context.bevel(Bevel.PRESSED), dpi(2), dpi(5), dpi(2), dpi(5))
+            else Themes.current.toolButton(context)
+        }
     }
 
     override fun onWindowsChanged() {
@@ -103,9 +146,10 @@ class Taskbar(
         val item = LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            // The background first: a bevel brings its own padding, which would replace ours.
+            background = Themes.current.taskButton(context, isFront, w.minimized)
             setPadding(dpi(10), 0, dpi(12), 0)
-            background = itemBackground(isFront, w.minimized)
-            foreground = context.selectableBackground()
+            if (Themes.current.shadows) foreground = context.selectableBackground()
             tooltipText = w.title
             setOnClickListener {
                 onWindowButton()
@@ -114,13 +158,15 @@ class Taskbar(
         }
         val icon = ImageView(context).apply {
             val bitmap = w.iconBitmap
-            if (bitmap != null) setImageBitmap(bitmap) else setImageResource(w.iconRes)
+            if (bitmap != null) setImageBitmap(bitmap) else setThemedIcon(w.iconRes)
             alpha = if (w.minimized) 0.6f else 1f
         }
         item.addView(icon, LayoutParams(dpi(20), dpi(20)))
         val label = TextView(context).apply {
             text = w.title
-            setTextColor(if (w.minimized) Palette.TEXT_DIM else Palette.TEXT)
+            // Modern dims a minimized window's name; Classic keeps it black, gray would read as disabled.
+            setTextColor(if (w.minimized && !Themes.current.bevelled) Palette.TEXT_DISABLED else Palette.TEXT)
+            if (isFront && Themes.current.titleBold) setTypeface(typeface, Typeface.BOLD)
             textSize = 13f
             isSingleLine = true
             ellipsize = TextUtils.TruncateAt.END
@@ -129,35 +175,17 @@ class Taskbar(
         }
         item.addView(label, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
         item.layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT).apply {
-            marginStart = dpi(2)
+            marginStart = if (Themes.current.startLabel) dpi(4) else dpi(2)
         }
         return item
     }
 
-    /** Highlighted background plus a coloured underline for the front window. */
-    private fun itemBackground(front: Boolean, minimized: Boolean): android.graphics.drawable.Drawable {
-        val fill = ColorDrawable(if (front) Palette.TASKBAR_ITEM_ACTIVE else 0)
-        val bar = GradientDrawable().apply {
-            setColor(if (minimized) Palette.TEXT_DIM else Palette.TASKBAR_INDICATOR)
-            cornerRadius = dp(2f)
-        }
-        return LayerDrawable(arrayOf(fill, bar)).apply {
-            val h = dpi(3)
-            val inset = if (front) dpi(6) else dpi(14)
-            setLayerGravity(1, Gravity.BOTTOM or Gravity.FILL_HORIZONTAL)
-            setLayerHeight(1, h)
-            setLayerInsetLeft(1, inset)
-            setLayerInsetRight(1, inset)
-            setLayerInsetBottom(1, dpi(2))
-        }
-    }
-
-    private fun iconButton(icon: Int, desc: Int, onClick: (View) -> Unit) = ImageButton(context).apply {
-        setImageResource(icon)
+    private fun iconButton(icon: Int, desc: Int, tint: Int? = null, onClick: (View) -> Unit) = ImageButton(context).apply {
+        setThemedIcon(icon, tint)
         contentDescription = context.getString(desc)
         tooltipText = contentDescription
         scaleType = ImageView.ScaleType.CENTER
-        background = context.selectableBackground()
+        background = Themes.current.toolButton(context)
         isFocusable = false
         setOnClickListener(onClick)
     }

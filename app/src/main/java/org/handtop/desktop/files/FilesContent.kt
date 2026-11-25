@@ -11,6 +11,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.media.ThumbnailUtils
 import android.os.Build
 import android.os.Handler
@@ -46,6 +47,15 @@ import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.styleListBox
+import org.handtop.desktop.ui.styleField
+import org.handtop.desktop.ui.showDialog
+import org.handtop.desktop.ui.pushButton
+import org.handtop.desktop.ui.dialogBuilder
+import org.handtop.desktop.ui.bevel
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.Bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBarsOfWindow
@@ -122,7 +132,7 @@ class FilesContent(
     private val crumbs = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     private val crumbScroll = HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(crumbs) }
     private val sidebar = LinearLayout(context).apply { orientation = VERTICAL; setPadding(0, dpi(6), 0, dpi(6)) }
-    private val sidebarScroll = ScrollView(context).apply { addView(sidebar); setBackgroundColor(0xFF141A28.toInt()) }
+    private val sidebarScroll = ScrollView(context).apply { addView(sidebar); styleListBox() }
     private val list = ListView(context)
     private val message = LinearLayout(context).apply { orientation = VERTICAL; gravity = Gravity.CENTER; visibility = GONE }
     private val status = TextView(context)
@@ -131,7 +141,7 @@ class FilesContent(
 
     init {
         orientation = VERTICAL
-        setBackgroundColor(0xFF0F1420.toInt())
+        setBackgroundColor(Palette.WINDOW_BG)
         isFocusable = true
         isFocusableInTouchMode = true
         descendantFocusability = FOCUS_BEFORE_DESCENDANTS
@@ -140,11 +150,16 @@ class FilesContent(
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dpi(4), 0, dpi(4), 0)
-            setBackgroundColor(0xFF161D2C.toInt())
+            setBackgroundColor(Palette.BAR_BG)
             addView(backButton)
             addView(forwardButton)
             addView(upButton)
-            addView(crumbScroll, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { marginStart = dpi(6) })
+            // Classic: the path sits in a sunken white address box.
+            if (bevelled) crumbScroll.background = context.bevel(Bevel.SUNKEN, Palette.FIELD)
+            addView(crumbScroll, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply {
+                marginStart = dpi(6)
+                if (bevelled) setMargins(dpi(6), dpi(4), dpi(4), dpi(4))
+            })
             addView(toolButton(R.drawable.ic_more, R.string.files_menu) { v ->
                 val at = IntArray(2).also { v.getLocationOnScreen(it) }
                 folderMenu(at[0].toFloat(), at[1] + v.height.toFloat())
@@ -164,13 +179,16 @@ class FilesContent(
             true
         }
         val listArea = FrameLayout(context).apply {
+            // Classic: the files in a sunken white box.
+            if (bevelled) background = context.bevel(Bevel.SUNKEN, Palette.FIELD)
             addView(list, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
             addView(message, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         }
         val body = LinearLayout(context).apply {
             orientation = HORIZONTAL
-            addView(sidebarScroll, LayoutParams(dpi(180), LayoutParams.MATCH_PARENT))
-            addView(listArea, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+            val gap = if (bevelled) dpi(4) else 0
+            addView(sidebarScroll, LayoutParams(dpi(180), LayoutParams.MATCH_PARENT).apply { setMargins(gap, gap, 0, gap) })
+            addView(listArea, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { setMargins(gap, gap, gap, gap) })
         }
         addView(body, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
 
@@ -180,8 +198,9 @@ class FilesContent(
             isSingleLine = true
             ellipsize = TextUtils.TruncateAt.END
             gravity = Gravity.CENTER_VERTICAL
+            // Classic: a status bar with a thin sunken edge.
+            background = if (bevelled) context.bevel(Bevel.SHALLOW, Palette.BAR_BG) else ColorDrawable(Palette.BAR_BG)
             setPadding(dpi(12), 0, dpi(12), 0)
-            setBackgroundColor(0xFF161D2C.toInt())
         }
         addView(status, LayoutParams(LayoutParams.MATCH_PARENT, dpi(26)))
         navigate(dir)
@@ -288,11 +307,8 @@ class FilesContent(
             setPadding(dpi(24), 0, dpi(24), dpi(10))
         })
         if (noAccess) {
-            message.addView(Button(context).apply {
-                isAllCaps = false
-                setText(R.string.files_grant)
-                setOnClickListener { LinuxEnv.requestStorageAccess(context) }
-            }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+            message.addView(context.pushButton(context.getString(R.string.files_grant)) { LinuxEnv.requestStorageAccess(context) },
+                LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
         }
     }
 
@@ -346,20 +362,24 @@ class FilesContent(
         val current = places.filter { dir.absolutePath == it.dir.absolutePath || dir.absolutePath.startsWith(it.dir.absolutePath + "/") }
             .maxByOrNull { it.dir.absolutePath.length }
         for (place in places) {
+            val chosen = place === current
             sidebar.addView(LinearLayout(context).apply {
                 orientation = HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dpi(14), 0, dpi(10), 0)
-                background = if (place === current) roundedRect(0x334F8CFF, dp(8f)) else context.selectableBackground()
+                background = when {
+                    !chosen -> context.selectableBackground()
+                    bevelled -> ColorDrawable(Palette.SELECTION)
+                    else -> roundedRect(Palette.SELECTION, dp(8f))
+                }
                 setOnClickListener { navigate(place.dir) }
                 addView(ImageView(context).apply {
-                    setImageResource(place.icon)
-                    setColorFilter(if (place === current) Palette.ACCENT else Palette.TEXT_SOFT)
+                    setThemedIcon(place.icon, if (chosen) Palette.ACCENT else Palette.TEXT_SOFT)
                 }, LayoutParams(dpi(18), dpi(18)))
                 addView(TextView(context).apply {
                     text = place.label
                     textSize = 13f
-                    setTextColor(Palette.TEXT)
+                    setTextColor(if (chosen) Palette.SELECTION_TEXT else Palette.TEXT)
                     isSingleLine = true
                     ellipsize = TextUtils.TruncateAt.END
                     setPadding(dpi(10), 0, 0, 0)
@@ -629,8 +649,8 @@ class FilesContent(
         if (chosen.isEmpty()) return
         val question = if (chosen.size == 1) context.getString(R.string.files_delete_one, chosen.single().name)
         else context.resources.getQuantityString(R.plurals.files_delete_many, chosen.size, chosen.size)
-        dialog(
-            AlertDialog.Builder(context)
+        showDialog(
+            context.dialogBuilder()
                 .setTitle(R.string.files_delete)
                 .setMessage(question)
                 .setPositiveButton(R.string.files_delete) { _, _ ->
@@ -645,8 +665,8 @@ class FilesContent(
         // Select the name without its extension, as desktops do.
         val dot = entry.name.lastIndexOf('.').takeIf { it > 0 && !entry.isDir } ?: entry.name.length
         field.setSelection(0, dot)
-        dialog(
-            AlertDialog.Builder(context)
+        showDialog(
+            context.dialogBuilder()
                 .setTitle(R.string.files_rename)
                 .setView(padded(field))
                 .setPositiveButton(R.string.files_rename) { _, _ ->
@@ -664,8 +684,8 @@ class FilesContent(
     private fun newFolder() {
         val field = nameField(context.getString(R.string.files_new_folder_name))
         field.selectAll()
-        dialog(
-            AlertDialog.Builder(context)
+        showDialog(
+            context.dialogBuilder()
                 .setTitle(R.string.files_new_folder)
                 .setView(padded(field))
                 .setPositiveButton(R.string.files_create) { _, _ ->
@@ -715,6 +735,7 @@ class FilesContent(
     private fun nameField(text: String) = EditText(context).apply {
         setText(text)
         setSingleLine()
+        styleField()
     }
 
     private fun padded(view: View) = FrameLayout(context).apply {
@@ -722,11 +743,8 @@ class FilesContent(
         addView(view)
     }
 
-    private fun dialog(builder: AlertDialog.Builder) {
-        val dialog = builder.create()
-        dialog.setOnShowListener { dialog.window?.decorView?.hideSystemBarsOfWindow() }
-        dialog.show()
-    }
+    /** Drawn in the classic 3D style. */
+    private val bevelled get() = Themes.current.bevelled
 
     // ---- the list ----
 
@@ -782,7 +800,12 @@ class FilesContent(
             date.visibility = if (wide) VISIBLE else GONE
             if (wide) date.text = DateFormat.getDateFormat(context).format(Date(entry.modified)) + " " +
                 DateFormat.getTimeFormat(context).format(Date(entry.modified))
-            setBackgroundColor(if (entry.file in selected) 0x334F8CFF else 0)
+            val picked = entry.file in selected
+            setBackgroundColor(if (picked) Palette.SELECTION else 0)
+            name.setTextColor(if (picked) Palette.SELECTION_TEXT else Palette.TEXT)
+            val minor = if (picked && bevelled) Palette.SELECTION_TEXT else Palette.TEXT_DIM
+            size.setTextColor(minor)
+            date.setTextColor(minor)
             // Kind icon, replaced by a thumbnail for pictures and videos when there is one.
             icon.tag = entry.file.path
             val thumb = thumbnails.get(thumbKey(entry))
@@ -790,8 +813,7 @@ class FilesContent(
                 icon.clearColorFilter()
                 icon.setImageBitmap(thumb)
             } else {
-                icon.setImageResource(FileKinds.iconOf(entry.mime))
-                icon.setColorFilter(FileKinds.colorOf(entry.mime))
+                icon.setThemedIcon(FileKinds.iconOf(entry.mime), FileKinds.colorOf(entry.mime))
                 if (entry.mime.startsWith("image/") || entry.mime.startsWith("video/")) loadThumbnail(entry, icon)
             }
         }
@@ -836,11 +858,10 @@ class FilesContent(
     }
 
     private fun toolButton(icon: Int, label: Int, onClick: (View) -> Unit) = ImageButton(context).apply {
-        setImageResource(icon)
-        setColorFilter(Palette.TEXT_SOFT)
+        setThemedIcon(icon, Palette.TEXT_SOFT)
         contentDescription = context.getString(label)
         tooltipText = contentDescription
-        background = context.selectableBackground(borderless = true)
+        background = if (bevelled) Themes.current.toolButton(context) else context.selectableBackground(borderless = true)
         isFocusable = false
         setOnClickListener { onClick(it) }
         layoutParams = LayoutParams(dpi(38), dpi(38))

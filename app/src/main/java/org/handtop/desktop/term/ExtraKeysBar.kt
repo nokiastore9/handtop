@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.widget.LinearLayout
 import android.widget.TextView
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.styleKey
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
 
@@ -89,7 +90,7 @@ class ExtraKeysBar(context: Context, private val listener: Listener) : LinearLay
         gravity = Gravity.CENTER
         textSize = 13f
         setTextColor(Palette.TEXT)
-        background = context.selectableBackground()
+        styleKey()
         // Never steal focus from the terminal, otherwise the soft keyboard disconnects.
         isFocusable = false
         if (key.modifier != null) modifierViews[key.modifier] = this

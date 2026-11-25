@@ -267,6 +267,11 @@ def bokeh():
     return layers
 
 
+def turquoise():
+    """A plain colour, the classic desktop's; goes with the classic theme."""
+    return [layer(rect(), solid("#008080"))]
+
+
 WALLPAPERS = [
     ("twilight", twilight),
     ("waves", waves),
@@ -276,6 +281,7 @@ WALLPAPERS = [
     ("orbits", orbits),
     ("ribbons", ribbons),
     ("bokeh", bokeh),
+    ("turquoise", turquoise),
 ]
 
 

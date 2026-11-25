@@ -2,6 +2,8 @@ package org.handtop.desktop.wm
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Typeface
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.ColorDrawable
@@ -22,6 +24,8 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
@@ -66,7 +70,7 @@ class DesktopWindow(
     var iconBitmap: android.graphics.Bitmap? = null
         set(value) {
             field = value
-            if (value != null) iconView.setImageBitmap(value) else iconView.setImageResource(iconRes)
+            if (value != null) iconView.setImageBitmap(value) else iconView.setThemedIcon(iconRes)
             area.notifyWindowsChanged()
         }
 
@@ -77,8 +81,6 @@ class DesktopWindow(
         }
 
     private val border = dpi(3)
-    private val cornerRadius = dp(10f)
-    private val frameBackground = GradientDrawable()
     private val titleBar = LinearLayout(context)
     private val iconView = ImageView(context)
     private val titleView = TextView(context)
@@ -87,7 +89,6 @@ class DesktopWindow(
 
     init {
         orientation = VERTICAL
-        background = frameBackground
         clipToOutline = true
         // The window itself can hold focus when its content has no focusable views.
         isFocusable = true
@@ -97,7 +98,7 @@ class DesktopWindow(
         titleBar.orientation = HORIZONTAL
         titleBar.gravity = Gravity.CENTER_VERTICAL
 
-        iconView.setImageResource(iconRes)
+        iconView.setThemedIcon(iconRes)
         titleBar.addView(iconView, LayoutParams(dpi(18), dpi(18)).apply {
             marginStart = dpi(10)
             marginEnd = dpi(8)
@@ -105,14 +106,14 @@ class DesktopWindow(
 
         titleView.text = title
         titleView.textSize = 13f
+        if (Themes.current.titleBold) titleView.setTypeface(titleView.typeface, Typeface.BOLD)
         titleView.isSingleLine = true
         titleView.ellipsize = TextUtils.TruncateAt.END
         titleBar.addView(titleView, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
 
         for (action in content.titleActions) {
             val button = makeButton(action.icon, action.label, false) { action.onClick() }
-            val normal = button.background
-            val refresh = { button.background = if (action.checked) ColorDrawable(Palette.CHIP) else normal }
+            val refresh = { button.background = Themes.current.titleButton(context, close = false, checked = action.checked) }
             action.onChange = refresh
             refresh()
             titleBar.addView(button)
@@ -187,35 +188,30 @@ class DesktopWindow(
     }
 
     private fun applyStyle() {
+        val theme = Themes.current
         val floating = mode == Mode.NORMAL
-        frameBackground.setColor(if (isActiveWindow) Palette.TITLE_ACTIVE else Palette.TITLE_INACTIVE)
-        frameBackground.cornerRadius = if (floating) cornerRadius else 0f
+        background = theme.windowFrame(context, isActiveWindow, floating)
+        titleBar.background = theme.titleBar(context, isActiveWindow)
         val pad = if (floating) border else 0
         setPadding(pad, pad, pad, pad)
         titleView.setTextColor(if (isActiveWindow) Palette.TITLE_TEXT_ACTIVE else Palette.TITLE_TEXT_INACTIVE)
         iconView.alpha = if (isActiveWindow) 1f else 0.6f
-        elevation = if (isActiveWindow) dp(18f) else dp(6f)
-        maximizeButton.setImageResource(if (mode == Mode.MAXIMIZED) R.drawable.ic_win_restore else R.drawable.ic_win_maximize)
+        elevation = if (!theme.shadows) 0f else if (isActiveWindow) dp(18f) else dp(6f)
+        maximizeButton.setThemedIcon(if (mode == Mode.MAXIMIZED) R.drawable.ic_win_restore else R.drawable.ic_win_maximize)
         invalidateOutline()
     }
 
     private fun makeButton(@DrawableRes icon: Int, @StringRes desc: Int, danger: Boolean, onClick: () -> Unit) =
         ImageButton(context).apply {
-            setImageResource(icon)
+            setThemedIcon(icon)
             contentDescription = context.getString(desc)
             tooltipText = contentDescription
             scaleType = ImageView.ScaleType.CENTER
-            background = if (danger) closeButtonBackground() else context.selectableBackground()
+            background = Themes.current.titleButton(context, close = danger)
             isFocusable = false
             setOnClickListener { onClick() }
             layoutParams = LayoutParams(dpi(44), LayoutParams.MATCH_PARENT)
         }
-
-    private fun closeButtonBackground() = StateListDrawable().apply {
-        addState(intArrayOf(android.R.attr.state_pressed), ColorDrawable(Palette.CLOSE_PRESSED))
-        addState(intArrayOf(android.R.attr.state_hovered), ColorDrawable(Palette.CLOSE_HOVER))
-        addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
-    }
 
     // ---- dragging by the title bar ----
 

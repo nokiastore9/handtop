@@ -44,6 +44,7 @@ import org.handtop.desktop.shell.Launchpad
 import org.handtop.desktop.shell.Shortcut
 import org.handtop.desktop.shell.Shortcuts
 import org.handtop.desktop.shell.Taskbar
+import org.handtop.desktop.shell.StartBand
 import org.handtop.desktop.shell.Touchpad
 import org.handtop.desktop.shell.WallpaperContent
 import org.handtop.desktop.shell.WallpaperDrawable
@@ -54,7 +55,13 @@ import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.Popups
+import org.handtop.desktop.ui.ThemeId
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.applyTheme
+import org.handtop.desktop.ui.menuDivider
+import org.handtop.desktop.ui.styleMenuText
 import org.handtop.desktop.ui.UiScale
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -122,6 +129,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         recreate()
     }
 
+    /** Settings → Desktop → Theme: save it and build the desktop again in it (sessions survive). */
+    fun applyTheme(id: ThemeId) {
+        if (id == Themes.current.id) return
+        Themes.choose(this, id)
+        recreate()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_SETTINGS_OPEN, area.windows.any { it.content is SettingsContent })
@@ -129,6 +143,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The theme first: every view below takes its colours and shapes from it.
+        Themes.load(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // Exclusive full screen, drawing under the camera cutout too: the taskbar replaces
         // Android's status bar.
@@ -207,10 +223,9 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { onBack() }
         }
 
-        // Re-attach sessions that survived an activity re-creation. A new terminal only on a
-        // fresh start: re-created (a scale change, DeX) with every terminal closed, none.
-        if (TermSessions.hosts.isNotEmpty()) TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
-        else if (savedInstanceState == null) openLinuxTerminal()
+        // Re-attach sessions that survived an activity re-creation (a scale or theme change, DeX).
+        // A start opens no window by itself: the desktop comes up empty, as a desktop does.
+        TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
 
         // Linux GUI windows: same for toplevels that are already on screen.
         val wayland = WaylandServer.get(this)
@@ -466,7 +481,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     /** What is behind the launchpad goes out of focus (Android 12+; before, it is only dimmed). */
     private fun blurDesktop(blur: Boolean) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !Themes.current.blur) return
         val effect = if (blur) RenderEffect.createBlurEffect(dp(18f), dp(18f), Shader.TileMode.CLAMP) else null
         wallpaperView.setRenderEffect(effect)
         icons.setRenderEffect(effect)
@@ -501,6 +516,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             this,
             openLinuxSetup = { openLinuxSetup() },
             setScale = { setInterfaceScale(it) },
+            chooseTheme = { applyTheme(it) },
             openWallpapers = { openWallpapers() },
             touchpadOn = { touchpad.isOn },
             toggleTouchpad = { toggleTouchpad() },
@@ -525,11 +541,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         launchpad.close()
         startMenu?.let { if (it.isShowing) { it.dismiss(); return } }
 
+        val theme = Themes.current
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dpi(6), dpi(10), dpi(6), dpi(6))
+            if (theme.startMenuBand) setPadding(0, dpi(3), 0, dpi(3)) else setPadding(dpi(6), dpi(10), dpi(6), dpi(6))
         }
-        panel.addView(TextView(this).apply {
+        // Classic: HandTop's name runs up a band along the menu instead of a heading.
+        if (!theme.startMenuBand) panel.addView(TextView(this).apply {
             text = getString(R.string.app_name)
             setTextColor(Palette.TEXT)
             textSize = 18f
@@ -543,7 +561,14 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             compoundDrawablePadding = dpi(10)
             setPadding(dpi(14), dpi(4), dpi(14), dpi(10))
         })
-        val popup = PopupWindow(panel, dpi(280), WRAP_CONTENT, true)
+        val content: View = if (!theme.startMenuBand) panel else LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val edge = dpi(3)
+            setPadding(edge, edge, edge, edge)
+            addView(StartBand(context), LinearLayout.LayoutParams(dpi(26), MATCH_PARENT))
+            addView(panel, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }
+        val popup = PopupWindow(content, dpi(280), WRAP_CONTENT, true)
         fun item(@DrawableRes icon: Int, @StringRes label: Int, enabled: Boolean = true, action: () -> Unit = {}) {
             panel.addView(menuItem(icon, label, enabled) { popup.dismiss(); action() })
         }
@@ -553,14 +578,16 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         item(R.drawable.ic_files, R.string.app_files) { openFiles() }
         item(R.drawable.ic_settings, R.string.app_settings) { openSettings() }
         item(R.drawable.ic_info, R.string.app_about) { openAbout() }
-        panel.addView(View(this).apply { setBackgroundColor(Palette.MENU_DIVIDER) },
-            LinearLayout.LayoutParams(MATCH_PARENT, dpi(1)).apply { setMargins(dpi(8), dpi(6), dpi(8), dpi(6)) })
+        panel.addView(menuDivider(this),
+            LinearLayout.LayoutParams(MATCH_PARENT, theme.dividerHeight(this)).apply { setMargins(dpi(8), dpi(6), dpi(8), dpi(6)) })
         item(R.drawable.ic_power, R.string.action_exit) { exitAll() }
 
-        popup.setBackgroundDrawable(roundedRect(Palette.MENU_BG, dp(14f)))
-        popup.elevation = dp(20f)
+        popup.applyTheme(this, theme.panel(this, 14f), 20f)
         popup.isOutsideTouchable = true
-        popup.setOnDismissListener { if (startMenu === popup) startMenu = null }
+        popup.setOnDismissListener {
+            if (startMenu === popup) startMenu = null
+            taskbar.showStartMenu(false)
+        }
 
         // Open just above the taskbar, aligned with the start button.
         val loc = IntArray(2)
@@ -570,6 +597,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         Popups.track(popup)
         panel.hideSystemBarsOfWindow()
         startMenu = popup
+        taskbar.showStartMenu(true)
     }
 
     private fun menuItem(@DrawableRes icon: Int, @StringRes label: Int, enabled: Boolean, onClick: () -> Unit) =
@@ -577,20 +605,24 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dpi(14), 0, dpi(14), 0)
-            background = selectableBackground()
+            background = Themes.current.menuItemBackground(context)
             isEnabled = enabled
-            alpha = if (enabled) 1f else 0.45f
+            alpha = if (enabled || Themes.current.embossDisabled) 1f else 0.45f
             if (enabled) setOnClickListener { onClick() }
-            addView(ImageView(context).apply { setImageResource(icon) }, LinearLayout.LayoutParams(dpi(22), dpi(22)))
+            addView(ImageView(context).apply {
+                setThemedIcon(icon)
+                isDuplicateParentStateEnabled = true
+            }, LinearLayout.LayoutParams(dpi(22), dpi(22)))
             addView(TextView(context).apply {
                 setText(label)
-                setTextColor(Palette.TEXT)
+                styleMenuText(enabled)
                 textSize = 15f
                 isSingleLine = true
                 ellipsize = TextUtils.TruncateAt.END
                 setPadding(dpi(14), 0, 0, 0)
             })
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dpi(46))
+            // Classic menus are a little tighter: the whole menu fits above the taskbar on a phone.
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, if (Themes.current.startMenuBand) dpi(40) else dpi(46))
         }
 
     private companion object {

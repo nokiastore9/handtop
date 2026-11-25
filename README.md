@@ -13,6 +13,8 @@ No root required. For phones, tablets and external screens, with or without Sams
 ## What works now / Что уже работает
 
 - Desktop with wallpaper and shortcuts, taskbar with clock, start menu
+- **Themes**: Modern (dark, translucent) or Classic — gray 3D windows, menus and controls, its own
+  colour icons, no shadows, blur or animations (Settings → Desktop → Theme)
 - Windows: drag, resize (mouse cursors on the frame), minimize, maximize,
   snap to the left / right half or full screen by dragging to the edge
 - **Linux Terminal** through proot as fake root, no root needed. One-tap install of an official

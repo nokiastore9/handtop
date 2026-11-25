@@ -24,6 +24,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.handtop.desktop.R
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.styleButton
+import org.handtop.desktop.ui.bevel
+import org.handtop.desktop.ui.applyTheme
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.Bevel
 import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -102,8 +108,7 @@ class NotificationCenter(private val activity: Activity) {
         panel.addView(scroll, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
 
         val window = PopupWindow(panel, width, WRAP_CONTENT, true)
-        window.setBackgroundDrawable(roundedRect(Palette.MENU_BG, activity.dp(14f)))
-        window.elevation = activity.dp(20f)
+        window.applyTheme(activity, Themes.current.panel(activity, 14f), 20f)
         window.isOutsideTouchable = true
         window.setOnDismissListener {
             Notifications.removeListener(listener)
@@ -143,7 +148,9 @@ class NotificationCenter(private val activity: Activity) {
         val card = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dpi(10), dpi(10), dpi(4), dpi(10))
-            background = roundedRect(Palette.CARD, dp(12f))
+            // Classic: a white card with a thin sunken edge instead of a rounded tint.
+            background = if (Themes.current.roundedCorners) roundedRect(Palette.CARD, dp(12f))
+            else activity.bevel(Bevel.SHALLOW, Palette.FIELD)
             foreground = activity.selectableBackground()
             setOnClickListener {
                 popup?.dismiss()
@@ -180,7 +187,7 @@ class NotificationCenter(private val activity: Activity) {
 
         if (item.clearable) {
             card.addView(ImageButton(activity).apply {
-                setImageResource(R.drawable.ic_win_close)
+                setThemedIcon(R.drawable.ic_win_close)
                 contentDescription = activity.getString(R.string.notif_dismiss)
                 tooltipText = contentDescription
                 scaleType = ImageView.ScaleType.CENTER_INSIDE
@@ -202,6 +209,7 @@ class NotificationCenter(private val activity: Activity) {
         })
         addView(Button(activity).apply {
             isAllCaps = false
+            styleButton()
             setText(R.string.notif_access_open)
             setOnClickListener {
                 popup?.dismiss()
