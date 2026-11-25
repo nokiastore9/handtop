@@ -270,9 +270,9 @@ class DesktopIcons(
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        rows = ((b - t - paddingTop - paddingBottom + gap) / (cellHeight + gap)).coerceAtLeast(1)
+        rows = rowsFor(b - t)
         columns = ((r - l - paddingLeft - paddingRight + gap) / (cellWidth + gap)).coerceAtLeast(1)
-        placed = place()
+        placed = place(columns, rows)
         placed.forEachIndexed { i, cell ->
             val x = paddingLeft + cell.column * (cellWidth + gap)
             val y = paddingTop + cell.row * (cellHeight + gap)
@@ -280,12 +280,28 @@ class DesktopIcons(
         }
     }
 
+    private fun rowsFor(height: Int) = ((height - paddingTop - paddingBottom + gap) / (cellHeight + gap)).coerceAtLeast(1)
+
+    /**
+     * The width of the icons' block at the left when the desktop is [height] tall: up to the
+     * last of the columns that have icons from the first one on, plus a gap. An icon dragged
+     * away on its own does not count; windows may cover it.
+     */
+    fun blockWidth(height: Int): Int {
+        if (width <= 0 || shortcuts.isEmpty()) return 0
+        val columns = ((width - paddingLeft - paddingRight + gap) / (cellWidth + gap)).coerceAtLeast(1)
+        val used = place(columns, rowsFor(height)).map { it.column }.toSet()
+        var last = -1
+        while (last + 1 in used) last++
+        return if (last < 0) 0 else paddingLeft + (last + 1) * (cellWidth + gap) + dpi(16)
+    }
+
     /**
      * The cell of every shortcut: its own when it fits this screen and is free, otherwise the
      * first free one. A cell that does not fit (a smaller screen) is not forgotten: on a
      * larger screen the shortcut goes back there.
      */
-    private fun place(): List<Cell> {
+    private fun place(columns: Int, rows: Int): List<Cell> {
         val saved = Shortcuts.cells(context)
         val taken = HashSet<Cell>()
         val result = arrayOfNulls<Cell>(shortcuts.size)

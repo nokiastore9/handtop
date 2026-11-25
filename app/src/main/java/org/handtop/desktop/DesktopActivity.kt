@@ -157,6 +157,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         area.listener = taskbar
 
         icons = DesktopIcons(this, open = { openShortcut(it) }, desktopMenu = { desktopMenu() })
+        area.iconsWidth = { icons.blockWidth(it) }
         launchpad = Launchpad(
             this,
             launch = { launchLinuxApp(it) },
@@ -198,6 +199,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             column.setPadding(bars.left, bars.top, bars.right, if (imeVisible) ime.bottom else bars.bottom)
             // While typing on a phone every pixel counts: hide the taskbar.
             taskbar.visibility = if (imeVisible) View.GONE else View.VISIBLE
+            area.keyboardCover = if (imeVisible) (ime.bottom - bars.bottom - taskbar.layoutParams.height).coerceAtLeast(0) else 0
             WindowInsetsCompat.CONSUMED
         }
 
@@ -205,9 +207,10 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { onBack() }
         }
 
-        // Re-attach sessions that survived an activity re-creation; otherwise start fresh.
-        if (TermSessions.hosts.isEmpty()) openLinuxTerminal()
-        else TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
+        // Re-attach sessions that survived an activity re-creation. A new terminal only on a
+        // fresh start: re-created (a scale change, DeX) with every terminal closed, none.
+        if (TermSessions.hosts.isNotEmpty()) TermSessions.hosts.toList().forEach { openTerminalWindow(it) }
+        else if (savedInstanceState == null) openLinuxTerminal()
 
         // Linux GUI windows: same for toplevels that are already on screen.
         val wayland = WaylandServer.get(this)

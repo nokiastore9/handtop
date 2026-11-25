@@ -32,12 +32,19 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         fun onWindowsChanged()
     }
 
-    companion object {
-        /** Width of the icon column on the wallpaper (see DesktopIcons) plus a gap. */
-        const val DESKTOP_ICONS_WIDTH_DP = 124
-    }
-
     var listener: Listener? = null
+
+    /**
+     * How far from the left new windows open so they don't cover the desktop's icons, for an
+     * area of the given height (the icons fill more columns on a shorter screen).
+     */
+    var iconsWidth: (height: Int) -> Int = { 0 }
+
+    /**
+     * How much of the desktop the on-screen keyboard hides now (pixels). New windows are
+     * sized for the desktop without it: the keyboard goes away, the window stays.
+     */
+    var keyboardCover = 0
 
     private val openOrder = ArrayList<DesktopWindow>()
 
@@ -84,6 +91,56 @@ class DesktopArea(context: Context) : ViewGroup(context) {
 
     // ---- window lifecycle ----
 
+    private class Placement(
+        val window: DesktopWindow,
+        val contentWidth: Int,
+        val contentHeight: Int,
+        val parent: DesktopWindow?,
+        val cascade: Int,
+    )
+
+    /** Windows added before the area had a size (see [addWindow]). */
+    private val unplaced = ArrayList<Placement>()
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0 && h > 0 && unplaced.isNotEmpty()) {
+            unplaced.forEach { if (it.window.parent === this) place(it) }
+            unplaced.clear()
+        }
+    }
+
+    /**
+     * The first size and position of a window: sized for the desktop without the on-screen
+     * keyboard, cascading right of the desktop's icons; a dialog centered over its parent.
+     */
+    private fun place(p: Placement) {
+        val window = p.window
+        val aw = if (width > 0) width else resources.displayMetrics.widthPixels
+        val ah = if (height > 0) height + keyboardCover else resources.displayMetrics.heightPixels
+        var ww = max(min(aw, dpi(380)), (aw * 0.6f).toInt())
+        var wh = max(min(ah, dpi(260)), (ah * 0.62f).toInt())
+        if (p.contentWidth > 0 && p.contentHeight > 0) {
+            val (fw, fh) = window.frameSizeFor(p.contentWidth, p.contentHeight)
+            // Room for the title bar's buttons (a small program, e.g. a clock, gets a wider window).
+            ww = min(if (window.decorated) max(fw, minWidth) else fw, aw)
+            wh = min(fh, ah)
+        }
+        val offset = dpi(32) * (p.cascade % 6)
+        // Start right of the desktop's icons so new windows don't cover them.
+        var left = iconsWidth(ah) + offset
+        var top = dpi(24) + offset
+        if (left + ww > aw) left = max(0, aw - ww)
+        if (top + wh > ah) top = max(0, ah - wh)
+        if (p.parent != null || !window.resizable) {
+            val over = Rect()
+            if (p.parent != null && !p.parent.minimized) frameOf(p.parent, aw, ah, over) else over.set(0, 0, aw, ah)
+            left = (over.centerX() - ww / 2).coerceIn(0, max(0, aw - ww))
+            top = (over.centerY() - wh / 2).coerceIn(0, max(0, ah - wh))
+        }
+        window.bounds.set(left, top, left + ww, top + wh)
+    }
+
     /**
      * Shows [window]. With [contentWidth] / [contentHeight] (pixels) the floating window is
      * sized around that content, e.g. the size a Linux program asked for. A window with a
@@ -95,31 +152,12 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         contentHeight: Int = 0,
         parent: DesktopWindow? = null,
     ) {
-        val aw = if (width > 0) width else resources.displayMetrics.widthPixels
-        val ah = if (height > 0) height else resources.displayMetrics.heightPixels
-        var ww = max(min(aw, dpi(380)), (aw * 0.6f).toInt())
-        var wh = max(min(ah, dpi(260)), (ah * 0.62f).toInt())
-        if (contentWidth > 0 && contentHeight > 0) {
-            val (fw, fh) = window.frameSizeFor(contentWidth, contentHeight)
-            // Room for the title bar's buttons (a small program, e.g. a clock, gets a wider window).
-            ww = min(if (window.decorated) max(fw, minWidth) else fw, aw)
-            wh = min(fh, ah)
-        }
-        val offset = dpi(32) * (cascadeStep++ % 6)
-        // Start right of the desktop icon column so new windows don't cover the shortcuts.
-        var left = dpi(DESKTOP_ICONS_WIDTH_DP) + offset
-        var top = dpi(24) + offset
-        if (left + ww > aw) left = max(0, aw - ww)
-        if (top + wh > ah) top = max(0, ah - wh)
         val dialog = parent != null || !window.resizable
-        if (dialog) {
-            cascadeStep-- // dialogs don't shift the cascade of normal windows
-            val over = Rect()
-            if (parent != null && !parent.minimized) frameOf(parent, aw, ah, over) else over.set(0, 0, aw, ah)
-            left = (over.centerX() - ww / 2).coerceIn(0, max(0, aw - ww))
-            top = (over.centerY() - wh / 2).coerceIn(0, max(0, ah - wh))
-        }
-        window.bounds.set(left, top, left + ww, top + wh)
+        val placement = Placement(window, contentWidth, contentHeight, parent, if (dialog) 0 else cascadeStep++)
+        place(placement)
+        // Before the desktop's first layout (the activity is being created) its size is only
+        // guessed and the icons aren't laid out yet: place the window again once they are.
+        if (width == 0 || height == 0) unplaced += placement
         if (isCompact && !dialog) window.setMode(Mode.MAXIMIZED)
 
         openOrder += window
