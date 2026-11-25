@@ -6,10 +6,9 @@
 No root required. For phones, tablets and external screens, with or without Samsung DeX.
 
 > [!WARNING]
-> **Early version — 0.3.0 (preview).** HandTop is young and changes fast, so expect rough edges,
+> **Early version — 0.3.0 alpha.** HandTop is young and changes fast, so expect rough edges,
 > bugs and things that will be reworked. So far it has been tested on one phone, a Samsung Galaxy
-> S24 Ultra (Snapdragon 8 Gen 3). There is no ready-made APK yet: build it yourself (see
-> [Building](#building)). Ideas and bug reports are welcome.
+> S24 Ultra (Snapdragon 8 Gen 3). Ideas and bug reports are welcome.
 
 ## Vibe-coded
 
@@ -26,6 +25,16 @@ name the AI as their co-author.
 | The Linux terminal and an X11 program (htop in XTerm) | 3D on the Adreno GPU: glmark2 through Mesa Turnip + Zink |
 | ![The Classic theme](docs/screenshots/03-classic.jpg) | ![Choosing a Linux distribution](docs/screenshots/04-linux.jpg) |
 | The Classic theme | Choose a distribution: Debian, Ubuntu, Alpine, Fedora |
+
+## Install
+
+1. Download `handtop-0.3.0-alpha.apk` from [Releases](https://github.com/nokiastore9/handtop/releases).
+2. Open it on the phone. If Android asks, allow your browser or file manager to install apps.
+3. Start HandTop and tap **Linux Terminal**, choose a distribution and tap **Install**. Linux is
+   downloaded (4–68 MB) and sets itself up in a few minutes.
+
+HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs a Snapdragon
+(Adreno) GPU. On Android 12 and newer, see Settings → Android about the background process limit.
 
 ## What works now
 
@@ -69,7 +78,6 @@ name the AI as their co-author.
   scenes stop at a few hundred FPS.
 - Android 12 and newer may stop Linux processes in the background (the "phantom process killer").
   Settings → Android shows its status and how to turn it off.
-- No ready-made APK yet.
 - x86 Linux programs (box64) and Windows programs (Wine) are not supported yet.
 
 ## Version history
@@ -97,6 +105,9 @@ proot and its loader are compiled from `native/` by a Gradle task with plain NDK
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+`./gradlew assembleRelease` builds the release APK. It is signed when `keystore.properties` names a
+key (see `app/build.gradle.kts`) and left unsigned otherwise.
 
 ## License
 

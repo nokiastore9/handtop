@@ -1,11 +1,11 @@
 # Version history
 
-What changed in each version of HandTop. No builds have been published yet: the dates are when
-each version was finished.
+What changed in each version of HandTop. 0.3.0 is the first version published as an APK; the
+dates of the earlier ones are when they were finished.
 
-## 0.3.0 — 2026-11-25 · early preview
+## 0.3.0 — 2026-11-25 · alpha
 
-The first version meant to be shown publicly. Everything since 0.2.0:
+The first version meant to be shown publicly, published as a signed APK. Everything since 0.2.0:
 
 ### Linux programs in windows
 
@@ -71,6 +71,8 @@ The first version meant to be shown publicly. Everything since 0.2.0:
 - Windows keep their size after the on-screen keyboard closes, and open beside the desktop
   icons instead of over them.
 - No Linux terminal opens by itself when HandTop starts.
+- The Linux setup window keeps its Install button in view at any window size, and asks before
+  reinstalling.
 
 ## 0.2.0 — 2026-11-24
 
