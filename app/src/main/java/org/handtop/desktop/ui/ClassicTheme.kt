@@ -1,5 +1,11 @@
 package org.handtop.desktop.ui
 
+import android.content.Context
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.StateListDrawable
+
 /**
  * The classic look: gray bevelled 3D surfaces, a blue title on the active window, black
  * text, white sunken lists. Nothing translucent, no shadows, no blur, no animations.
@@ -58,6 +64,29 @@ object ClassicTheme : Theme(
     override val shadows = false
     override val tintIcons = false
     override val roundedCorners = false
+
+    override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
+        context.bevel(Bevel.RAISED)
+
+    override fun titleBar(context: Context, active: Boolean): Drawable? = GradientDrawable(
+        GradientDrawable.Orientation.LEFT_RIGHT,
+        if (active) intArrayOf(colors.titleActive, colors.titleActiveEnd)
+        else intArrayOf(colors.titleInactive, colors.titleInactiveEnd),
+    )
+
+    /**
+     * A raised gray square in the middle of the button's slot: the slot keeps its touch size,
+     * the square has the classic proportions.
+     */
+    override fun titleButton(context: Context, close: Boolean, checked: Boolean): Drawable {
+        val states = StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), context.bevel(Bevel.PRESSED))
+            addState(intArrayOf(), context.bevel(if (checked) Bevel.PRESSED else Bevel.RAISED))
+        }
+        return InsetDrawable(states, context.dpi(8), context.dpi(6), context.dpi(8), context.dpi(6))
+    }
+
+    override val titleBold = true
 }
 
 private const val FACE = 0xFFC0C0C0.toInt()

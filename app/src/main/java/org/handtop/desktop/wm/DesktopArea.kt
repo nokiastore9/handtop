@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_BOTTOM
@@ -86,7 +87,7 @@ class DesktopArea(context: Context) : ViewGroup(context) {
     private val previewStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Palette.SNAP_PREVIEW_STROKE
         style = Paint.Style.STROKE
-        strokeWidth = dp(2f)
+        strokeWidth = if (Themes.current.roundedCorners) dp(2f) else dp(3f)
     }
 
     // ---- window lifecycle ----
@@ -336,8 +337,9 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         snapPreview?.let {
             val inset = dp(6f)
             val r = RectF(it).apply { inset(inset, inset) }
-            val radius = dp(12f)
-            canvas.drawRoundRect(r, radius, radius, previewFill)
+            // Classic: just an outline, nothing translucent, no rounding.
+            val radius = if (Themes.current.roundedCorners) dp(12f) else 0f
+            if (Palette.SNAP_PREVIEW_FILL != 0) canvas.drawRoundRect(r, radius, radius, previewFill)
             canvas.drawRoundRect(r, radius, radius, previewStroke)
         }
     }

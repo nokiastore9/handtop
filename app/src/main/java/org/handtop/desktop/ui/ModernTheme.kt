@@ -1,5 +1,12 @@
 package org.handtop.desktop.ui
 
+import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
+
 /** HandTop's own dark look: translucent panels, rounded corners, shadows, blur, motion. */
 object ModernTheme : Theme(
     ThemeId.MODERN,
@@ -52,4 +59,24 @@ object ModernTheme : Theme(
     override val shadows = true
     override val tintIcons = true
     override val roundedCorners = true
+
+    override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
+        GradientDrawable().apply {
+            setColor(if (active) this@ModernTheme.colors.titleActive else this@ModernTheme.colors.titleInactive)
+            cornerRadius = if (floating) context.dp(10f) else 0f
+        }
+
+    override fun titleBar(context: Context, active: Boolean): Drawable? = null
+
+    override fun titleButton(context: Context, close: Boolean, checked: Boolean): Drawable = when {
+        close -> StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), ColorDrawable(colors.closePressed))
+            addState(intArrayOf(android.R.attr.state_hovered), ColorDrawable(colors.closeHover))
+            addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
+        }
+        checked -> ColorDrawable(colors.chip)
+        else -> context.selectableBackground() ?: ColorDrawable(Color.TRANSPARENT)
+    }
+
+    override val titleBold = false
 }

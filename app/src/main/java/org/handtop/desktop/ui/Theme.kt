@@ -1,6 +1,7 @@
 package org.handtop.desktop.ui
 
 import android.content.Context
+import android.graphics.drawable.Drawable
 
 /** The themes HandTop can wear; [key] is how the choice is stored. */
 enum class ThemeId(val key: String) {
@@ -79,6 +80,19 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
     abstract val shadows: Boolean
     abstract val tintIcons: Boolean
     abstract val roundedCorners: Boolean
+
+    // ---- windows ----
+
+    /** The frame around a window: [floating] is false when maximized or snapped to a side. */
+    abstract fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable
+
+    /** The title bar's own background, or null to let the frame show through. */
+    abstract fun titleBar(context: Context, active: Boolean): Drawable?
+
+    /** A button of the title bar: minimize, maximize, close ([close]), or a toggle that is on ([checked]). */
+    abstract fun titleButton(context: Context, close: Boolean, checked: Boolean = false): Drawable
+
+    abstract val titleBold: Boolean
 }
 
 /**
