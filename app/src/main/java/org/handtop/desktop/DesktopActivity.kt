@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -38,7 +40,7 @@ import org.handtop.desktop.linux.LinuxSetupContent
 import org.handtop.desktop.shell.AboutContent
 import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.DesktopIcons
-import org.handtop.desktop.shell.LinuxAppsContent
+import org.handtop.desktop.shell.Launchpad
 import org.handtop.desktop.shell.Shortcut
 import org.handtop.desktop.shell.Shortcuts
 import org.handtop.desktop.shell.Taskbar
@@ -79,6 +81,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private lateinit var area: DesktopArea
     private lateinit var taskbar: Taskbar
     private lateinit var wallpaper: WallpaperDrawable
+    private lateinit var icons: DesktopIcons
+    private lateinit var launchpad: Launchpad
     /** Menus and other popups of Linux windows, above every window. */
     private val popupLayer by lazy { PopupLayer(this, WaylandServer.get(this)) }
     private var startMenu: PopupWindow? = null
@@ -141,16 +145,26 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             onStart = { toggleStartMenu() },
             onKeyboard = { area.activeWindow?.content?.requestKeyboard() },
             onSetup = { openLinuxSetup() },
+            onApps = { if (launchpad.isOpen) launchpad.close() else openLinuxApps() },
+            onWindowButton = { launchpad.close() },
         )
         area.listener = taskbar
 
-        val icons = DesktopIcons(this, open = { openShortcut(it) }, desktopMenu = { desktopMenu() })
+        icons = DesktopIcons(this, open = { openShortcut(it) }, desktopMenu = { desktopMenu() })
+        launchpad = Launchpad(
+            this,
+            launch = { launchLinuxApp(it) },
+            addToDesktop = { addToDesktop(Shortcut.LinuxProgram(it.id, it.name), it.name) },
+            openLinuxSetup = { openLinuxSetup() },
+            onShown = { blurDesktop(it) },
+        )
         wallpaper = WallpaperDrawable(this, Wallpapers.current(this), follow = true)
         val desktop = FrameLayout(this).apply {
             background = wallpaper
             addView(icons, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(area, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(popupLayer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            addView(launchpad, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         }
         column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -238,7 +252,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
 
     /** Back = minimize the active window (never quit the desktop by accident). */
     private fun onBack() {
-        if (startMenu?.isShowing == true) startMenu?.dismiss()
+        if (launchpad.isOpen) launchpad.close()
+        else if (startMenu?.isShowing == true) startMenu?.dismiss()
         else area.activeWindow?.let { area.minimize(it) }
     }
 
@@ -416,20 +431,18 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     }
 
     /** The Linux apps menu window (one at a time). */
+    /** The Linux programs, full screen; with [pick], a tap puts one on the desktop. */
     private fun openLinuxApps(pick: Boolean = false) {
-        area.windows.firstOrNull { it.content is LinuxAppsContent }?.let { window ->
-            (window.content as LinuxAppsContent).picking = pick
-            area.activate(window)
-            return
-        }
-        val content = LinuxAppsContent(
-            this,
-            launch = { launchLinuxApp(it) },
-            openLinuxSetup = { openLinuxSetup() },
-            addToDesktop = { addToDesktop(Shortcut.LinuxProgram(it.id, it.name), it.name) },
-        )
-        content.picking = pick
-        area.addWindow(DesktopWindow(this, area, content, getString(R.string.app_linux_apps), R.drawable.ic_apps))
+        startMenu?.dismiss()
+        launchpad.open(pick)
+    }
+
+    /** What is behind the launchpad goes out of focus (Android 12+; before, it is only dimmed). */
+    private fun blurDesktop(blur: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val effect = if (blur) RenderEffect.createBlurEffect(dp(18f), dp(18f), Shader.TileMode.CLAMP) else null
+        area.setRenderEffect(effect)
+        icons.setRenderEffect(effect)
     }
 
     private fun launchLinuxApp(app: LinuxApp, paths: List<String> = emptyList()) {
@@ -479,6 +492,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     // ---- start menu ----
 
     private fun toggleStartMenu() {
+        launchpad.close()
         startMenu?.let { if (it.isShowing) { it.dismiss(); return } }
 
         val panel = LinearLayout(this).apply {

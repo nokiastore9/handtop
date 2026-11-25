@@ -22,8 +22,8 @@ import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
 
 /**
- * Bottom panel: start button, one button per open window, the Linux setup while it runs,
- * keyboard button and status / clock.
+ * Bottom panel: start button, the Linux programs, one button per open window, the Linux
+ * setup while it runs, keyboard button and status / clock.
  */
 @SuppressLint("ViewConstructor")
 class Taskbar(
@@ -33,6 +33,10 @@ class Taskbar(
     private val onKeyboard: () -> Unit,
     /** Opens the Linux System window (from the Linux setup's item). */
     private val onSetup: () -> Unit,
+    /** Opens or closes the Linux programs (the launchpad). */
+    private val onApps: () -> Unit,
+    /** A window's button was used (the launchpad gets out of the way). */
+    private val onWindowButton: () -> Unit,
 ) : LinearLayout(context), DesktopArea.Listener {
 
     val startButton: ImageButton
@@ -47,6 +51,10 @@ class Taskbar(
         startButton = iconButton(R.drawable.ic_handtop, R.string.start_menu) { onStart(it) }
         startButton.setColorFilter(Palette.ACCENT)
         addView(startButton, LayoutParams(dpi(52), LayoutParams.MATCH_PARENT))
+        // The Linux programs, as GNOME's "Show Applications".
+        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps) { onApps() }.apply {
+            setColorFilter(Palette.TEXT_SOFT)
+        }, LayoutParams(dpi(44), LayoutParams.MATCH_PARENT))
 
         strip.orientation = HORIZONTAL
         strip.gravity = Gravity.CENTER_VERTICAL
@@ -80,6 +88,7 @@ class Taskbar(
             foreground = context.selectableBackground()
             tooltipText = w.title
             setOnClickListener {
+                onWindowButton()
                 if (w === area.activeWindow && !w.minimized) area.minimize(w) else area.activate(w)
             }
         }

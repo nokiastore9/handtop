@@ -4,7 +4,6 @@
     <string name="app_terminal_linux">Терминал Linux</string>
     <string name="app_terminal_android">Терминал Android</string>
     <string name="app_linux_apps">Приложения Linux</string>
-    <string name="apps_search">Поиск</string>
     <string name="apps_loading">Ищу приложения…</string>
     <string name="apps_not_installed">Linux ещё не установлен.</string>
     <string name="apps_empty">Графических Linux-приложений пока нет. Установите их в терминале Linux, например:</string>
@@ -107,6 +106,8 @@
     <string name="shortcut_exists">%1$s уже на рабочем столе</string>
     <string name="shortcut_missing">Не открыть %1$s: этого больше нет</string>
     <string name="apps_pick_hint">Нажмите на программу, чтобы добавить её на рабочий стол</string>
+    <string name="launchpad_search">Поиск программ</string>
+    <string name="launchpad_nothing">Ничего не найдено по запросу «%1$s»</string>
     <string name="wallpaper_title">Обои</string>
     <string name="wallpaper_choose_image">Выбрать картинку…</string>
     <string name="wallpaper_hint">Картинка заполняет экран и обрезается по центру — и на телефоне, и в DeX.</string>
