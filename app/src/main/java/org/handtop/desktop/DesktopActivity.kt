@@ -81,6 +81,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private lateinit var area: DesktopArea
     private lateinit var taskbar: Taskbar
     private lateinit var wallpaper: WallpaperDrawable
+    /** The wallpaper as a layer of its own, so the launchpad can blur it with the rest. */
+    private lateinit var wallpaperView: View
     private lateinit var icons: DesktopIcons
     private lateinit var launchpad: Launchpad
     /** Menus and other popups of Linux windows, above every window. */
@@ -159,8 +161,9 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             onShown = { blurDesktop(it) },
         )
         wallpaper = WallpaperDrawable(this, Wallpapers.current(this), follow = true)
+        wallpaperView = View(this).apply { background = wallpaper }
         val desktop = FrameLayout(this).apply {
-            background = wallpaper
+            addView(wallpaperView, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(icons, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(area, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(popupLayer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
@@ -441,8 +444,9 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private fun blurDesktop(blur: Boolean) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
         val effect = if (blur) RenderEffect.createBlurEffect(dp(18f), dp(18f), Shader.TileMode.CLAMP) else null
-        area.setRenderEffect(effect)
+        wallpaperView.setRenderEffect(effect)
         icons.setRenderEffect(effect)
+        area.setRenderEffect(effect)
     }
 
     private fun launchLinuxApp(app: LinuxApp, paths: List<String> = emptyList()) {

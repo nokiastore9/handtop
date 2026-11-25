@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
@@ -75,7 +76,9 @@ class Launchpad(
         isClickable = true // touches do not fall through to the desktop
         isFocusable = true
         isFocusableInTouchMode = true
-        setBackgroundColor(0xD90B1023.toInt())
+        // Over a blurred desktop (Android 12+) a light veil is enough and lets its colours
+        // through; over a sharp one, the icons need a darker one to stand out.
+        setBackgroundColor(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0x990B1023.toInt() else 0xD90B1023.toInt())
 
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
