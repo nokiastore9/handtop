@@ -33,6 +33,8 @@ class ThemeColors(
     val accent: Int,
     val snapPreviewFill: Int,
     val snapPreviewStroke: Int,
+    /** A second, light line inside the preview's outline (0 for none): it shows on dark wallpapers. */
+    val snapPreviewHalo: Int,
     val closeHover: Int,
     val closePressed: Int,
     val menuBg: Int,

@@ -16,6 +16,7 @@ import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxSetup.Status
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.styleProgress
+import org.handtop.desktop.ui.styleButton
 import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.Bevel
@@ -74,6 +75,7 @@ class SetupProgressView(context: Context) : LinearLayout(context) {
         error.setPadding(0, dpi(8), 0, dpi(4))
         addView(error)
         retry.isAllCaps = false
+        retry.styleButton()
         retry.setText(R.string.setup_retry)
         retry.setOnClickListener { LinuxSetup.start(context) }
         addView(retry, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))

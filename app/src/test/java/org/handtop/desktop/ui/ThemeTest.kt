@@ -55,6 +55,25 @@ class ThemeTest {
         assertEquals(0xFFFFFFFF.toInt(), desktopLabel)
     }
 
+    /** Perceived brightness 0..1 of an ARGB colour (android.graphics.Color is a stub here). */
+    private fun brightness(argb: Int): Double {
+        val r = argb shr 16 and 0xFF
+        val g = argb shr 8 and 0xFF
+        val b = argb and 0xFF
+        return (r * 299 + g * 587 + b * 114) / 1000.0 / 255.0
+    }
+
+    @Test
+    fun classicSnapPreviewHasALightAndADarkLine() = with(ClassicTheme.colors) {
+        // Most wallpapers are dark, turquoise is mid: one light and one dark line show on both.
+        assertTrue(brightness(snapPreviewHalo) > 0.8)
+        assertTrue(brightness(snapPreviewStroke) < 0.2)
+        assertEquals(0xFF, snapPreviewHalo ushr 24)
+    }
+
+    @Test
+    fun modernSnapPreviewHasNoHalo() = assertEquals(0, ModernTheme.colors.snapPreviewHalo)
+
     @Test
     fun modernHasItsEffects() = with(ModernTheme) {
         assertTrue(animations)

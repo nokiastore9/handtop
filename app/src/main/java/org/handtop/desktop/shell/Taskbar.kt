@@ -164,7 +164,8 @@ class Taskbar(
         item.addView(icon, LayoutParams(dpi(20), dpi(20)))
         val label = TextView(context).apply {
             text = w.title
-            setTextColor(if (w.minimized) Palette.TEXT_DISABLED else Palette.TEXT)
+            // Modern dims a minimized window's name; Classic keeps it black, gray would read as disabled.
+            setTextColor(if (w.minimized && !Themes.current.bevelled) Palette.TEXT_DISABLED else Palette.TEXT)
             if (isFront && Themes.current.titleBold) setTypeface(typeface, Typeface.BOLD)
             textSize = 13f
             isSingleLine = true

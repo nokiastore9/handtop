@@ -26,6 +26,7 @@ object ModernTheme : Theme(
         accent = 0xFF4F8CFF.toInt(),
         snapPreviewFill = 0x404F8CFF,
         snapPreviewStroke = 0xB04F8CFF.toInt(),
+        snapPreviewHalo = 0,
         closeHover = 0xFFE5484D.toInt(),
         closePressed = 0xFFB3261E.toInt(),
         menuBg = 0xF51A2233.toInt(),

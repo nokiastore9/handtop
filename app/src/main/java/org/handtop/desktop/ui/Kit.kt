@@ -36,6 +36,9 @@ import kotlin.math.roundToInt
 
 private val classic: Boolean get() = Themes.current.bevelled
 
+/** The least height of anything tapped, classic controls included: they look classic, not small. */
+private const val TOUCH_DP = 44
+
 /** A section's title. */
 fun Context.heading(text: CharSequence): TextView = TextView(this).apply {
     this.text = text
@@ -73,8 +76,8 @@ fun Button.styleButton() {
     isAllCaps = false
     setTextColor(ColorStateList(arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()), intArrayOf(c.textDisabled, c.text)))
     setPadding(context.dpi(16), context.dpi(8), context.dpi(16), context.dpi(8))
-    minHeight = context.dpi(40)
-    minimumHeight = context.dpi(40)
+    minHeight = context.dpi(TOUCH_DP)
+    minimumHeight = context.dpi(TOUCH_DP)
 }
 
 /** A text field restyled for the theme (classic: sunken white, black text). */
@@ -105,6 +108,8 @@ fun android.widget.RadioButton.styleRadio() {
         addState(intArrayOf(), RadioMark(context, false))
     }
     setPadding(context.dpi(6), 0, 0, 0)
+    minHeight = context.dpi(TOUCH_DP)
+    minimumHeight = context.dpi(TOUCH_DP)
 }
 
 /** A key or a small toggle: classic draws it raised, pressed in while held. */
@@ -202,6 +207,7 @@ private fun Context.chipItem(label: CharSequence, sub: CharSequence?, chosen: Bo
 private fun Context.radioItem(label: CharSequence, sub: CharSequence?, chosen: Boolean) = LinearLayout(this).apply {
     orientation = LinearLayout.HORIZONTAL
     gravity = Gravity.CENTER_VERTICAL
+    minimumHeight = dpi(TOUCH_DP)
     setPadding(dpi(2), dpi(8), dpi(8), dpi(8))
     addView(ImageView(context).apply { setImageDrawable(RadioMark(this@radioItem, chosen)) }, LinearLayout.LayoutParams(dpi(16), dpi(16)))
     addView(TextView(context).apply {
@@ -241,6 +247,7 @@ class OnOff(
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dpi(6), 0, dpi(6))
+            minimumHeight = dpi(TOUCH_DP)
             setOnClickListener { onToggle() }
             addView(box, LayoutParams(dpi(16), dpi(16)))
             addView(TextView(context).apply {

@@ -79,6 +79,7 @@ object Palette {
     val ACCENT: Int get() = Themes.current.colors.accent
     val SNAP_PREVIEW_FILL: Int get() = Themes.current.colors.snapPreviewFill
     val SNAP_PREVIEW_STROKE: Int get() = Themes.current.colors.snapPreviewStroke
+    val SNAP_PREVIEW_HALO: Int get() = Themes.current.colors.snapPreviewHalo
     val CLOSE_HOVER: Int get() = Themes.current.colors.closeHover
     val CLOSE_PRESSED: Int get() = Themes.current.colors.closePressed
     val MENU_BG: Int get() = Themes.current.colors.menuBg

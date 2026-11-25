@@ -31,6 +31,7 @@ object ClassicTheme : Theme(
         accent = 0xFF000080.toInt(),
         snapPreviewFill = 0,
         snapPreviewStroke = 0xFF000000.toInt(),
+        snapPreviewHalo = 0xFFFFFFFF.toInt(),
         // "Dangerous" items (remove, close) are not coloured in the classic look; gray would
         // read as disabled, so they keep the normal text colour.
         closeHover = 0xFF000000.toInt(),
