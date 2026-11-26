@@ -3,7 +3,7 @@
 What changed in each version of HandTop. 0.3.0 is the first version published as an APK; the
 dates of the earlier ones are when they were finished.
 
-## Unreleased
+## 0.3.1 — 2026-11-26 · alpha
 
 ### Changes
 
