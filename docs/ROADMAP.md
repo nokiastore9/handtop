@@ -340,6 +340,29 @@ mailto, tel…) — сразу её приложению. Ярлык «Прил�
 сюда / Копировать сюда / Отмена», операция в фоне, после неё обновляются все окна «Файлов».
 Папка на рабочий стол — ярлык. Другие окна HandTop бросок глотают (ничего не делают).
 Не сделано: перетаскивание в программы Linux и из них (Wayland `wl_data_device`, X11 XDND).
+Классическая тема для программ Linux (2026-11-26, `LinuxTheme`, `tools/linux-theme`): при
+классической теме HandTop кладёт свои файлы в `/usr/local/share/handtop/classic` и задаёт
+программам переменные (только при запуске; модерн — ничего): ничего не ставится в Linux, файлы
+пользователя не трогаются, его настройки (свой ~/.gtkrc-2.0, kdeglobals, профиль) сильнее.
+- Qt 5/6: встроенная в Qt тема платформы `kde` (`QT_QPA_PLATFORMTHEME=kde`, нужна
+  `KDE_SESSION_VERSION`≥5) читает `kdeglobals` из `XDG_CONFIG_DIRS`: стиль `Windows` (встроен в
+  Qt) — `[General] widgetStyle`, палитра — `[Colors:*]`. Программы KDE Frameworks вне Plasma
+  сами ставят Breeze: им нужны `[KDE] widgetStyle` и `[UiSettings] ColorScheme` + схема
+  `HandTopClassic.colors` в `XDG_DATA_DIRS/color-schemes`. Всё генерируется из палитры оболочки.
+- GTK 2: `GTK2_RC_FILES` = свой gtkrc (обычный движок рисует объём), затем пользовательский.
+- GTK 3/4 и libadwaita: `GTK_THEME=HandTop-Classic` (на Wayland GSettings перекрывает
+  settings.ini, а `GTK_THEME` читается всегда); с ним libadwaita не грузит свои стили — тема
+  для GTK 4 сама собрана из стилей libadwaita. Темы собираются `tools/linux-theme/build.py`
+  (libsass) из исходников Adwaita GTK 3.24.52 и libadwaita (закреплены по SHA-256): своя
+  палитра, свои функции отрисовки (Adwaita вызывает их для каждого виджета и состояния), слой
+  поверх (в GTK 4 `:not(#handtop-classic)` весит как id и перебивает цепочки `:not()`
+  libadwaita), радиусы 0, анимаций нет, тёмный и контрастный варианты libadwaita вырезаны.
+  Две таблицы GTK 4: из libadwaita 1.9 (GTK 4.20+) и из 1.7 (GTK 4.18, Debian 13) — HandTop
+  выбирает по имени `libgtk-4.so.1.MM00.p`. `GTK_OVERLAY_SCROLLING=0`: полосы прокрутки видны.
+Попутно найдено и исправлено: после нажатия клавиши окно, получившее фокус, накрывалось
+подсветкой фокуса Android (белая вуаль 16 %, чёрный выглядел как 41) — отключена.
+Проверено на Ubuntu 26.04: gtk3/gtk4-widget-factory, adwaita-1-demo, qt6ct, KCalc,
+pinentry-gtk2, запуск из терминала и из меню, модерн без изменений.
 Firefox: песочницы процессов (seccomp, namespaces) несовместимы с proot (ptrace) — вкладки падали
 (SIGSEGV); `MOZ_DISABLE_*_SANDBOX=1` в окружении Linux: Firefox работает, сам Linux остаётся в
 песочнице приложения Android. Новые Firefox (161) снова роняли вкладки («Shared memory
@@ -432,7 +455,7 @@ X11) ждал до одного обновления, и программа, ж�
   «Бирюзовые».
 - Переключатель: Настройки → Рабочий стол → Тема; смена пересоздаёт экран, как смена масштаба
   (терминалы и окна Linux остаются).
-- Дальше: классическая тема и для Linux-программ (GTK/Qt), другие темы (в духе GNOME, XP).
+- Классическая тема для Linux-программ (GTK 2/3/4, libadwaita, Qt, KDE) ✔ (2026-11-26). Дальше: другие темы (в духе GNOME, XP).
   Программы, рисующие свой заголовок (GTK 4 и др.), пока сохраняют его.
 - Описание: `docs/superpowers/specs/2026-11-25-themes-design.md`, план:
   `docs/superpowers/plans/2026-11-25-themes.md`.

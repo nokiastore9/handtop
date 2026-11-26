@@ -223,6 +223,7 @@ class SettingsContent(
             })
             // The look of the whole shell; switching rebuilds the desktop, as a scale change does.
             addView(group(R.string.settings_theme_title).apply {
+                addView(body(R.string.settings_theme_text))
                 addView(themeChoices(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dpi(6) })
             })
         }

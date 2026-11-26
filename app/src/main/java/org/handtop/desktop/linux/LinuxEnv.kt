@@ -204,7 +204,7 @@ object LinuxEnv {
         WaylandServer.ensureRunning(context, rootfsDir)
         ensureProfile(rootfsDir)
         LinuxOpen.install(rootfsDir)
-        LinuxTheme.install(rootfsDir)
+        LinuxTheme.install(context, rootfsDir)
         GpuDrivers.register(context)
 
         val storage = if (hasStorageAccess()) {

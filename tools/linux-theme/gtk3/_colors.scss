@@ -1,0 +1,96 @@
+// HandTop classic palette for GTK 3 (replaces Adwaita's _colors.scss; same variable names).
+// The colours are the shell's classic theme (app/src/main/java/org/handtop/desktop/ui/ClassicTheme.kt).
+// Inactive windows ("backdrop") keep their colours, as in the shell.
+
+// The four edges of a classic bevel.
+$classic_light: #ffffff;
+$classic_inner_light: #dfdfdf;
+$classic_shadow: #808080;
+$classic_dark_shadow: #0a0a0a;
+
+// Title bars (GTK 3 header bars stand in for them).
+$classic_title_active: #000080;
+$classic_title_active_end: #1084d0;
+$classic_title_inactive: #808080;
+$classic_title_inactive_end: #b4b4b4;
+$classic_title_text_active: #ffffff;
+$classic_title_text_inactive: #dfdfdf;
+
+$classic_tooltip: #ffffe1;
+$classic_trough: #dfdfdf;
+
+$base_color: #ffffff;
+$text_color: #000000;
+$caret_color: #000000;
+$bg_color: #c0c0c0;
+$fg_color: #000000;
+
+$selected_fg_color: #ffffff;
+$selected_bg_color: #000080;
+$selected_borders_color: #000080;
+$borders_color: $classic_shadow;
+$alt_borders_color: $classic_dark_shadow;
+$borders_edge: transparentize(white, 1);
+$link_color: #0000ff;
+$link_visited_color: #800080;
+$top_hilight: $borders_edge;
+$dark_fill: #a0a0a0;
+$headerbar_color: $classic_title_active;
+$menu_color: $bg_color;
+$popover_bg_color: $bg_color;
+$popover_hover_color: $selected_bg_color;
+
+$scrollbar_bg_color: $classic_trough;
+$scrollbar_slider_color: $bg_color;
+$scrollbar_slider_hover_color: $bg_color;
+$scrollbar_slider_active_color: $bg_color;
+
+$warning_color: #c08000;
+$error_color: #a00000;
+$success_color: #008000;
+$destructive_color: #a00000;
+
+$osd_fg_color: #ffffff;
+$osd_text_color: #ffffff;
+$osd_bg_color: transparentize(#000000, 0.2);
+$osd_insensitive_bg_color: transparentize(mix($osd_fg_color, opacify($osd_bg_color, 1), 10%), 0.5);
+$osd_insensitive_fg_color: mix($osd_fg_color, opacify($osd_bg_color, 1), 50%);
+$osd_borders_color: transparentize(black, 0.3);
+
+$sidebar_bg_color: $base_color;
+$base_hover_color: transparentize($fg_color, 1);
+
+$tooltip_borders_color: #000000;
+$shadow_color: transparentize(black, 1);
+
+$drop_target_color: $selected_bg_color;
+
+//insensitive state derived colors
+$insensitive_fg_color: $classic_shadow;
+$insensitive_bg_color: $bg_color;
+$insensitive_borders_color: $borders_color;
+
+//colors for the backdrop state: as in the normal state
+$backdrop_base_color: $base_color;
+$backdrop_text_color: $text_color;
+$backdrop_bg_color: $bg_color;
+$backdrop_fg_color: $fg_color;
+$backdrop_insensitive_color: $insensitive_fg_color;
+$backdrop_selected_fg_color: $selected_fg_color;
+$backdrop_borders_color: $borders_color;
+$backdrop_dark_fill: $dark_fill;
+$backdrop_sidebar_bg_color: $sidebar_bg_color;
+
+$backdrop_scrollbar_bg_color: $scrollbar_bg_color;
+$backdrop_scrollbar_slider_color: $scrollbar_slider_color;
+
+$backdrop_menu_color: $menu_color;
+
+//special cased widget colors
+$suggested_bg_color: $bg_color;
+$suggested_border_color: $classic_dark_shadow;
+$progress_bg_color: $selected_bg_color;
+$progress_border_color: $selected_bg_color;
+$checkradio_bg_color: $base_color;
+$checkradio_fg_color: $text_color;
+$checkradio_borders_color: $borders_color;

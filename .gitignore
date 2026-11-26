@@ -16,3 +16,6 @@ native/mesa/prebuilt/
 keystore.properties
 *.jks
 *.keystore
+
+# Linux theme build cache (tools/linux-theme/build.py)
+tools/linux-theme/.cache/

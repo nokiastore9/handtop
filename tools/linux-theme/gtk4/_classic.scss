@@ -1,0 +1,322 @@
+// HandTop classic layer for GTK 4 and libadwaita, after libadwaita's rules.
+//
+// libadwaita styles most widgets through long chains of :not() classes. ":not(#handtop-classic)"
+// (an id no widget has) weighs like an id, so a rule with it wins over any class chain for the
+// properties it sets, whatever libadwaita's selector looks like.
+//
+// Bevels are inset box-shadows only, two pixels each: they change no sizes.
+
+$c: ':not(#handtop-classic)';
+
+$_light: #ffffff;
+$_inner_light: #dfdfdf;
+$_shadow: #808080;
+$_dark: #0a0a0a;
+$_face: #c0c0c0;
+$_field: #ffffff;
+$_text: #000000;
+$_disabled: #808080;
+$_selection: #000080;
+$_selection_text: #ffffff;
+$_trough: #dfdfdf;
+$_tooltip: #ffffe1;
+
+$raised: inset 1px 1px $_light, inset -1px -1px $_dark, inset 2px 2px $_inner_light, inset -2px -2px $_shadow;
+$pressed: inset 1px 1px $_dark, inset -1px -1px $_light, inset 2px 2px $_shadow, inset -2px -2px $_inner_light;
+$sunken: inset 1px 1px $_shadow, inset -1px -1px $_light, inset 2px 2px $_dark, inset -2px -2px $_inner_light;
+$raised_thin: inset 1px 1px $_light, inset -1px -1px $_shadow;
+$sunken_thin: inset 1px 1px $_shadow, inset -1px -1px $_light;
+
+@mixin disabled_text() {
+  color: $_disabled;
+  text-shadow: 1px 1px $_light;
+  -gtk-icon-shadow: 1px 1px $_light;
+  filter: none;
+}
+
+// ---- buttons: gray and raised, pushed in while pressed or on ----
+
+button#{$c} {
+  color: $_text;
+  background-color: $_face;
+  background-image: none;
+  box-shadow: $raised;
+  border-radius: 0;
+  font-weight: normal;
+  text-shadow: none;
+}
+
+button#{$c}:hover { background-color: $_face; }
+
+button#{$c}:active, button#{$c}.keyboard-activating,
+button#{$c}:checked, button#{$c}:checked:hover {
+  background-color: $_face;
+  box-shadow: $pressed;
+}
+
+button#{$c}:disabled { @include disabled_text(); box-shadow: $raised; }
+button#{$c}:disabled label { filter: none; }
+
+// Flat buttons (toolbars, list rows): nothing until hovered, then a thin bevel.
+button.flat#{$c}, menubutton.flat#{$c} > button, splitbutton.flat#{$c} > button {
+  color: inherit;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+button.flat#{$c}:hover, menubutton.flat#{$c} > button:hover, splitbutton.flat#{$c} > button:hover {
+  background-color: transparent;
+  box-shadow: $raised_thin;
+}
+
+button.flat#{$c}:active, button.flat#{$c}:checked, button.flat#{$c}.keyboard-activating,
+menubutton.flat#{$c} > button:active, menubutton.flat#{$c} > button:checked,
+splitbutton.flat#{$c} > button:active, splitbutton.flat#{$c} > button:checked {
+  background-color: transparent;
+  box-shadow: $sunken_thin;
+}
+
+// Window buttons: small raised squares.
+windowcontrols#{$c} > button#{$c} {
+  color: $_text;
+  min-width: 18px;
+  min-height: 16px;
+  padding: 2px;
+  margin: 0 1px;
+  background-color: $_face;
+  box-shadow: $raised;
+}
+
+windowcontrols#{$c} > button#{$c}:active { box-shadow: $pressed; }
+windowcontrols#{$c} > button#{$c} > image#{$c} { background: none; border-radius: 0; padding: 0; }
+
+// ---- fields: white and sunken ----
+
+entry#{$c}, spinbutton#{$c}, dropdown#{$c} > button.combo,
+textview.inline#{$c} {
+  color: $_text;
+  background-color: $_field;
+  background-image: none;
+  box-shadow: $sunken;
+  border-radius: 0;
+}
+
+entry#{$c}:disabled, spinbutton#{$c}:disabled {
+  @include disabled_text();
+  background-color: $_face;
+}
+
+entry.flat#{$c}, spinbutton.flat#{$c} {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+spinbutton#{$c} > button#{$c} {
+  color: $_text;
+  background-color: $_face;
+  box-shadow: $raised;
+}
+
+spinbutton#{$c} > button#{$c}:active { box-shadow: $pressed; }
+
+// ---- check boxes and radio buttons: a white sunken box, a black mark ----
+
+check#{$c}, radio#{$c},
+check#{$c}:checked, radio#{$c}:checked,
+check#{$c}:indeterminate, radio#{$c}:indeterminate,
+check#{$c}:hover, radio#{$c}:hover {
+  color: $_text;
+  background-color: $_field;
+  box-shadow: $sunken;
+}
+
+check#{$c}:active, radio#{$c}:active { background-color: $_face; }
+
+check#{$c} { border-radius: 0; }
+radio#{$c} { border-radius: 100%; }
+
+check#{$c}:disabled, radio#{$c}:disabled { background-color: $_face; color: $_disabled; filter: none; }
+
+// ---- title bars (header bars) ----
+
+headerbar#{$c} {
+  color: $_selection_text;
+  background-color: $_selection;
+  background-image: linear-gradient(to right, #000080, #1084d0);
+  box-shadow: none;
+}
+
+headerbar#{$c}:backdrop {
+  color: $_inner_light;
+  background-color: #808080;
+  background-image: linear-gradient(to right, #808080, #b4b4b4);
+}
+
+// libadwaita fades a header bar's content in inactive windows: the shell does not.
+headerbar#{$c}:backdrop > windowhandle { filter: none; }
+
+// ---- scroll bars: a light trough and a raised slider ----
+
+scrollbar#{$c} { background-color: $_trough; box-shadow: none; }
+scrollbar.overlay-indicator#{$c} { background-color: transparent; }
+
+scrollbar#{$c} > range > trough {
+  margin: 0;
+  border-radius: 0;
+  background: none;
+}
+
+scrollbar#{$c} > range > trough > slider,
+scrollbar#{$c} > range > trough > slider:hover,
+scrollbar#{$c} > range > trough > slider:active {
+  min-width: 14px;
+  min-height: 14px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background-color: $_face;
+  box-shadow: $raised;
+}
+
+// ---- sliders, progress bars, switches ----
+
+scale#{$c} > trough, progressbar#{$c} > trough {
+  background-color: $_field;
+  box-shadow: $sunken;
+  border-radius: 0;
+}
+
+scale#{$c} > trough { min-height: 6px; min-width: 6px; }
+
+scale#{$c} > trough > highlight, progressbar#{$c} > trough > progress {
+  background-color: $_selection;
+  background-image: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+progressbar.horizontal#{$c} > trough, progressbar.horizontal#{$c} > trough > progress { min-height: 14px; }
+progressbar.vertical#{$c} > trough, progressbar.vertical#{$c} > trough > progress { min-width: 14px; }
+progressbar#{$c} > trough > progress { margin: 2px; }
+
+scale#{$c} > trough > slider {
+  min-width: 12px;
+  min-height: 20px;
+  margin: -8px;
+  border-radius: 0;
+  background-color: $_face;
+  box-shadow: $raised;
+}
+
+switch#{$c}, switch#{$c}:hover, switch#{$c}:active {
+  background-color: $_field;
+  box-shadow: $sunken;
+  border-radius: 0;
+}
+
+switch#{$c}:checked { background-color: $_selection; }
+
+switch#{$c} > slider, switch#{$c}:checked > slider {
+  border-radius: 0;
+  background-color: $_face;
+  box-shadow: $raised;
+}
+
+// ---- lists ----
+
+row#{$c}:selected, row#{$c}:selected:hover,
+.navigation-sidebar#{$c} > row:selected,
+listview#{$c} > row:selected, columnview#{$c} > listview > row:selected,
+gridview#{$c} > child:selected, flowbox#{$c} > flowboxchild:selected {
+  color: $_selection_text;
+  background-color: $_selection;
+}
+
+selection#{$c}, text#{$c} > selection, label#{$c} > selection {
+  color: $_selection_text;
+  background-color: $_selection;
+}
+
+// Cards and boxed lists: white sunken boxes.
+.card#{$c}, list.boxed-list#{$c}, list.boxed-list-separate#{$c} > row, list.content#{$c} {
+  color: $_text;
+  background-color: $_field;
+  box-shadow: $sunken;
+  border-radius: 0;
+}
+
+// Column headers: raised buttons.
+columnview#{$c} > header > button, treeview#{$c} > header > button {
+  color: $_text;
+  background-color: $_face;
+  box-shadow: $raised;
+  font-weight: normal;
+}
+
+// ---- menus and popovers ----
+
+popover#{$c} > contents, popover.menu#{$c} > contents {
+  color: $_text;
+  background-color: $_face;
+  box-shadow: $raised;
+  border-radius: 0;
+  padding: 3px;
+}
+
+popover#{$c} > arrow { background-color: $_face; border: 1px solid $_dark; }
+
+popover.menu#{$c} modelbutton:hover, popover.menu#{$c} modelbutton:selected,
+popover.menu#{$c} modelbutton:focus-visible,
+popover.menu#{$c} row:hover {
+  color: $_selection_text;
+  background-color: $_selection;
+}
+
+popovermenubar#{$c} > item:hover, popovermenubar#{$c} > item:selected {
+  color: $_selection_text;
+  background-color: $_selection;
+  box-shadow: none;
+}
+
+// ---- tooltips: pale yellow, a thin black line ----
+
+tooltip#{$c}, tooltip.background#{$c} {
+  color: $_text;
+  background-color: $_tooltip;
+  border: 1px solid $_dark;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 2px 4px;
+}
+
+// ---- notebook tabs: raised, the open side towards the page ----
+
+notebook#{$c} > header > tabs > tab {
+  color: $_text;
+  background-color: $_face;
+  box-shadow: $raised;
+  border-radius: 0;
+}
+
+notebook#{$c} > header > tabs > tab:checked {
+  font-weight: bold;
+  box-shadow: $raised;
+}
+
+// ---- window frames (client-side decorations): a thin dark line ----
+
+window.csd#{$c}, window.csd#{$c}:backdrop {
+  border-radius: 0;
+  box-shadow: 0 0 0 1px $_dark;
+}
+
+// ---- separators: an etched line ----
+
+separator#{$c} {
+  min-width: 2px;
+  min-height: 2px;
+  background: none;
+}
+
+separator.horizontal#{$c} { background-image: linear-gradient(to bottom, $_shadow 50%, $_light 50%); }
+separator.vertical#{$c} { background-image: linear-gradient(to right, $_shadow 50%, $_light 50%); }

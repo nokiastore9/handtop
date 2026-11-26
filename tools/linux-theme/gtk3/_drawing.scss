@@ -1,0 +1,290 @@
+// HandTop classic drawing for GTK 3: Adwaita's drawing mixins (same names and parameters,
+// so Adwaita's _common.scss calls them for every widget and every state), drawing classic
+// bevels instead: raised buttons, sunken fields, no gradients, no glows, no hover changes.
+// Derived from GTK's Adwaita theme (gtk/theme/Adwaita/_drawing.scss, LGPL-2.1-or-later).
+
+@function _widget_edge($c:$borders_edge) {
+  @if $c == none { @return none; }
+  @else { @return 0 1px $c; }
+}
+
+@mixin _shadows($list...) {
+  $shadows: null;
+
+  @each $shadow in $list {
+    @if $shadow!=none { $shadows: $shadows, $shadow; }
+  }
+
+  box-shadow: $shadows;
+}
+
+// The classic bevels. A 1px border is the outer edge, an inset box-shadow the inner one:
+// "inset 1px 1px" paints the top and left inside, "inset -1px -1px" the bottom and right.
+@mixin classic_raised() {
+  border-style: solid;
+  border-color: $classic_light $classic_dark_shadow $classic_dark_shadow $classic_light;
+  box-shadow: inset 1px 1px $classic_inner_light, inset -1px -1px $classic_shadow;
+}
+
+@mixin classic_pressed() {
+  border-style: solid;
+  border-color: $classic_dark_shadow $classic_light $classic_light $classic_dark_shadow;
+  box-shadow: inset 1px 1px $classic_shadow, inset -1px -1px $classic_inner_light;
+}
+
+@mixin classic_sunken() {
+  border-style: solid;
+  border-color: $classic_shadow $classic_light $classic_light $classic_shadow;
+  box-shadow: inset 1px 1px $classic_dark_shadow, inset -1px -1px $classic_inner_light;
+}
+
+// Disabled text: gray, embossed in white.
+@mixin classic_disabled_text() {
+  color: $insensitive_fg_color;
+  text-shadow: 1px 1px $classic_light;
+  -gtk-icon-shadow: 1px 1px $classic_light;
+}
+
+// entries
+
+// Used for one side's colour (linked fields): the shadow edge.
+@function entry_focus_border($fc:$selected_bg_color) { @return $classic_shadow; }
+
+@function entry_focus_shadow($fc:$selected_bg_color) { @return inset 1px 1px $classic_dark_shadow, inset -1px -1px $classic_inner_light; }
+
+@mixin entry($t, $fc:$selected_bg_color, $edge: none) {
+//
+// possible $t values:
+// normal, focus, insensitive, backdrop, backdrop-insensitive, osd, osd-focus, osd-backdrop;
+//
+  @if $t==normal or $t==focus or $t==backdrop {
+    color: $text_color;
+    background-color: $base_color;
+    background-image: none;
+    @include classic_sunken();
+    text-shadow: none;
+  }
+  @if $t==insensitive or $t==backdrop-insensitive {
+    color: $insensitive_fg_color;
+    background-color: $bg_color;
+    background-image: none;
+    @include classic_sunken();
+  }
+  @if $t==osd {
+    color: $osd_text_color;
+    border-color: $osd_borders_color;
+    background-color: transparentize(opacify($osd_borders_color, 1), 0.5);
+    background-clip: padding-box;
+    box-shadow: none;
+    text-shadow: 0 1px black;
+    -gtk-icon-shadow: 0 1px black;
+  }
+  @if $t==osd-focus {
+    color: $osd_text_color;
+    border-color: $selected_bg_color;
+    background-color: transparentize(opacify($osd_borders_color, 1), 0.5);
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px $selected_bg_color;
+    text-shadow: 0 1px black;
+    -gtk-icon-shadow: 0 1px black;
+  }
+  @if $t==osd-insensitive {
+    color: $osd_insensitive_fg_color;
+    border-color: $osd_borders_color;
+    background-color: $osd_insensitive_bg_color;
+    background-clip: padding-box;
+    box-shadow: none;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+  }
+  @if $t==osd-backdrop {
+    color: $osd_text_color;
+    border-color: $osd_borders_color;
+    background-color: transparentize(opacify($osd_borders_color, 1), 0.5);
+    background-clip: padding-box;
+    box-shadow: none;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+  }
+}
+
+// buttons
+
+@function _border_color($c, $darker: false) { @return $classic_dark_shadow; }
+
+@function _text_shadow_color ($tc: $fg_color, $bg: $bg_color) { @return transparentize(white, 1); }
+
+@function _button_hilight_color($c) { @return $classic_inner_light; }
+
+@mixin _button_text_shadow ($tc:$fg_color, $bg:$bg_color) {
+  text-shadow: none;
+  -gtk-icon-shadow: none;
+}
+
+@mixin button($t, $c:$bg_color, $tc:$fg_color, $edge: none, $backimage: null) {
+//
+// $t: normal, hover, active, insensitive, insensitive-active,
+// backdrop, backdrop-active, backdrop-insensitive, backdrop-insensitive-active,
+// osd, osd-hover, osd-active, osd-insensitive, osd-backdrop, undecorated
+// (plus normal-alt and hover-alt). Coloured buttons ($c) stay gray in the classic look.
+//
+  // Adwaita's extra background for round buttons (a dark bottom edge) is not drawn: classic
+  // buttons are square.
+  $_image: none;
+
+  @if $t==normal or $t==hover or $t==normal-alt or $t==hover-alt or $t==backdrop {
+    color: $fg_color;
+    outline-color: $fg_color;
+    background-color: $bg_color;
+    background-image: $_image;
+    @include classic_raised();
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+  }
+
+  @else if $t==active or $t==backdrop-active {
+    // Pushed in (pressed, or a toggle that is on).
+    color: $fg_color;
+    outline-color: $fg_color;
+    background-color: $bg_color;
+    background-image: $_image;
+    @include classic_pressed();
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+  }
+
+  @else if $t==insensitive or $t==backdrop-insensitive {
+    background-color: $bg_color;
+    background-image: $_image;
+    @include classic_raised();
+    @include classic_disabled_text();
+  }
+
+  @else if $t==insensitive-active or $t==backdrop-insensitive-active {
+    background-color: $bg_color;
+    background-image: $_image;
+    @include classic_pressed();
+    @include classic_disabled_text();
+  }
+
+  @else if $t==osd {
+    $_bg: if($c != $bg_color, transparentize($c, 0.5), $osd_bg_color);
+
+    color: $osd_fg_color;
+    border-color: $osd_borders_color;
+    background-color: transparent;
+    background-image: image($_bg);
+    background-clip: padding-box;
+    box-shadow: inset 0 1px transparentize(white, 0.9);
+    text-shadow: 0 1px black;
+    -gtk-icon-shadow: 0 1px black;
+    outline-color: transparentize($osd_fg_color, 0.7);
+  }
+
+  @else if $t==osd-hover {
+    $_bg: if($c != $bg_color, transparentize($c, 0.3), lighten($osd_bg_color, 12%));
+
+    color: white;
+    border-color: $osd_borders_color;
+    background-color: transparent;
+    background-image: image($_bg);
+    background-clip: padding-box;
+    box-shadow: inset 0 1px transparentize(white, 0.9);
+    text-shadow: 0 1px black;
+    -gtk-icon-shadow: 0 1px black;
+    outline-color: transparentize($osd_fg_color, 0.7);
+  }
+
+  @else if $t==osd-active {
+    $_bg: if($c != $bg_color, $c, $osd_borders_color);
+
+    color: white;
+    border-color: $osd_borders_color;
+    background-color: transparent;
+    background-image: image($_bg);
+    background-clip: padding-box;
+    box-shadow: none;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+    outline-color: transparentize($osd_fg_color, 0.7);
+  }
+
+  @else if $t==osd-insensitive {
+    color: $osd_insensitive_fg_color;
+    border-color: $osd_borders_color;
+    background-color: transparent;
+    background-image: image($osd_insensitive_bg_color);
+    background-clip: padding-box;
+    box-shadow: none;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+  }
+
+  @else if $t==osd-backdrop {
+    $_bg: if($c != $bg_color, transparentize($c, 0.5), $osd_bg_color);
+
+    color: $osd_fg_color;
+    border-color: $osd_borders_color;
+    background-color: transparent;
+    background-image: image($_bg);
+    background-clip: padding-box;
+    box-shadow: none;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+  }
+
+  @else if $t==undecorated {
+    // Flat (toolbar) buttons: nothing until hovered or pressed.
+    border-color: transparent;
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+  }
+}
+
+// Header bars stand in for the title bar: the classic title gradient.
+@mixin headerbar_fill($c:$headerbar_color, $hc:$top_hilight, $ov: none) {
+  $gradient: linear-gradient(to right, $classic_title_active, $classic_title_active_end);
+
+  @if $ov != none { background: $classic_title_active $ov, $gradient; }
+  @else { background: $classic_title_active $gradient; }
+
+  box-shadow: none;
+}
+
+// No overshoot glow at the ends of scrolled views.
+@mixin overshoot($p, $t:normal, $c:$fg_color) {
+  background-image: none;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/***************************
+ * Check and Radio buttons *
+ ***************************/
+
+// A white sunken box (a circle for radios) with a black mark; gray while pressed or disabled.
+@mixin check($t, $c:$bg_color, $tc:$fg_color, $checked: false) {
+  @if $t==normal or $t==hover or $t==backdrop {
+    background-clip: border-box;
+    background-color: $base_color;
+    background-image: none;
+    @include classic_sunken();
+    color: $text_color;
+  }
+
+  @if $t==active {
+    background-color: $bg_color;
+    background-image: none;
+  }
+
+  @if $t==insensitive or $t==backdrop-insensitive {
+    background-color: $bg_color;
+    background-image: none;
+    box-shadow: inset 1px 1px $classic_dark_shadow, inset -1px -1px $classic_inner_light;
+    color: $insensitive_fg_color;
+  }
+}

@@ -41,7 +41,9 @@ HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs
 - Desktop with wallpapers (9 built-in or your own picture) and shortcuts you can add, remove and drag;
   taskbar with clock, start menu, notifications
 - **Themes**: Modern (dark, translucent) or Classic — gray 3D windows, menus and controls, its own
-  colour icons, no shadows, blur or animations (Settings → Desktop → Theme)
+  colour icons, no shadows, blur or animations (Settings → Desktop → Theme). The Classic theme
+  reaches Linux programs too: GTK 2, GTK 3, GTK 4 and libadwaita, Qt 5/6 and KDE programs get gray
+  bevelled controls and blue selection, on every distribution, without installing anything
 - **Interface scale** from 50 to 130 %, separately for the phone screen (70 % at first) and for
   DeX or a monitor
 - **The screen as a touchpad**, with a pointer: tap to click, hold for a right click or to drag,
@@ -93,7 +95,7 @@ The detailed plan and notes are in [docs/ROADMAP.md](docs/ROADMAP.md) (in Russia
 3. Own Wayland compositor: every Linux app is a separate window on the desktop ✔
 4. Xwayland ✔, clipboard ✔, sound ✔, file sharing
 5. GPU acceleration (Turnip + Zink on Snapdragon) ✔, frames without copying, DeX polish
-6. Themes: Modern and Classic ✔; a classic look for Linux programs (GTK / Qt), more themes
+6. Themes: Modern and Classic ✔; a classic look for Linux programs (GTK / Qt / KDE) ✔, more themes
 7. Gamepads; x86 programs (box64) and Windows programs (Wine)
 
 ## Building
@@ -116,4 +118,6 @@ HandTop © 2026 Samson Vardanyan, under the [GNU GPL v3](LICENSE). Third-party c
 - `terminal-emulator`, `terminal-view` — from [Termux](https://github.com/termux/termux-app), Apache 2.0
 - `native/proot` — [termux/proot](https://github.com/termux/proot), GPL v2+
 - `native/talloc` — [talloc](https://talloc.samba.org/), LGPL v3+
+- `app/src/main/assets/linux-theme` — the Classic theme for GTK, built by `tools/linux-theme` from the
+  stylesheets of [GTK](https://gitlab.gnome.org/GNOME/gtk)'s Adwaita and [libadwaita](https://gitlab.gnome.org/GNOME/libadwaita), LGPL v2.1+
 - [AndroidSVG](https://github.com/BigBadaboom/androidsvg) (a dependency) draws the SVG icons of Linux programs, Apache 2.0

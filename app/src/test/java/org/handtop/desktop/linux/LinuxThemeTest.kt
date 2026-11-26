@@ -43,6 +43,33 @@ class LinuxThemeTest {
     }
 
     @Test
+    fun gtk3And4ProgramsUseHandTopsThemeWithClassicScrollBars() {
+        // GTK_THEME is the one setting every GTK 3/4 program reads first, on Wayland and X11
+        // alike (on Wayland GSettings would win over settings.ini); it also makes libadwaita
+        // programs take the theme instead of their own stylesheet.
+        assertEquals(listOf(LinuxTheme.GTK_NAME), classic("GTK_THEME"))
+        // Scroll bars stay visible, with arrow buttons, instead of overlay indicators.
+        assertEquals(listOf("0"), classic("GTK_OVERLAY_SCROLLING"))
+    }
+
+    @Test
+    fun theGtk4VersionComesFromTheLibrarysFileName() {
+        assertEquals(18, LinuxTheme.gtk4Minor(listOf("libgtk-3.so.0.2400.32", "libgtk-4.so.1.1800.6")))
+        assertEquals(22, LinuxTheme.gtk4Minor(listOf("libgtk-4.so.1", "libgtk-4.so.1.2200.4")))
+        assertEquals(null, LinuxTheme.gtk4Minor(listOf("libgtk-3.so.0.2400.32", "libgtk-4.so.1")))
+    }
+
+    @Test
+    fun olderGtk4GetsTheStylesheetItsCssParserReads() {
+        // The libadwaita 1.9 stylesheet needs GTK 4.20; Debian 13 has GTK 4.18.
+        assertEquals("gtk-4.18.css", LinuxTheme.gtk4Stylesheet(18))
+        assertEquals("gtk.css", LinuxTheme.gtk4Stylesheet(20))
+        assertEquals("gtk.css", LinuxTheme.gtk4Stylesheet(22))
+        // No GTK 4 yet: the newest; it is checked again whenever a program starts.
+        assertEquals("gtk.css", LinuxTheme.gtk4Stylesheet(null))
+    }
+
+    @Test
     fun kdeglobalsSetsTheStyleAndTheColourSchemeWhereEachReaderLooks() {
         val text = LinuxTheme.files(ClassicTheme.colors).getValue("xdg/kdeglobals")
         // Qt reads top-level keys ([General] in an INI file), KDE Frameworks [KDE] and

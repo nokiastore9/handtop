@@ -20,6 +20,9 @@ import java.io.IOException
  * - Qt and KDE programs: Qt's built-in "kde" platform theme reads `kdeglobals` from the XDG
  *   config dirs (widget style "Windows", Qt's own, and the palette); KDE Frameworks read the
  *   same file and the colour scheme it names from the XDG data dirs.
+ * - GTK 3, GTK 4 and libadwaita: GTK_THEME names HandTop's theme (built from Adwaita's and
+ *   libadwaita's own stylesheets by tools/linux-theme/build.py, in the app's assets); with it,
+ *   libadwaita programs use the theme instead of their built-in stylesheet.
  * - GTK 2: an rc file (the default engine draws the bevels), before the user's own.
  *
  * A user's own settings still win: their files come first in every lookup, and a login profile
@@ -41,6 +44,12 @@ object LinuxTheme {
 
     private const val TAG = "HandTopTheme"
 
+    /** The app assets with the built GTK themes (gtk-3.0, gtk-4.0). */
+    private const val ASSETS = "linux-theme/classic"
+
+    /** Where distributions keep libgtk-4: Debian and Ubuntu, Alpine, Fedora. */
+    private val GTK4_LIBRARY_DIRS = listOf("usr/lib/aarch64-linux-gnu", "usr/lib", "usr/lib64")
+
     /** The variables Linux programs get for [theme]. */
     fun environment(theme: ThemeId): List<String> = when (theme) {
         ThemeId.MODERN -> emptyList()
@@ -50,6 +59,8 @@ object LinuxTheme {
             "XDG_CONFIG_DIRS=$DIR/xdg:/etc/xdg",
             "XDG_DATA_DIRS=$DIR/share:/usr/local/share:/usr/share",
             "GTK2_RC_FILES=$DIR/$GTK2_RC:/root/.gtkrc-2.0",
+            "GTK_THEME=$GTK_NAME",
+            "GTK_OVERLAY_SCROLLING=0",
         )
     }
 
@@ -59,19 +70,58 @@ object LinuxTheme {
         return environment(ThemeId.fromKey(key))
     }
 
-    /** Writes the classic files into [rootfs] when missing or out of date (a HandTop update). */
-    fun install(rootfs: File) {
-        for ((path, text) in files(ClassicTheme.colors)) {
-            val file = File(rootfs, DIR.removePrefix("/") + "/" + path)
-            try {
-                if (file.isFile && file.readText() == text) continue
-                file.parentFile?.mkdirs()
-                file.writeText(text)
-            } catch (e: IOException) {
-                Log.w(TAG, "cannot write $file", e)
-            }
+    /**
+     * Writes the classic files into [rootfs]: after a HandTop update, or when the GTK 4 in
+     * Linux needs the other stylesheet (it may be installed or upgraded at any time). Cheap
+     * otherwise: a stamp file says what was written.
+     */
+    fun install(context: Context, rootfs: File) {
+        val dir = File(rootfs, DIR.removePrefix("/"))
+        val gtk4 = gtk4Stylesheet(gtk4Minor(GTK4_LIBRARY_DIRS.flatMap { File(rootfs, it).list()?.toList().orEmpty() }))
+        val updated = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+        val stamp = "$updated $gtk4\n"
+        val stampFile = File(dir, ".installed")
+        try {
+            if (stampFile.isFile && stampFile.readText() == stamp) return
+            for ((path, text) in files(ClassicTheme.colors)) write(File(dir, path), text.toByteArray())
+            copyAssets(context, ASSETS, File(dir, "share/themes/$GTK_NAME"), gtk4)
+            stampFile.writeText(stamp)
+        } catch (e: IOException) {
+            Log.w(TAG, "cannot write the classic theme into $dir", e)
         }
     }
+
+    /** The built GTK themes (tools/linux-theme/build.py): [asset] folder into [target]. */
+    private fun copyAssets(context: Context, asset: String, target: File, gtk4: String) {
+        val names = context.assets.list(asset).orEmpty()
+        if (names.isEmpty()) {
+            // A file. GTK 4 reads gtk.css: the stylesheet for this GTK, under that name.
+            val name = asset.substringAfterLast('/')
+            val inGtk4 = asset.contains("/gtk-4.0/") && !asset.contains("/assets/")
+            if (inGtk4 && name != gtk4) return
+            val out = if (inGtk4) File(target.parentFile, "gtk.css") else target
+            write(out, context.assets.open(asset).use { it.readBytes() })
+            return
+        }
+        for (name in names) copyAssets(context, "$asset/$name", File(target, name), gtk4)
+    }
+
+    private fun write(file: File, bytes: ByteArray) {
+        if (file.isFile && file.length() == bytes.size.toLong() && file.readBytes().contentEquals(bytes)) return
+        file.parentFile?.mkdirs()
+        file.writeBytes(bytes)
+    }
+
+    /** The minor version of the GTK 4 among library [names] (libgtk-4.so.1.MM00.p), or null. */
+    fun gtk4Minor(names: List<String>): Int? = names.firstNotNullOfOrNull { name ->
+        Regex("""libgtk-4\.so\.1\.(\d+)\.\d+""").matchEntire(name)?.groupValues?.get(1)?.toIntOrNull()?.div(100)
+    }
+
+    /**
+     * The GTK 4 stylesheet for GTK 4.[minor]: built from libadwaita 1.9 for GTK 4.20 and later,
+     * from libadwaita 1.7 for older GTK 4, whose CSS parser does not read the newer one.
+     */
+    fun gtk4Stylesheet(minor: Int?): String = if (minor != null && minor < 20) "gtk-4.18.css" else "gtk.css"
 
     /** The classic files, by path relative to [DIR], in the colours of [c]. */
     fun files(c: ThemeColors): Map<String, String> = mapOf(

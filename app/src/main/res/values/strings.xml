@@ -113,6 +113,7 @@
     <string name="launchpad_search">Search programs</string>
     <string name="touchpad_on">Touchpad on. Long-press the keyboard button to turn it off.</string>
     <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_text">For HandTop and for Linux programs (GTK, Qt, KDE): they take the theme when they start.</string>
     <string name="theme_modern">Modern</string>
     <string name="theme_classic">Classic</string>
     <string name="settings_touchpad_title">Touchpad</string>
