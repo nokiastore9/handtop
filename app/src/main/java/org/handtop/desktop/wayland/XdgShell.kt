@@ -393,4 +393,10 @@ interface ToplevelView {
     fun startResize(edges: Int)
     fun setMaximized(maximized: Boolean)
     fun minimize()
+
+    /**
+     * The program asks for a new size ([width] x [height] in its surface coordinates). False
+     * when the window keeps its size: maximized or snapped, the desktop decides.
+     */
+    fun requestSize(width: Int, height: Int): Boolean = false
 }

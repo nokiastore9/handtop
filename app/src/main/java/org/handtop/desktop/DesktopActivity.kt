@@ -442,6 +442,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             override fun minimize() = area.minimize(window)
             override fun isMaximized() = window.mode == DesktopWindow.Mode.MAXIMIZED
             override fun isActive() = window.isActiveWindow
+            override fun resizeContent(width: Int, height: Int) = area.resizeContent(window, width, height)
             override fun appIdChanged() = showLinuxIcon(window, toplevel)
         }
         val content = WaylandWindowContent(this, toplevel, control, popupLayer)

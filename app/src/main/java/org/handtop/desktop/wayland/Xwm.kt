@@ -333,8 +333,18 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
         val win = windows[e.u32(8)] ?: return
         val mask = e.u16(26)
         if (win.toplevel != null) {
-            // On the desktop, HandTop decides the geometry; tell the program where it is (ICCCM 4.1.5).
-            sendConfigureNotify(win)
+            // On the desktop HandTop places the window, but a new size the program asks for (a
+            // game changing resolution, a dialog growing, xdotool) is granted while the window
+            // floats; the desktop window fits around it. Otherwise (maximized, snapped, or a move)
+            // the program is told where it is (ICCCM 4.1.5).
+            val size = X11Sizing.requestedSize(mask, e.u16(20), e.u16(22), win.width, win.height)
+            if (size != null && win.toplevel?.view?.requestSize(size[0], size[1]) == true) {
+                win.width = size[0]
+                win.height = size[1]
+                x.configureWindow(win.id, CONFIG_WIDTH or CONFIG_HEIGHT, size[0], size[1])
+            } else {
+                sendConfigureNotify(win)
+            }
             return
         }
         // Not shown yet: grant position and size (stacking requests are ignored).

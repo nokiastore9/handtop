@@ -55,6 +55,8 @@ class WaylandWindowContent(
         fun minimize()
         fun isMaximized(): Boolean
         fun isActive(): Boolean
+        /** Fit the desktop window around content of [width] x [height] pixels; false if it keeps its size. */
+        fun resizeContent(width: Int, height: Int): Boolean
         /** Look up the program's icon again (its app id changed). */
         fun appIdChanged()
     }
@@ -220,6 +222,7 @@ class WaylandWindowContent(
     }
     override fun setMaximized(maximized: Boolean) = windowControl.setMaximized(maximized)
     override fun minimize() = windowControl.minimize()
+    override fun requestSize(width: Int, height: Int) = windowControl.resizeContent(width * scale, height * scale)
 
     override fun decorationsChanged() = windowControl.setDecorated(toplevel.serverSideDecorations)
 

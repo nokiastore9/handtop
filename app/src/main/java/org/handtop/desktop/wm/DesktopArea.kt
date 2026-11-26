@@ -455,6 +455,22 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         requestLayout()
     }
 
+    /**
+     * A program asks for a new size of its content ([contentWidth] x [contentHeight] pixels):
+     * the floating window keeps its top-left corner and fits around it, within the desktop.
+     * False for a maximized or snapped window: the desktop decides its size.
+     */
+    fun resizeContent(window: DesktopWindow, contentWidth: Int, contentHeight: Int): Boolean {
+        if (window.mode != DesktopWindow.Mode.NORMAL) return false
+        val (fw, fh) = window.frameSizeFor(contentWidth, contentHeight)
+        frameOf(window, width, height, frame)
+        val w = if (width > 0) min(fw, width) else fw
+        val h = if (height > 0) min(fh, height) else fh
+        window.bounds.set(frame.left, frame.top, frame.left + w, frame.top + h)
+        requestLayout()
+        return true
+    }
+
     fun endResize(window: DesktopWindow) {
         frameOf(window, width, height, frame)
         window.bounds.set(frame)
