@@ -15,6 +15,8 @@ dates of the earlier ones are when they were finished.
 - Files: search. The magnifier (or Ctrl+F) turns the path into a search field; files and
   folders whose names have every word typed show up as you type, from the folder and the
   folders inside it, each with where it is.
+- Dolphin and the file dialogs of KDE programs get the phone's folders (Phone, Downloads,
+  Camera…) as places, like GTK programs already do.
 
 ### Fixes
 
