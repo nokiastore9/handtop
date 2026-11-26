@@ -21,6 +21,10 @@ dates of the earlier ones are when they were finished.
   terminal, and "Android app" under "Open with another application" in Linux file managers.
   A file goes to the Android app you pick, a link to its app (browser, mail…). Linux
   defaults are not changed.
+- Files: drag and drop. Hold a file with a finger and move it (with a mouse, just drag it),
+  together with the other picked files: onto a folder, into another Files window, or a folder
+  onto the desktop for a shortcut. On release a menu asks Move here or Copy here. A long press
+  without a move still opens the file's menu.
 
 ### Fixes
 

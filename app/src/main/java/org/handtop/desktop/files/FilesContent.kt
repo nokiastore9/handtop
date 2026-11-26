@@ -12,6 +12,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.media.ThumbnailUtils
 import android.os.Build
 import android.os.Handler
@@ -28,11 +29,13 @@ import android.text.format.Formatter
 import android.text.style.ForegroundColorSpan
 import android.util.LruCache
 import android.util.Size
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -85,8 +88,10 @@ import java.util.concurrent.Executors
  *
  * Mouse: click selects (Ctrl / Shift add), double click opens, right click shows the menu.
  * Touch: tap opens, long press shows the menu; a tap on a file's icon (or "Select" in its
- * menu) starts picking files, then taps pick them and a bar at the bottom acts on them.
+ * menu) starts picking files, then taps pick them and a bar at the top acts on them.
  * Search (the magnifier, Ctrl+F) finds files by name in the folder and the folders inside it.
+ * Drag and drop (a long press then a move, or a mouse drag): onto a folder, another file
+ * manager window (asking: move, copy) or the desktop (folders become shortcuts).
  * Keys: Enter, Delete, F2, F5, Backspace, Alt+arrows, Ctrl+C / X / V / A / H / F.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
@@ -158,6 +163,17 @@ class FilesContent(
     private var searchRunning = false
     private var searchGeneration = 0
     private val runSearch = Runnable { search() }
+
+    // Drag and drop: where the finger went down, and the drop target being shown.
+    private var downX = 0f
+    private var downY = 0f
+    private var pressedPosition = ListView.INVALID_POSITION
+    /** A long press waits for the finger: lifted, the menu; moved, a drag. */
+    private var longPressed = false
+    private var dragging = false
+    private var dropFolder: File? = null
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private lateinit var listArea: FrameLayout
     private val adapter = EntryAdapter()
     private val iconPx = dpi(24)
 
@@ -262,7 +278,8 @@ class FilesContent(
         list.divider = null
         list.isFocusable = false
         list.selector = context.selectableBackground() ?: list.selector
-        list.setOnTouchListener { _, e -> pointerDown(e) }
+        list.setOnTouchListener { _, e -> listTouch(e) }
+        list.setOnDragListener { _, e -> onDrag(e) }
         list.setOnItemClickListener { _, _, position, _ -> itemClicked(position) }
         list.setOnItemLongClickListener { _, _, position, _ ->
             if (selection.touchMode) {
@@ -272,10 +289,11 @@ class FilesContent(
             } else {
                 select(position, add = false, range = false)
             }
-            itemMenu(rawX, rawY)
+            // A mouse gets the menu at once; a finger's waits: a move instead starts a drag.
+            if (mouse) itemMenu(rawX, rawY) else longPressed = true
             true
         }
-        val listArea = FrameLayout(context).apply {
+        listArea = FrameLayout(context).apply {
             // Classic: the files in a sunken white box.
             if (bevelled) background = context.bevel(Bevel.SUNKEN, Palette.FIELD)
             addView(list, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
@@ -307,7 +325,12 @@ class FilesContent(
 
     override fun attach(host: WindowHost) {
         this.host = host
+        openWindows += this
         updateTitle()
+    }
+
+    override fun onClosed() {
+        openWindows -= this
     }
 
     override val takesBack: Boolean get() = selection.touchMode || searching
@@ -597,6 +620,37 @@ class FilesContent(
 
     // ---- input ----
 
+    /** The list's touches: what [pointerDown] notes, and drags after a long press or with a mouse. */
+    private fun listTouch(e: MotionEvent): Boolean {
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = e.x
+                downY = e.y
+                pressedPosition = list.pointToPosition(e.x.toInt(), e.y.toInt())
+                longPressed = false
+                dragging = false
+                return pointerDown(e)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (dragging || pressedPosition == ListView.INVALID_POSITION) return longPressed
+                val moved = Math.hypot((e.x - downX).toDouble(), (e.y - downY).toDouble()) > touchSlop
+                val mouseDrag = mouse && e.buttonState and MotionEvent.BUTTON_PRIMARY != 0
+                if (moved && (longPressed || mouseDrag)) {
+                    startDrag(pressedPosition)
+                    return true
+                }
+                return longPressed // after a long press the list does not scroll
+            }
+            MotionEvent.ACTION_UP -> if (longPressed && !dragging) {
+                longPressed = false
+                itemMenu(e.rawX, e.rawY)
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> longPressed = false
+        }
+        return false
+    }
+
     /** Remembers how the list is being touched; a right click opens a menu at once. */
     private fun pointerDown(e: MotionEvent): Boolean {
         if (e.actionMasked != MotionEvent.ACTION_DOWN) return false
@@ -726,6 +780,122 @@ class FilesContent(
     }
 
     private fun selectedEntries() = entries.filter { it.file in selection }
+
+    // ---- drag and drop ----
+
+    /** Drags the file at [position], with the other selected files if it is one of them. */
+    private fun startDrag(position: Int) {
+        val entry = entries.getOrNull(position) ?: return
+        if (entry.file !in selection) select(position, add = false, range = false)
+        val dragged = selectedEntries().map { it.file }
+        if (dragged.isEmpty()) return
+        longPressed = false
+        dragging = true
+        val label = if (dragged.size == 1) dragged.single().name
+        else context.resources.getQuantityString(R.plurals.files_items, dragged.size, dragged.size)
+        val icon = (list.getChildAt(position - list.firstVisiblePosition) as? Row)?.iconDrawable()
+        // The Linux paths as text, for whatever may take text one day (a terminal).
+        val clip = ClipData.newPlainText(label, dragged.joinToString("\n") { FilePlaces.linuxPath(context, it) ?: it.path })
+        if (!list.startDragAndDrop(clip, DragChip(label, icon), FileDrag(dragged), 0)) dragging = false
+    }
+
+    private fun onDrag(e: DragEvent): Boolean {
+        val drag = e.localState as? FileDrag ?: return false
+        when (e.action) {
+            DragEvent.ACTION_DRAG_STARTED -> return true
+            DragEvent.ACTION_DRAG_LOCATION -> showDropTarget(drag, e.x, e.y)
+            DragEvent.ACTION_DRAG_EXITED -> hideDropTarget()
+            DragEvent.ACTION_DRAG_ENDED -> {
+                hideDropTarget()
+                dragging = false
+            }
+            DragEvent.ACTION_DROP -> {
+                val target = dropTargetAt(drag, e.x, e.y)
+                hideDropTarget()
+                if (target == null) return false
+                val at = IntArray(2).also { list.getLocationOnScreen(it) }
+                dropMenu(drag.files, target, at[0] + e.x, at[1] + e.y)
+            }
+        }
+        return true
+    }
+
+    /** The folder dropped files would go to at ([x], [y]) in the list, or null. */
+    private fun dropTargetAt(drag: FileDrag, x: Float, y: Float): File? {
+        val folder = entries.getOrNull(list.pointToPosition(x.toInt(), y.toInt()))?.takeIf { it.isDir }?.file
+        return DropRules.target(drag.files, folder, if (searching) searchRoot else dir)
+    }
+
+    /** A folder row lights up, or the whole list when the shown folder takes the files. */
+    private fun showDropTarget(drag: FileDrag, x: Float, y: Float) {
+        val target = dropTargetAt(drag, x, y)
+        val rowTarget = target?.takeIf { t -> entries.any { it.file == t } }
+        if (rowTarget != dropFolder) {
+            dropFolder = rowTarget
+            adapter.notifyDataSetChanged()
+        }
+        listArea.foreground = if (target != null && rowTarget == null) {
+            roundedRect(0, dp(4f), Themes.current.colors.accent, dpi(2))
+        } else {
+            null
+        }
+    }
+
+    private fun hideDropTarget() {
+        listArea.foreground = null
+        if (dropFolder != null) {
+            dropFolder = null
+            adapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun dropMenu(files: List<File>, into: File, x: Float, y: Float) {
+        showPopupMenu(this, x, y, listOf(
+            MenuEntry(context.getString(R.string.files_move_here)) { transfer(files, into, move = true) },
+            MenuEntry(context.getString(R.string.files_copy_here)) { transfer(files, into, move = false) },
+            null,
+            MenuEntry(context.getString(android.R.string.cancel)) {},
+        ))
+    }
+
+    private fun transfer(files: List<File>, into: File, move: Boolean) {
+        runOperation(context.getString(if (move) R.string.files_moving else R.string.files_copying)) { progress ->
+            for (file in files) if (move) FileOps.move(file, into, progress) else FileOps.copy(file, into, progress)
+        }
+    }
+
+    /** What follows the finger: the file's icon and name (or how many), above the finger. */
+    private inner class DragChip(private val label: String, private val icon: Drawable?) : View.DragShadowBuilder() {
+        private val pad = dpi(10)
+        private val iconSize = dpi(24)
+        private val lift = dpi(20)
+        private val text = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = dp(14f)
+            color = Palette.TEXT
+        }
+        private val panel = Themes.current.panel(context, 8f)
+        private val chipWidth = pad * 3 + iconSize + text.measureText(label).toInt().coerceAtMost(dpi(240))
+        private val chipHeight = iconSize + pad * 2
+
+        override fun onProvideShadowMetrics(size: android.graphics.Point, touch: android.graphics.Point) {
+            size.set(chipWidth, chipHeight + lift)
+            touch.set(pad + iconSize / 2, chipHeight + lift - 1)
+        }
+
+        override fun onDrawShadow(canvas: android.graphics.Canvas) {
+            panel.setBounds(0, 0, chipWidth, chipHeight)
+            panel.draw(canvas)
+            icon?.let {
+                it.setBounds(pad, pad, pad + iconSize, pad + iconSize)
+                it.draw(canvas)
+            }
+            val baseline = chipHeight / 2f - (text.descent() + text.ascent()) / 2
+            canvas.save()
+            canvas.clipRect(0, 0, chipWidth - pad, chipHeight)
+            canvas.drawText(label, (pad * 2 + iconSize).toFloat(), baseline, text)
+            canvas.restore()
+        }
+    }
 
     // ---- menus ----
 
@@ -920,6 +1090,8 @@ class FilesContent(
             main.post {
                 busy = false
                 load()
+                // A move empties the folder it came from, maybe shown in another window.
+                openWindows.filter { it !== this }.forEach { it.load() }
                 if (error != null) setStatus(context.getString(R.string.files_failed, error))
             }
         }
@@ -994,6 +1166,11 @@ class FilesContent(
             layoutParams = android.widget.AbsListView.LayoutParams(LayoutParams.MATCH_PARENT, dpi(38))
         }
 
+        /** A copy of the icon shown (kind or thumbnail), for the drag. */
+        fun iconDrawable(): Drawable? = icon.drawable?.constantState?.newDrawable(resources)?.mutate()?.also {
+            it.colorFilter = icon.colorFilter
+        }
+
         fun bind(entry: Entry) {
             val place = if (searching) placeOf(entry) else ""
             name.text = if (place.isEmpty()) entry.name else SpannableString("${entry.name}   $place").apply {
@@ -1004,7 +1181,7 @@ class FilesContent(
             date.visibility = if (wide) VISIBLE else GONE
             if (wide) date.text = DateFormat.getDateFormat(context).format(Date(entry.modified)) + " " +
                 DateFormat.getTimeFormat(context).format(Date(entry.modified))
-            val picked = entry.file in selection
+            val picked = entry.file in selection || entry.file == dropFolder
             setBackgroundColor(if (picked) Palette.SELECTION else 0)
             name.setTextColor(if (picked) Palette.SELECTION_TEXT else Palette.TEXT)
             val minor = if (picked && bevelled) Palette.SELECTION_TEXT else Palette.TEXT_DIM
@@ -1090,6 +1267,8 @@ class FilesContent(
         var clipboard: Clip? = null
         val worker = Executors.newSingleThreadExecutor()
         val searchWorker = Executors.newSingleThreadExecutor()
+        /** The file manager windows open now: a move refreshes them all. */
+        val openWindows = LinkedHashSet<FilesContent>()
         val thumbWorker = Executors.newFixedThreadPool(2)
         val pendingThumbs = HashSet<String>()
         val thumbnails = object : LruCache<String, Bitmap>(16 * 1024 * 1024) {

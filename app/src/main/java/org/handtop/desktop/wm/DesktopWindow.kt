@@ -3,9 +3,9 @@ package org.handtop.desktop.wm
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Typeface
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.StateListDrawable
@@ -22,14 +22,15 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import kotlin.math.hypot
 import org.handtop.desktop.R
+import org.handtop.desktop.files.FileDrag
 import org.handtop.desktop.ui.Palette
-import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
-import kotlin.math.hypot
+import org.handtop.desktop.ui.setThemedIcon
 
 /**
  * A desktop window: frame + title bar (icon, title, minimize / maximize / close) + content.
@@ -94,6 +95,8 @@ class DesktopWindow(
         isFocusable = true
         isFocusableInTouchMode = true
         descendantFocusability = FOCUS_AFTER_DESCENDANTS
+        // Files dropped on a window that does not take them stay out of the desktop below.
+        setOnDragListener { _, e -> e.localState is FileDrag }
 
         titleBar.orientation = HORIZONTAL
         titleBar.gravity = Gravity.CENTER_VERTICAL

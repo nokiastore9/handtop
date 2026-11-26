@@ -245,6 +245,8 @@
     <string name="files_search">Search</string>
     <string name="files_search_hint">Search in %1$s</string>
     <string name="files_search_close">Close search</string>
+    <string name="files_move_here">Move here</string>
+    <string name="files_copy_here">Copy here</string>
     <string name="files_searching">Searching…</string>
     <string name="files_nothing_found">Nothing found</string>
     <plurals name="files_found">

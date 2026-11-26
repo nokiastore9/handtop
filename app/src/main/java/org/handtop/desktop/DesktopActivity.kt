@@ -12,14 +12,15 @@ import android.graphics.Shader
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
 import android.text.TextUtils
+import android.util.Log
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
-import android.view.WindowManager
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -32,6 +33,9 @@ import androidx.annotation.StringRes
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import java.io.File
+import org.handtop.desktop.files.FileDrag
+import org.handtop.desktop.files.FilePlaces
 import org.handtop.desktop.files.FilesContent
 import org.handtop.desktop.linux.LinuxApp
 import org.handtop.desktop.linux.LinuxApps
@@ -39,13 +43,13 @@ import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxSetupContent
 import org.handtop.desktop.shell.AboutContent
 import org.handtop.desktop.shell.BackAction
-import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.DesktopIcons
 import org.handtop.desktop.shell.Launchpad
+import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.Shortcut
 import org.handtop.desktop.shell.Shortcuts
-import org.handtop.desktop.shell.Taskbar
 import org.handtop.desktop.shell.StartBand
+import org.handtop.desktop.shell.Taskbar
 import org.handtop.desktop.shell.Touchpad
 import org.handtop.desktop.shell.WallpaperContent
 import org.handtop.desktop.shell.WallpaperDrawable
@@ -56,28 +60,27 @@ import org.handtop.desktop.term.TermSessions
 import org.handtop.desktop.term.TerminalContent
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
-import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.ThemeId
 import org.handtop.desktop.ui.Themes
-import org.handtop.desktop.ui.applyTheme
-import org.handtop.desktop.ui.menuDivider
-import org.handtop.desktop.ui.styleMenuText
 import org.handtop.desktop.ui.UiScale
+import org.handtop.desktop.ui.applyTheme
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBars
 import org.handtop.desktop.ui.hideSystemBarsOfWindow
+import org.handtop.desktop.ui.menuDivider
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.styleMenuText
 import org.handtop.desktop.wayland.PopupLayer
-import org.handtop.desktop.wayland.WaylandServer
-import org.handtop.desktop.wayland.WaylandWindowContent
 import org.handtop.desktop.wayland.ScreenKeeper
 import org.handtop.desktop.wayland.Toplevel
+import org.handtop.desktop.wayland.WaylandServer
+import org.handtop.desktop.wayland.WaylandWindowContent
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
-import java.io.File
 
 /**
  * The whole desktop lives in this single activity: wallpaper with icons, the window
@@ -172,6 +175,19 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             onWindowButton = { launchpad.close() },
         )
         area.listener = taskbar
+        // Folders dragged from a file manager onto the desktop become shortcuts.
+        area.setOnDragListener { _, e ->
+            val drag = e.localState as? FileDrag ?: return@setOnDragListener false
+            val folders = drag.files.filter { FilePlaces.resolve(this, it).isDirectory }
+            when (e.action) {
+                DragEvent.ACTION_DRAG_STARTED -> folders.isNotEmpty()
+                DragEvent.ACTION_DROP -> {
+                    folders.forEach { addToDesktop(Shortcut.Folder(it.path, it.name), it.name) }
+                    true
+                }
+                else -> true
+            }
+        }
 
         icons = DesktopIcons(this, open = { openShortcut(it) }, desktopMenu = { desktopMenu() })
         area.iconsWidth = { icons.blockWidth(it) }
