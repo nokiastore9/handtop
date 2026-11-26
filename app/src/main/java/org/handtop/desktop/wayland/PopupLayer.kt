@@ -36,9 +36,24 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
 
     // Follow window moves: open popups move along, X11 windows learn their new position.
     private val follow = ViewTreeObserver.OnPreDrawListener {
+        reconstrainPopups()
         if (windows.any { it.toplevel.popups.isNotEmpty() && originOf(it) != lastOrigins[it] }) invalidate()
         reportPositions()
         true
+    }
+
+    /**
+     * Open popups check their place before every frame: when the room around them changed
+     * (the on-screen keyboard hid or showed, the window moved), they are placed again, so a
+     * menu slid up to clear the keyboard goes back under its button once the keyboard is gone.
+     * The keyboard often hides before the menu is first drawn, so this cannot wait for a change
+     * seen here. A popup whose place stays the same costs one comparison.
+     */
+    private fun reconstrainPopups() {
+        for (window in windows) {
+            // Parents come first in the list, so a submenu is placed after the menu it hangs from.
+            if (window.toplevel.popups.isNotEmpty()) window.toplevel.popups.toList().forEach { it.reconstrain() }
+        }
     }
 
     private fun reportPositions() {

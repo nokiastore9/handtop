@@ -137,7 +137,8 @@ class WaylandWindowContent(
     private fun textInputChanged() {
         val input = ownTextInput()
         imm?.restartInput(this)
-        if (input != null && lastTextInput == null && !hasHardwareKeyboard()) {
+        val onMenu = (input?.focused?.role as? SurfaceRole.Xdg)?.xdg?.popup != null
+        if (KeyboardPolicy.showsByItself(input != null, lastTextInput != null, hasHardwareKeyboard(), onMenu)) {
             requestFocus()
             imm?.showSoftInput(this, 0)
             keyboardAutoShown = true

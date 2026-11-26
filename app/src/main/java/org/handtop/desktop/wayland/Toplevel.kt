@@ -56,6 +56,9 @@ interface Popup {
 
     fun visibleGeometry(): Rect
 
+    /** The room around it changed: place it again if its placement depends on that. */
+    fun reconstrain() = Unit
+
     /** Closes the popup (a click outside it). */
     fun dismiss()
 }

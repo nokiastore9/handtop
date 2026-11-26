@@ -51,113 +51,12 @@ class XdgPositioner(client: Client, id: Int, version: Int) : Resource(client, id
         }
     }
 
-    /**
-     * Popup position relative to the parent's window geometry. With [bounds] (the desktop in the
-     * same coordinates) the client's constraint adjustment is applied: flip, then slide, then
-     * resize, per axis, so menus stay on screen.
-     */
-    fun place(bounds: Rect? = null): Rect {
-        val rect = Rect(xFor(anchor, gravity), yFor(anchor, gravity), 0, 0)
-        rect.right = rect.left + width
-        rect.bottom = rect.top + height
-        if (bounds == null || bounds.isEmpty) return rect
-
-        if (rect.left < bounds.left || rect.right > bounds.right) {
-            if (constraintAdjustment and FLIP_X != 0) {
-                val x = xFor(flipX(anchor), flipX(gravity))
-                if (x >= bounds.left && x + width <= bounds.right) rect.offsetTo(x, rect.top)
-            }
-            if (constraintAdjustment and SLIDE_X != 0) {
-                if (rect.right > bounds.right) rect.offset(bounds.right - rect.right, 0)
-                if (rect.left < bounds.left) rect.offset(bounds.left - rect.left, 0)
-            }
-            if (constraintAdjustment and RESIZE_X != 0) {
-                rect.left = rect.left.coerceAtLeast(bounds.left)
-                rect.right = rect.right.coerceAtMost(bounds.right)
-            }
-        }
-        if (rect.top < bounds.top || rect.bottom > bounds.bottom) {
-            if (constraintAdjustment and FLIP_Y != 0) {
-                val y = yFor(flipY(anchor), flipY(gravity))
-                if (y >= bounds.top && y + height <= bounds.bottom) rect.offsetTo(rect.left, y)
-            }
-            if (constraintAdjustment and SLIDE_Y != 0) {
-                if (rect.bottom > bounds.bottom) rect.offset(0, bounds.bottom - rect.bottom)
-                if (rect.top < bounds.top) rect.offset(0, bounds.top - rect.top)
-            }
-            if (constraintAdjustment and RESIZE_Y != 0) {
-                rect.top = rect.top.coerceAtLeast(bounds.top)
-                rect.bottom = rect.bottom.coerceAtMost(bounds.bottom)
-            }
-        }
-        if (rect.width() <= 0 || rect.height() <= 0) rect.set(rect.left, rect.top, rect.left + 1, rect.top + 1)
-        return rect
-    }
-
-    private fun xFor(anchor: Int, gravity: Int): Int {
-        val ax = when (anchor) {
-            LEFT, TOP_LEFT, BOTTOM_LEFT -> anchorRect.left
-            RIGHT, TOP_RIGHT, BOTTOM_RIGHT -> anchorRect.right
-            else -> anchorRect.centerX()
-        }
-        return when (gravity) {
-            LEFT, TOP_LEFT, BOTTOM_LEFT -> ax - width
-            RIGHT, TOP_RIGHT, BOTTOM_RIGHT -> ax
-            else -> ax - width / 2
-        } + offsetX
-    }
-
-    private fun yFor(anchor: Int, gravity: Int): Int {
-        val ay = when (anchor) {
-            TOP, TOP_LEFT, TOP_RIGHT -> anchorRect.top
-            BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT -> anchorRect.bottom
-            else -> anchorRect.centerY()
-        }
-        return when (gravity) {
-            TOP, TOP_LEFT, TOP_RIGHT -> ay - height
-            BOTTOM, BOTTOM_LEFT, BOTTOM_RIGHT -> ay
-            else -> ay - height / 2
-        } + offsetY
-    }
-
-    private fun flipX(edge: Int) = when (edge) {
-        LEFT -> RIGHT
-        RIGHT -> LEFT
-        TOP_LEFT -> TOP_RIGHT
-        TOP_RIGHT -> TOP_LEFT
-        BOTTOM_LEFT -> BOTTOM_RIGHT
-        BOTTOM_RIGHT -> BOTTOM_LEFT
-        else -> edge
-    }
-
-    private fun flipY(edge: Int) = when (edge) {
-        TOP -> BOTTOM
-        BOTTOM -> TOP
-        TOP_LEFT -> BOTTOM_LEFT
-        BOTTOM_LEFT -> TOP_LEFT
-        TOP_RIGHT -> BOTTOM_RIGHT
-        BOTTOM_RIGHT -> TOP_RIGHT
-        else -> edge
-    }
-
-    private companion object {
-        const val TOP = 1
-        const val BOTTOM = 2
-        const val LEFT = 3
-        const val RIGHT = 4
-        const val TOP_LEFT = 5
-        const val BOTTOM_LEFT = 6
-        const val TOP_RIGHT = 7
-        const val BOTTOM_RIGHT = 8
-
-        // constraint_adjustment bits
-        const val SLIDE_X = 1
-        const val SLIDE_Y = 2
-        const val FLIP_X = 4
-        const val FLIP_Y = 8
-        const val RESIZE_X = 16
-        const val RESIZE_Y = 32
-    }
+    /** The rules as they are now; the popup keeps them (the client may destroy this positioner). */
+    fun rules() = PopupRules(
+        width, height,
+        Box(anchorRect.left, anchorRect.top, anchorRect.right, anchorRect.bottom),
+        anchor, gravity, offsetX, offsetY, constraintAdjustment,
+    )
 }
 
 class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) : Resource(client, id, version) {
@@ -182,7 +81,7 @@ class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) 
                 val parent = client.optional<XdgSurface>(r.obj())
                 val positioner = client.require<XdgPositioner>(r.obj())
                 popup = client.register(
-                    XdgPopup(client, newId, version, this, parent, positioner.place(XdgPopup.boundsFor(parent))),
+                    XdgPopup(client, newId, version, this, parent, Placement(positioner.rules(), XdgPopup.boundsFor(parent))),
                 )
             }
             3 -> { // set_window_geometry
@@ -350,9 +249,9 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) :
 class XdgPopup(
     client: Client, id: Int, version: Int,
     val xdg: XdgSurface,
-    private val parent: XdgSurface?,
-    /** Position relative to the parent's window geometry. */
-    val position: Rect,
+    internal val parent: XdgSurface?,
+    /** Its rules and its position relative to the parent's window geometry. */
+    private val placement: Placement,
 ) : Resource(client, id, version), Popup {
     override val iface = "xdg_popup"
 
@@ -375,7 +274,8 @@ class XdgPopup(
             val parentOrigin = parent?.popup?.originInToplevel
             val dx = (parentOrigin?.left ?: 0)
             val dy = (parentOrigin?.top ?: 0)
-            return Rect(position).apply { offset(dx, dy) }
+            val p = placement.position
+            return Rect(p.left + dx, p.top + dy, p.right + dx, p.bottom + dy)
         }
 
     override fun dispatch(opcode: Int, r: MessageReader) {
@@ -389,7 +289,7 @@ class XdgPopup(
             2 -> { // reposition(positioner, token)
                 val positioner = client.require<XdgPositioner>(r.obj())
                 val token = r.uint()
-                position.set(positioner.place(boundsFor(parent)))
+                placement.reposition(positioner.rules(), boundsFor(parent))
                 event(2) { uint(token) }
                 sendConfigure()
             }
@@ -398,8 +298,22 @@ class XdgPopup(
     }
 
     private fun sendConfigure() {
-        event(0) { int(position.left); int(position.top); int(position.width()); int(position.height()) }
+        val p = placement.position
+        event(0) { int(p.left); int(p.top); int(p.width); int(p.height) }
         xdg.configure()
+    }
+
+    /**
+     * The room around the popup changed (the on-screen keyboard hid, the window moved): place it
+     * again from its rules and tell the program, as for a reactive positioner. Otherwise a menu
+     * slid up while the keyboard was shown would stay up when it hides.
+     */
+    override fun reconstrain() {
+        if (!configureSent) return
+        if (!placement.reconstrain(boundsFor(parent))) return
+        sendConfigure()
+        client.flush()
+        toplevel?.view?.contentChanged()
     }
 
     fun committed(configured: Boolean) {
@@ -430,18 +344,33 @@ class XdgPopup(
         toplevel?.view?.contentChanged()
         // A grabbing menu had the keyboard: give it back to the menu or window below.
         val seat = client.server.seat
-        if (seat.keyboardFocus === xdg.surface) seat.setKeyboardFocus(parent?.surface)
+        if (seat.keyboardFocus === xdg.surface) seat.setKeyboardFocus(openAncestorSurface())
+    }
+
+    /**
+     * The nearest parent still shown: a menu, or the window. A click outside closes the menus
+     * parent first, so a submenu closing after its menu must not give the keyboard to that
+     * closed menu; the window would never get it back and typing would go nowhere.
+     */
+    private fun openAncestorSurface(): WlSurface? {
+        var p = parent
+        while (p != null) {
+            val popup = p.popup ?: return p.surface // the window
+            if (popup.mapped) return p.surface
+            p = popup.parent
+        }
+        return null
     }
 
     override fun destroyed() = unmap()
 
     companion object {
         /** The desktop in the coordinates of the parent window geometry, for constraint adjustment. */
-        fun boundsFor(parent: XdgSurface?): Rect? {
+        fun boundsFor(parent: XdgSurface?): Box? {
             val toplevel = parent?.toplevel ?: parent?.popup?.toplevel ?: return null
             val bounds = toplevel.view?.constraintBounds() ?: return null
             parent?.popup?.originInToplevel?.let { bounds.offset(-it.left, -it.top) }
-            return bounds
+            return Box(bounds.left, bounds.top, bounds.right, bounds.bottom)
         }
     }
 }
