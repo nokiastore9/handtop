@@ -124,8 +124,7 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         val window = p.window
         val aw = if (width > 0) width else resources.displayMetrics.widthPixels
         val ah = if (height > 0) height + keyboardCover else resources.displayMetrics.heightPixels
-        var ww = max(min(aw, dpi(380)), (aw * 0.6f).toInt())
-        var wh = max(min(ah, dpi(260)), (ah * 0.62f).toInt())
+        var (ww, wh) = WindowSizing.defaultSize(aw, ah, resources.displayMetrics.density).toList()
         if (p.contentWidth > 0 && p.contentHeight > 0) {
             val (fw, fh) = window.frameSizeFor(p.contentWidth, p.contentHeight)
             // Room for the title bar's buttons (a small program, e.g. a clock, gets a wider window).
@@ -462,6 +461,7 @@ class DesktopArea(context: Context) : ViewGroup(context) {
      */
     fun resizeContent(window: DesktopWindow, contentWidth: Int, contentHeight: Int): Boolean {
         if (window.mode != DesktopWindow.Mode.NORMAL) return false
+        if (resizeEdges != 0) return false // the user is resizing a window: the hand decides
         val (fw, fh) = window.frameSizeFor(contentWidth, contentHeight)
         frameOf(window, width, height, frame)
         val w = if (width > 0) min(fw, width) else fw
@@ -476,5 +476,6 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         window.bounds.set(frame)
         resizeEdges = 0
         requestLayout()
+        window.content.onResizeEnded()
     }
 }

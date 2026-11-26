@@ -71,6 +71,13 @@ class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) 
     val geometry = Rect()
     private var geometrySet = false
     private var configured = false
+    private var sentSerial = 0
+    /** Serial of the last configure the client answered (ack_configure). */
+    var ackedSerial = 0
+        private set
+
+    /** The client answered the latest configure: what it draws now is its answer to it. */
+    val ackedLatest get() = configured && ackedSerial == sentSerial
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
@@ -89,7 +96,7 @@ class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) 
                 geometry.set(x, y, x + r.int(), y + r.int())
                 geometrySet = true
             }
-            4 -> { r.uint(); configured = true } // ack_configure
+            4 -> { ackedSerial = r.uint(); configured = true } // ack_configure
             else -> super.dispatch(opcode, r)
         }
     }
@@ -98,7 +105,11 @@ class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) 
     fun visibleGeometry(): Rect =
         if (geometrySet && !geometry.isEmpty) geometry else Rect(0, 0, surface.width, surface.height)
 
-    fun configure() = event(0) { uint(client.server.nextSerial()) }
+    fun configure() {
+        val serial = client.server.nextSerial()
+        sentSerial = serial
+        event(0) { uint(serial) }
+    }
 
     fun surfaceCommitted() {
         toplevel?.committed(configured)
@@ -198,6 +209,26 @@ class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) :
             client.server.host?.toplevelMapped(this)
         } else if (mapped && xdg.surface.bitmap == null) {
             unmap()
+        } else if (mapped) {
+            followClientSize()
+        }
+    }
+
+    override fun resizeEnded() = followClientSize()
+
+    /** Serial of the configure whose answer [followClientSize] already handled. */
+    private var sizeHandledFor = -1
+
+    /** A floating window takes the size the program drew if it differs from the one asked for. */
+    private fun followClientSize() {
+        val g = xdg.visibleGeometry()
+        val serial = xdg.ackedSerial
+        // Done once per configure. A refusal (maximized, the user dragging the frame) is not
+        // remembered: the next frame, or the end of the drag, asks again.
+        if (ClientSize.adopt(xdg.ackedLatest, serial == sizeHandledFor, configuredWidth, configuredHeight, g.width(), g.height()) &&
+            view?.requestSize(g.width(), g.height()) == true
+        ) {
+            sizeHandledFor = serial
         }
     }
 

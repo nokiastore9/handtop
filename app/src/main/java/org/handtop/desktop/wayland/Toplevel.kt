@@ -39,6 +39,12 @@ interface Toplevel {
     /** The user pressed the window's close button. */
     fun requestClose()
 
+    /**
+     * The user stopped resizing the window: a size the program drew meanwhile and HandTop
+     * held back (see [ClientSize]) is followed now, even if the program draws nothing more.
+     */
+    fun resizeEnded() {}
+
     /** Where the window's content now is on the desktop. X11 needs it for menu positions. */
     fun moved(x: Int, y: Int) = Unit
 }

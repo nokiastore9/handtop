@@ -3,6 +3,22 @@
 What changed in each version of HandTop. 0.3.0 is the first version published as an APK; the
 dates of the earlier ones are when they were finished.
 
+## Unreleased
+
+### Changes
+
+- On a phone on its side, windows that bring no size of their own (Settings, terminals) open
+  nearly as tall as the desktop instead of 62% of it. DeX and monitors keep the old size.
+
+### Fixes
+
+- Back closes an open menu of a Linux program instead of minimizing its window.
+- After a menu closes, the on-screen keyboard comes back only if it was up before; tapping a
+  program's menu bar no longer flashes the keyboard.
+- A Linux window follows the size its program draws: no black margins around a fixed-size
+  program (a game, glmark2), and a program that cannot get smaller than its minimum is no
+  longer cut off.
+
 ## 0.3.1 — 2026-11-26 · alpha
 
 ### Changes

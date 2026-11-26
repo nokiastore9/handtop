@@ -38,6 +38,7 @@ import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxSetupContent
 import org.handtop.desktop.shell.AboutContent
+import org.handtop.desktop.shell.BackAction
 import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.DesktopIcons
 import org.handtop.desktop.shell.Launchpad
@@ -283,11 +284,21 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     @Deprecated("Used only below Android 13")
     override fun onBackPressed() = onBack()
 
-    /** Back = minimize the active window (never quit the desktop by accident). */
+    /** Back closes what is open, else minimizes the active window (never quits the desktop). */
     private fun onBack() {
-        if (launchpad.isOpen) launchpad.close()
-        else if (startMenu?.isShowing == true) startMenu?.dismiss()
-        else area.activeWindow?.let { area.minimize(it) }
+        val action = BackAction.of(
+            launchpadOpen = launchpad.isOpen,
+            startMenuOpen = startMenu?.isShowing == true,
+            linuxMenuOpen = popupLayer.hasMenus(),
+            hasActiveWindow = area.activeWindow != null,
+        )
+        when (action) {
+            BackAction.CLOSE_LAUNCHPAD -> launchpad.close()
+            BackAction.CLOSE_START_MENU -> startMenu?.dismiss()
+            BackAction.CLOSE_LINUX_MENUS -> popupLayer.closeMenus()
+            BackAction.MINIMIZE -> area.activeWindow?.let { area.minimize(it) }
+            BackAction.NOTHING -> Unit
+        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

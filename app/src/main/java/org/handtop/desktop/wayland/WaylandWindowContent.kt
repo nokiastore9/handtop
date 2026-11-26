@@ -13,6 +13,8 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_BOTTOM
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_LEFT
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_RIGHT
@@ -111,6 +113,13 @@ class WaylandWindowContent(
     /** The keyboard was asked for with the taskbar button: type into any program (as keys). */
     private var keyboardRequested = false
     private var lastTextInput: TextInput? = null
+    /** A text field (not a menu) had the focus at the last change. */
+    private var lastField = false
+    /** The focused text field lost the focus, and whether the keyboard was up then. */
+    private var fieldLost = false
+    private var keyboardUpWhenFieldLost = false
+    /** A menu opened since the field lost the focus (see [KeyboardPolicy.showsByItself]). */
+    private var menuSinceFieldLost = false
     private val textInputListener: () -> Unit = { textInputChanged() }
 
     /**
@@ -143,18 +152,40 @@ class WaylandWindowContent(
         val input = ownTextInput()
         imm?.restartInput(this)
         val onMenu = (input?.focused?.role as? SurfaceRole.Xdg)?.xdg?.popup != null
-        if (KeyboardPolicy.showsByItself(input != null, lastTextInput != null, hasHardwareKeyboard(), onMenu)) {
+        val field = input != null && !onMenu
+        if (lastField && !field) {
+            // A menu takes the field's focus before it shows: whether it was a menu is known later.
+            fieldLost = true
+            keyboardUpWhenFieldLost = keyboardVisible()
+            menuSinceFieldLost = false
+        }
+        if (fieldLost && (onMenu || toplevel.popups.isNotEmpty())) menuSinceFieldLost = true
+        if (KeyboardPolicy.showsByItself(
+                input != null, lastTextInput != null, hasHardwareKeyboard(), onMenu,
+                returningFromMenu = field && menuSinceFieldLost, keyboardWasUp = keyboardUpWhenFieldLost,
+            )
+        ) {
             requestFocus()
             imm?.showSoftInput(this, 0)
             keyboardAutoShown = true
         } else if (input == null && keyboardAutoShown) {
             hideKeyboard()
         }
+        if (field) {
+            fieldLost = false
+            menuSinceFieldLost = false
+        }
+        lastField = field
         lastTextInput = input
     }
 
-    private fun showKeyboardIfTyping() {
-        if (ownTextInput() == null || hasHardwareKeyboard() || !isActiveWindow()) return
+    private fun keyboardVisible() =
+        ViewCompat.getRootWindowInsets(this)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+
+    private val showKeyboardAfterTap = Runnable {
+        if (!KeyboardPolicy.showsOnTap(ownTextInput() != null, hasHardwareKeyboard(), isActiveWindow(), toplevel.popups.isNotEmpty())) {
+            return@Runnable
+        }
         imm?.showSoftInput(this, 0)
         keyboardAutoShown = true
     }
@@ -184,6 +215,8 @@ class WaylandWindowContent(
         return true // the window goes away when the client unmaps it
     }
 
+    override fun onResizeEnded() = toplevel.resizeEnded()
+
     override fun onClosed() {
         server.textInputs.removeListener(textInputListener)
         popupLayer.unregister(this)
@@ -201,6 +234,8 @@ class WaylandWindowContent(
     override fun appIdChanged() = windowControl.appIdChanged()
 
     override fun contentChanged() {
+        // A menu shown while a text field is without focus: see textInputChanged.
+        if (fieldLost && toplevel.popups.isNotEmpty()) menuSinceFieldLost = true
         invalidate()
         popupLayer.invalidate()
     }
@@ -349,7 +384,11 @@ class WaylandWindowContent(
                 motion(event)
                 seat.pointerButton(lastButton, false)
                 // A finger tap into a text field brings the keyboard back, like on Android.
-                if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) post { showKeyboardIfTyping() }
+                if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) {
+                    removeCallbacks(showKeyboardAfterTap)
+                    // The program first answers the tap: a menu it opens takes the text field's focus.
+                    postDelayed(showKeyboardAfterTap, TAP_KEYBOARD_DELAY_MS)
+                }
             }
             MotionEvent.ACTION_CANCEL -> {
                 pressed = false
@@ -400,6 +439,8 @@ class WaylandWindowContent(
         server.seat.key(event) || super.onKeyUp(keyCode, event)
 
     private companion object {
+        const val TAP_KEYBOARD_DELAY_MS = 150L
+
         // xdg_toplevel.resize_edge bits
         const val XDG_EDGE_TOP = 1
         const val XDG_EDGE_BOTTOM = 2

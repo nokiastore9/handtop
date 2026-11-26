@@ -29,6 +29,9 @@ interface WindowContent {
     /** The window was closed and removed from the desktop; release resources here. */
     fun onClosed() {}
 
+    /** The user let go of the window's frame after resizing it. */
+    fun onResizeEnded() {}
+
     // Configuration changes (keyboard plugged, DeX, rotation) reach content views through
     // the regular View.onConfigurationChanged() dispatch.
 
