@@ -294,7 +294,14 @@ Delete, F2, F5, Backspace, Alt+стрелки, Ctrl+C / X / V / A / H. Откр�
 `/sdcard` и его папки — один раз, удалённые пользователем не возвращаются.
 Firefox: песочницы процессов (seccomp, namespaces) несовместимы с proot (ptrace) — вкладки падали
 (SIGSEGV); `MOZ_DISABLE_*_SANDBOX=1` в окружении Linux: Firefox работает, сам Linux остаётся в
-песочнице приложения Android.
+песочнице приложения Android. Новые Firefox (161) снова роняли вкладки («Shared memory
+PlatformHandle is not safe to map»): главный процесс не может переоткрыть memfd через
+`/proc/self/fd` (Android: EACCES) и делится памятью без печатей, а вкладки требуют печать
+`F_SEAL_SHRINK`. `MOZ_SHM_NO_SEALS=1` (2026-11-26) — печатей нет ни у кого, вкладки работают.
+Qt: `QT_QPA_PLATFORM=wayland;xcb` — модули оболочек Wayland у Qt в отдельном пакете
+(`qt6-wayland`, на Debian/Ubuntu лишь рекомендован), без него Qt-программа падала на старте, теперь
+уходит в X11. `SHELL` = оболочка терминала HandTop: программы из меню запускает `sh`, который
+`SHELL` не ставит, и QTerminal открывал голый `sh`.
 Проверено в DeX: места, переходы, миниатюры, меню, открытие в Parole / Ristretto / Галерее
 Android, Ctrl+C / Ctrl+V, F2, Delete с подтверждением, Thunar с закладками, Firefox с картинкой.
 
@@ -427,7 +434,7 @@ Xwayland (X11-приложения), общий буфер обмена, drag & 
 |---|---|---|---|
 | Ускорение на Adreno: Mesa с Turnip (KGSL) и Zink | OpenGL и Vulkan на видеокарте, а не на процессоре | — | готово (2026-11-25) для Debian, Ubuntu, Fedora и Alpine: два пакета внутри APK, glibc и musl (задачи `bundleMesaGlibc`/`bundleMesaMusl`, SHA-256 в `app/build.gradle.kts`); настройка Linux сама распаковывает нужный в `/opt/handtop-mesa`, доставляет недостающие библиотеки (apt, dnf, apk), регистрирует у Vulkan-загрузчика и в glvnd (или в пути загрузчика musl) и даёт программам переменные; переключатель в настройках; на телефонах без Adreno — llvmpipe |
 | `gpg` в дистрибутиве | сторонние пакеты (VS Code, Chrome…) записывают ключ своего репозитория через `gpg`; без него ключ пустой, и `apt update` падает с ошибкой подписи | — | готово (2026-11-25): ставит настройка Linux |
-| Флаги Electron (VS Code и др.) | под root и в proot: `--no-sandbox`, `--user-data-dir`, `--password-store=basic`, пока без GPU `--disable-gpu` | правка `.desktop`-файла руками | HandTop добавляет сам, как переменные для Firefox |
+| Флаги Electron (VS Code и др.) | под root Electron и Chromium не стартуют без `--no-sandbox` | правка `.desktop`-файла руками | готово (2026-11-26): меню HandTop добавляет `--no-sandbox` программам, рядом с которыми лежит `chrome-sandbox` (`ChromiumFlags`); `--user-data-dir` и `--disable-gpu` при прямом запуске не нужны (ANGLE сам уходит в программную отрисовку) |
 | Xwayland | X11-программы | ставился кнопкой в настройках (в терминале) | готово (2026-11-25): ставит настройка Linux; на Alpine вместе с `xkeyboard-config`, без которого Xwayland не стартует |
 | Звук: PulseAudio и ALSA-плагин | звук Linux-программ на телефоне | ставился кнопкой в настройках (в терминале) | готово (2026-11-25): ставит настройка Linux; `asound.conf` пишется и на Fedora (`lib64`) и Alpine |
 | `/usr/games` в `PATH` | Debian кладёт игры туда, а у root этого пути нет: игры не запускались ни из меню, ни из терминала | — | готово: `/etc/profile.d/handtop.sh`, HandTop пишет его сам |

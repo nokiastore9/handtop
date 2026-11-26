@@ -148,9 +148,7 @@ object LinuxEnv {
     /** A login shell inside the installed distribution, as fake root, through proot, in [cwd]. */
     fun shellSpec(context: Context, cwd: String = HOME): ShellSpec {
         startServices(context)
-        val rootfsDir = rootfs(context)
-        val shell = if (File(rootfsDir, "bin/bash").exists()) listOf("/bin/bash", "--login") else listOf("/bin/sh", "-l")
-        return prootSpec(context, shell, cwd)
+        return prootSpec(context, LoginShell.command(rootfs(context)), cwd)
     }
 
     /**
@@ -232,6 +230,9 @@ object LinuxEnv {
             "HOME=/root",
             "USER=root",
             "LOGNAME=root",
+            // Menu programs start through sh, which does not set SHELL (bash does): terminal
+            // programs such as QTerminal would open plain sh instead of the terminal's shell.
+            "SHELL=" + LoginShell.path(rootfsDir),
             "TERM=xterm-256color",
             "COLORTERM=truecolor",
             "TERM_PROGRAM=HandTop",
@@ -240,25 +241,7 @@ object LinuxEnv {
             "TZ=" + timeZone(rootfsDir),
             "TMPDIR=/tmp",
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/games:/usr/games",
-            // Graphical programs: HandTop is the Wayland compositor.
-            "XDG_RUNTIME_DIR=/${WaylandServer.RUNTIME_DIR}",
-            "WAYLAND_DISPLAY=${WaylandServer.SOCKET_NAME}",
-            "XDG_SESSION_TYPE=wayland",
-            "GDK_BACKEND=wayland",
-            "QT_QPA_PLATFORM=wayland",
-            "SDL_VIDEODRIVER=wayland",
-            "MOZ_ENABLE_WAYLAND=1",
-            // No accessibility bus in the session: GTK would look for it at every start.
-            "NO_AT_BRIDGE=1",
-            // Firefox's process sandboxes (seccomp, namespaces) cannot work under proot, which
-            // runs programs through ptrace: tabs would crash on start. Linux as a whole stays
-            // inside HandTop's Android app sandbox.
-            "MOZ_DISABLE_CONTENT_SANDBOX=1",
-            "MOZ_DISABLE_RDD_SANDBOX=1",
-            "MOZ_DISABLE_SOCKET_PROCESS_SANDBOX=1",
-            "MOZ_DISABLE_GMP_SANDBOX=1",
-            "MOZ_DISABLE_UTILITY_SANDBOX=1",
-        ) + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) +
+        ) + GraphicsEnv.variables + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) +
             (if (SessionBus.isAvailable(context)) listOf("DBUS_SESSION_BUS_ADDRESS=${SessionBus.ADDRESS}") else emptyList()) +
             GpuDrivers.environment(context) +
             program

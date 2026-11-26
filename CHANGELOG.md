@@ -19,6 +19,13 @@ dates of the earlier ones are when they were finished.
   keyboard hides.
 - The on-screen keyboard no longer pops up when a submenu opens.
 - Typing works again after closing a menu that had a submenu open.
+- Firefox tabs no longer crash on start ("Gah. Your tab just crashed").
+- VS Code and other Electron programs start from the Linux apps menu (HandTop adds
+  `--no-sandbox`, which they need as root).
+- Qt programs start even when the distribution lacks Qt's Wayland plugins (`qt6-wayland`): they
+  fall back to X11.
+- Terminal programs such as QTerminal open the same shell as HandTop's terminal (bash), not
+  plain sh.
 
 ## 0.3.0 — 2026-11-25 · alpha
 
