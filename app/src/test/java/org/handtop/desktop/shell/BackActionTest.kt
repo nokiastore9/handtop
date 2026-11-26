@@ -21,6 +21,26 @@ class BackActionTest {
     }
 
     @Test
+    fun aWindowThatTakesBackGetsItBeforeMinimizing() {
+        // The file manager in its selection mode: Back ends the mode.
+        assertEquals(
+            BackAction.WINDOW,
+            BackAction.of(
+                launchpadOpen = false, startMenuOpen = false, linuxMenuOpen = false, hasActiveWindow = true,
+                windowTakesBack = true,
+            ),
+        )
+        // A Linux menu still closes first.
+        assertEquals(
+            BackAction.CLOSE_LINUX_MENUS,
+            BackAction.of(
+                launchpadOpen = false, startMenuOpen = false, linuxMenuOpen = true, hasActiveWindow = true,
+                windowTakesBack = true,
+            ),
+        )
+    }
+
+    @Test
     fun handTopsOwnPanelsCloseFirst() {
         assertEquals(
             BackAction.CLOSE_LAUNCHPAD,

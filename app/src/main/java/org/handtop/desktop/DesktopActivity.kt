@@ -291,11 +291,13 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             startMenuOpen = startMenu?.isShowing == true,
             linuxMenuOpen = popupLayer.hasMenus(),
             hasActiveWindow = area.activeWindow != null,
+            windowTakesBack = area.activeWindow?.content?.takesBack == true,
         )
         when (action) {
             BackAction.CLOSE_LAUNCHPAD -> launchpad.close()
             BackAction.CLOSE_START_MENU -> startMenu?.dismiss()
             BackAction.CLOSE_LINUX_MENUS -> popupLayer.closeMenus()
+            BackAction.WINDOW -> area.activeWindow?.content?.back()
             BackAction.MINIMIZE -> area.activeWindow?.let { area.minimize(it) }
             BackAction.NOTHING -> Unit
         }

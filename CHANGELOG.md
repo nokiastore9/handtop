@@ -9,6 +9,9 @@ dates of the earlier ones are when they were finished.
 
 - On a phone on its side, windows that bring no size of their own (Settings, terminals) open
   nearly as tall as the desktop instead of 62% of it. DeX and monitors keep the old size.
+- Files: pick several files with a finger. A tap on a file's icon (or Select in its menu)
+  starts it; taps then pick files, and a bar in place of the toolbar shows how many, Select
+  all and their actions. Back, the ✕ or opening another folder ends it.
 
 ### Fixes
 

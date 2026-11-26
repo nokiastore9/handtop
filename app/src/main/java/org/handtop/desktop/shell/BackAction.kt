@@ -8,15 +8,25 @@ enum class BackAction {
     /** A Linux program's menu: closed like a tap outside it, the program stays on screen. */
     CLOSE_LINUX_MENUS,
 
+    /** The active window uses Back itself (the file manager ends its selection mode). */
+    WINDOW,
+
     /** Back never quits the desktop by accident: it minimizes the active window. */
     MINIMIZE,
     NOTHING;
 
     companion object {
-        fun of(launchpadOpen: Boolean, startMenuOpen: Boolean, linuxMenuOpen: Boolean, hasActiveWindow: Boolean) = when {
+        fun of(
+            launchpadOpen: Boolean,
+            startMenuOpen: Boolean,
+            linuxMenuOpen: Boolean,
+            hasActiveWindow: Boolean,
+            windowTakesBack: Boolean = false,
+        ) = when {
             launchpadOpen -> CLOSE_LAUNCHPAD
             startMenuOpen -> CLOSE_START_MENU
             linuxMenuOpen -> CLOSE_LINUX_MENUS
+            hasActiveWindow && windowTakesBack -> WINDOW
             hasActiveWindow -> MINIMIZE
             else -> NOTHING
         }

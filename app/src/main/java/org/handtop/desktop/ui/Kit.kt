@@ -25,6 +25,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /*
@@ -345,6 +346,53 @@ private class RadioMark(context: Context, private val checked: Boolean) : Drawab
             paint.color = c.text
             canvas.drawCircle(cx, cy, r * 0.3f, paint)
         }
+    }
+
+    override fun setAlpha(alpha: Int) = Unit
+    override fun setColorFilter(colorFilter: ColorFilter?) = Unit
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+}
+
+/**
+ * The mark of a file picked with a finger (or not yet): classic, a check box; modern, a ring
+ * that fills with the accent colour and a tick.
+ */
+fun Context.selectionMark(checked: Boolean): Drawable =
+    if (classic) CheckMark(this, checked) else SelectionRing(this, checked)
+
+private class SelectionRing(context: Context, private val checked: Boolean) : Drawable() {
+    private val colors = Themes.current.colors
+    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = context.dp(2f)
+        color = colors.textDim
+    }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = colors.accent }
+    private val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = context.dp(2.2f)
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = android.graphics.Color.WHITE
+    }
+
+    override fun draw(canvas: Canvas) {
+        val b = bounds
+        val r = min(b.width(), b.height()) / 2f - ring.strokeWidth
+        val cx = b.exactCenterX()
+        val cy = b.exactCenterY()
+        if (!checked) {
+            canvas.drawCircle(cx, cy, r, ring)
+            return
+        }
+        canvas.drawCircle(cx, cy, r + ring.strokeWidth / 2, fill)
+        val path = Path().apply {
+            moveTo(cx - r * 0.45f, cy + r * 0.02f)
+            lineTo(cx - r * 0.1f, cy + r * 0.38f)
+            lineTo(cx + r * 0.5f, cy - r * 0.32f)
+        }
+        canvas.drawPath(path, tick)
     }
 
     override fun setAlpha(alpha: Int) = Unit

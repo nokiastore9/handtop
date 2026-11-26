@@ -61,6 +61,7 @@ import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.hideSystemBarsOfWindow
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.selectionMark
 import org.handtop.desktop.ui.showPopupMenu
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
@@ -76,8 +77,9 @@ import java.util.concurrent.Executors
  * entries); copy / move / rename / delete run in the background.
  *
  * Mouse: click selects (Ctrl / Shift add), double click opens, right click shows the menu.
- * Touch: tap opens, long press shows the menu. Keys: Enter, Delete, F2, F5, Backspace,
- * Alt+arrows, Ctrl+C / X / V / A / H.
+ * Touch: tap opens, long press shows the menu; a tap on a file's icon (or "Select" in its
+ * menu) starts picking files, then taps pick them and a bar at the bottom acts on them.
+ * Keys: Enter, Delete, F2, F5, Backspace, Alt+arrows, Ctrl+C / X / V / A / H.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class FilesContent(
@@ -111,8 +113,7 @@ class FilesContent(
     private val history = ArrayList<File>()
     private var historyIndex = -1
     private var entries: List<Entry> = emptyList()
-    private val selected = LinkedHashSet<File>()
-    private var anchor = -1
+    private val selection = FileSelection<File>()
     private var showHidden = false
     private var loadGeneration = 0
     private var busy = false
@@ -136,6 +137,9 @@ class FilesContent(
     private val list = ListView(context)
     private val message = LinearLayout(context).apply { orientation = VERTICAL; gravity = Gravity.CENTER; visibility = GONE }
     private val status = TextView(context)
+    private val selectionText = TextView(context)
+    private val selectionBar = LinearLayout(context)
+    private val toolbar = LinearLayout(context)
     private val adapter = EntryAdapter()
     private val iconPx = dpi(24)
 
@@ -146,7 +150,7 @@ class FilesContent(
         isFocusableInTouchMode = true
         descendantFocusability = FOCUS_BEFORE_DESCENDANTS
 
-        val toolbar = LinearLayout(context).apply {
+        toolbar.apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dpi(4), 0, dpi(4), 0)
@@ -167,6 +171,39 @@ class FilesContent(
         }
         addView(toolbar, LayoutParams(LayoutParams.MATCH_PARENT, dpi(42)))
 
+        // Picking files with a finger: in place of the toolbar (as Android apps do; the bottom
+        // corners of a window are its resize grips), what is picked and what to do with it.
+        selectionBar.apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = GONE
+            setPadding(dpi(4), 0, dpi(4), 0)
+            setBackgroundColor(Palette.BAR_BG)
+            addView(toolButton(R.drawable.ic_win_close, R.string.files_select_done) { endSelection() })
+            selectionText.apply {
+                textSize = 14f
+                setTextColor(Palette.TEXT)
+                isSingleLine = true
+                ellipsize = TextUtils.TruncateAt.END
+                setPadding(dpi(8), 0, dpi(8), 0)
+            }
+            addView(selectionText, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+            addView(TextView(context).apply {
+                text = context.getString(R.string.files_select_all)
+                textSize = 14f
+                setTextColor(Palette.TEXT)
+                gravity = Gravity.CENTER
+                setPadding(dpi(12), 0, dpi(12), 0)
+                background = if (bevelled) Themes.current.toolButton(context) else context.selectableBackground(borderless = true)
+                setOnClickListener { selectAll() }
+            }, LayoutParams(LayoutParams.WRAP_CONTENT, dpi(38)))
+            addView(toolButton(R.drawable.ic_more, R.string.files_actions) { v ->
+                val at = IntArray(2).also { v.getLocationOnScreen(it) }
+                itemMenu(at[0].toFloat(), at[1] + v.height.toFloat())
+            })
+        }
+        addView(selectionBar, LayoutParams(LayoutParams.MATCH_PARENT, dpi(42)))
+
         list.adapter = adapter
         list.divider = null
         list.isFocusable = false
@@ -174,7 +211,13 @@ class FilesContent(
         list.setOnTouchListener { _, e -> pointerDown(e) }
         list.setOnItemClickListener { _, _, position, _ -> itemClicked(position) }
         list.setOnItemLongClickListener { _, _, position, _ ->
-            select(position, add = false, range = false)
+            if (selection.touchMode) {
+                // The menu acts on the picked files; the pressed one joins them.
+                if (entries[position].file !in selection) selection.tap(files, position)
+                selectionChanged()
+            } else {
+                select(position, add = false, range = false)
+            }
             itemMenu(rawX, rawY)
             true
         }
@@ -213,6 +256,11 @@ class FilesContent(
         updateTitle()
     }
 
+    override val takesBack: Boolean get() = selection.touchMode
+
+    /** Back ends picking files. */
+    override fun back() = endSelection()
+
     override fun onActivated() {
         requestFocus()
         load() // files may have changed, or storage access been granted meanwhile
@@ -235,8 +283,7 @@ class FilesContent(
             historyIndex = history.size - 1
         }
         dir = resolved
-        selected.clear()
-        anchor = -1
+        selection.clear()
         list.setSelection(0)
         load()
     }
@@ -257,7 +304,7 @@ class FilesContent(
         val parent = FilePlaces.parentOf(context, dir) ?: return
         val from = dir
         navigate(parent)
-        selected += from // show where we came from
+        selection.highlight(from) // show where we came from
     }
 
     /** Lists [dir] in the background; a newer request wins. */
@@ -277,7 +324,7 @@ class FilesContent(
             main.post {
                 if (generation != loadGeneration) return@post
                 entries = result ?: emptyList()
-                selected.retainAll(entries.map { it.file }.toSet())
+                selection.retain(entries.map { it.file })
                 adapter.notifyDataSetChanged()
                 showMessage(files == null, result?.isEmpty() == true)
                 updateStatus()
@@ -389,16 +436,18 @@ class FilesContent(
     }
 
     private fun updateStatus() {
+        val picking = selection.touchMode
+        selectionBar.visibility = if (picking) VISIBLE else GONE
+        toolbar.visibility = if (picking) GONE else VISIBLE
+        if (picking) selectionText.text = selectedSummary()
         if (busy) return
         val free = try {
             Formatter.formatShortFileSize(context, StatFs(dir.path).availableBytes)
         } catch (_: IllegalArgumentException) {
             null
         }
-        val text = if (selected.isNotEmpty()) {
-            val bytes = entries.filter { it.file in selected && !it.isDir }.sumOf { it.size }
-            context.resources.getQuantityString(R.plurals.files_selected, selected.size, selected.size) +
-                if (bytes > 0) " · " + Formatter.formatShortFileSize(context, bytes) else ""
+        val text = if (selection.size > 0) {
+            selectedSummary()
         } else {
             context.resources.getQuantityString(R.plurals.files_items, entries.size, entries.size)
         }
@@ -419,12 +468,11 @@ class FilesContent(
         if (e.buttonState and MotionEvent.BUTTON_SECONDARY != 0) {
             val position = list.pointToPosition(e.x.toInt(), e.y.toInt())
             if (position == ListView.INVALID_POSITION) {
-                selected.clear()
-                adapter.notifyDataSetChanged()
-                updateStatus()
+                selection.clear()
+                selectionChanged()
                 folderMenu(rawX, rawY)
             } else {
-                if (entries[position].file !in selected) select(position, add = false, range = false)
+                if (entries[position].file !in selection) select(position, add = false, range = false)
                 itemMenu(rawX, rawY)
             }
             return true
@@ -435,7 +483,14 @@ class FilesContent(
     private fun itemClicked(position: Int) {
         val entry = entries.getOrNull(position) ?: return
         if (!mouse) {
-            open(entry) // a finger tap opens, as on Android
+            when {
+                selection.tap(files, position) -> selectionChanged()
+                tappedIcon() -> {
+                    selection.startTouch(files, position)
+                    selectionChanged()
+                }
+                else -> open(entry) // a finger tap opens, as on Android
+            }
             return
         }
         val now = SystemClock.uptimeMillis()
@@ -446,25 +501,34 @@ class FilesContent(
     }
 
     private fun select(position: Int, add: Boolean, range: Boolean) {
-        val entry = entries.getOrNull(position) ?: return
-        when {
-            range && anchor >= 0 -> {
-                if (!add) selected.clear()
-                for (i in minOf(anchor, position)..maxOf(anchor, position)) selected += entries[i].file
-            }
-            add -> {
-                if (!selected.remove(entry.file)) selected += entry.file
-                anchor = position
-            }
-            else -> {
-                selected.clear()
-                selected += entry.file
-                anchor = position
-            }
-        }
+        selection.click(files, position, add, range)
+        selectionChanged()
+    }
+
+    /** The last finger tap landed on a file's icon (the left of its row): it picks the file. */
+    private fun tappedIcon(): Boolean {
+        val at = IntArray(2).also { list.getLocationOnScreen(it) }
+        return rawX - at[0] < dpi(ICON_ZONE_DP)
+    }
+
+    private fun endSelection() {
+        selection.clear()
+        selectionChanged()
+    }
+
+    private fun selectionChanged() {
         adapter.notifyDataSetChanged()
         updateStatus()
     }
+
+    private fun selectedSummary(): String {
+        val bytes = entries.filter { it.file in selection && !it.isDir }.sumOf { it.size }
+        return context.resources.getQuantityString(R.plurals.files_selected, selection.size, selection.size) +
+            if (bytes > 0) " · " + Formatter.formatShortFileSize(context, bytes) else ""
+    }
+
+    /** The files of the folder, in list order. */
+    private val files: List<File> get() = entries.map { it.file }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && handleKey(event)) return true
@@ -496,7 +560,7 @@ class FilesContent(
 
     private fun moveSelection(step: Int, extend: Boolean) {
         if (entries.isEmpty()) return
-        val chosen = entries.indices.filter { entries[it].file in selected }
+        val chosen = entries.indices.filter { entries[it].file in selection }
         val from = when {
             chosen.isEmpty() -> if (step > 0) -1 else entries.size
             step > 0 -> chosen.last()
@@ -508,10 +572,8 @@ class FilesContent(
     }
 
     private fun selectAll() {
-        selected.clear()
-        entries.forEach { selected += it.file }
-        adapter.notifyDataSetChanged()
-        updateStatus()
+        selection.selectAll(files)
+        selectionChanged()
     }
 
     private fun toggleHidden() {
@@ -519,7 +581,7 @@ class FilesContent(
         load()
     }
 
-    private fun selectedEntries() = entries.filter { it.file in selected }
+    private fun selectedEntries() = entries.filter { it.file in selection }
 
     // ---- menus ----
 
@@ -527,6 +589,12 @@ class FilesContent(
         val chosen = selectedEntries()
         val single = chosen.singleOrNull()
         val items = ArrayList<MenuEntry?>()
+        if (single != null && !mouse && !selection.touchMode) {
+            items += MenuEntry(context.getString(R.string.files_select)) {
+                selection.startTouch(files, entries.indexOf(single))
+                selectionChanged()
+            }
+        }
         if (single != null) {
             items += MenuEntry(context.getString(R.string.files_open), FileKinds.iconOf(single.mime)) { open(single) }
             val linuxPath = FilePlaces.linuxPath(context, single.file)
@@ -631,6 +699,8 @@ class FilesContent(
         val files = selectedEntries().map { it.file }
         if (files.isEmpty()) return
         clipboard = Clip(files, cut)
+        // Picked with a finger: done picking, the next taps go to the folder to paste into.
+        if (selection.touchMode) endSelection()
         setStatus(context.resources.getQuantityString(if (cut) R.plurals.files_cut_done else R.plurals.files_copied, files.size, files.size))
     }
 
@@ -800,12 +870,19 @@ class FilesContent(
             date.visibility = if (wide) VISIBLE else GONE
             if (wide) date.text = DateFormat.getDateFormat(context).format(Date(entry.modified)) + " " +
                 DateFormat.getTimeFormat(context).format(Date(entry.modified))
-            val picked = entry.file in selected
+            val picked = entry.file in selection
             setBackgroundColor(if (picked) Palette.SELECTION else 0)
             name.setTextColor(if (picked) Palette.SELECTION_TEXT else Palette.TEXT)
             val minor = if (picked && bevelled) Palette.SELECTION_TEXT else Palette.TEXT_DIM
             size.setTextColor(minor)
             date.setTextColor(minor)
+            // Picking files with a finger: a mark instead of the icon.
+            if (selection.touchMode) {
+                icon.tag = null
+                icon.clearColorFilter()
+                icon.setImageDrawable(context.selectionMark(picked))
+                return
+            }
             // Kind icon, replaced by a thumbnail for pictures and videos when there is one.
             icon.tag = entry.file.path
             val thumb = thumbnails.get(thumbKey(entry))
@@ -869,6 +946,8 @@ class FilesContent(
 
     private companion object {
         const val DOUBLE_CLICK_MS = 400L
+        /** A finger tap this close to a row's left edge lands on its icon. */
+        const val ICON_ZONE_DP = 52
         const val STATUS_MESSAGE_MS = 4000L
         const val MAX_APPS = 6
 

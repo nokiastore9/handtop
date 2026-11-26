@@ -236,6 +236,10 @@
     <string name="files_show_hidden">Показать скрытые файлы</string>
     <string name="files_hide_hidden">Скрыть скрытые файлы</string>
     <string name="files_refresh">Обновить</string>
+    <string name="files_select">Выбрать</string>
+    <string name="files_select_all">Выбрать все</string>
+    <string name="files_select_done">Закончить выбор</string>
+    <string name="files_actions">Действия</string>
     <string name="files_no_app">Нет приложения, которое откроет этот файл</string>
     <string name="files_copying">Копирование…</string>
     <string name="files_moving">Перемещение…</string>

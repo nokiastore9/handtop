@@ -29,6 +29,11 @@ interface WindowContent {
     /** The window was closed and removed from the desktop; release resources here. */
     fun onClosed() {}
 
+    /** Back would do something inside the window ([back]) instead of minimizing it. */
+    val takesBack: Boolean get() = false
+
+    fun back() {}
+
     /** The user let go of the window's frame after resizing it. */
     fun onResizeEnded() {}
 
