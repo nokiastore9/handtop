@@ -322,6 +322,14 @@ Delete, F2, F5, Backspace, Alt+стрелки, Ctrl+C / X / V / A / H. Откр�
 первом запуске (со своими местами: Домашняя папка, Корзина…); HandTop только дописывает в
 готовый файл — созданный заранее KDE принял бы за свой и не добавил бы свои места. Замена
 файла — через временный и переименование.
+Открыть в Android из Linux (2026-11-26): HandTop обслуживает на сессионной шине
+`org.handtop.Desktop.Open(s)` (`OpenBus`); `/usr/local/bin/handtop-open` (пишет HandTop,
+`LinuxOpen`) зовёт его через `dbus-send` / `gdbus` / `busctl`. Путь Linux → файл Android
+(`LinuxPaths`: `/sdcard` → телефон, `/storage` → карты, остальное — rootfs, `..` не выводит из
+Linux), файл — выбор Android-приложения (`AndroidOpen`, общий с «Файлами»), ссылка (https,
+mailto, tel…) — сразу её приложению. Ярлык «Приложение Android» (`handtop-android.desktop`) —
+без MimeType нарочно: иначе GLib / xdg-open без заданной программы могли бы выбрать его сами;
+в меню программ HandTop не показывается. Папки пока не открывает.
 Firefox: песочницы процессов (seccomp, namespaces) несовместимы с proot (ptrace) — вкладки падали
 (SIGSEGV); `MOZ_DISABLE_*_SANDBOX=1` в окружении Linux: Firefox работает, сам Linux остаётся в
 песочнице приложения Android. Новые Firefox (161) снова роняли вкладки («Shared memory

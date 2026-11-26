@@ -203,6 +203,7 @@ object LinuxEnv {
         // Linux GUI programs talk to HandTop's compositor through this socket.
         WaylandServer.ensureRunning(context, rootfsDir)
         ensureProfile(rootfsDir)
+        LinuxOpen.install(rootfsDir)
         GpuDrivers.register(context)
 
         val storage = if (hasStorageAccess()) {

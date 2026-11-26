@@ -242,6 +242,7 @@ object LinuxApps {
         if (keys["Type"] != "Application") return null
         if (keys["NoDisplay"] == "true" || keys["Hidden"] == "true") return null
         if (keys.containsKey("OnlyShowIn")) return null // made for one desktop environment's session
+        if (file.name == "${LinuxOpen.DESKTOP_ID}.desktop") return null // HandTop opens in Android apps itself
         val exec = keys["Exec"]?.let(::stripFieldCodes)?.takeIf { it.isNotBlank() } ?: return null
 
         val locale = Locale.getDefault()

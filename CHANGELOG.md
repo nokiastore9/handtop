@@ -17,6 +17,10 @@ dates of the earlier ones are when they were finished.
   folders inside it, each with where it is.
 - Dolphin and the file dialogs of KDE programs get the phone's folders (Phone, Downloads,
   Camera…) as places, like GTK programs already do.
+- Linux programs can open files and links in Android apps: `handtop-open FILE|LINK` in a
+  terminal, and "Android app" under "Open with another application" in Linux file managers.
+  A file goes to the Android app you pick, a link to its app (browser, mail…). Linux
+  defaults are not changed.
 
 ### Fixes
 

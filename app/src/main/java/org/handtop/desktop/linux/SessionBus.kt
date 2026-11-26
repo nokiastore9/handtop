@@ -64,6 +64,7 @@ object SessionBus {
         }
         if (process != null) Log.i(TAG, "session bus started")
         InhibitBus.ensureRunning(app)
+        OpenBus.ensureRunning(app)
     }
 
     /** Waits (off the main thread) until programs can connect to the bus, at most [timeoutMs]. */

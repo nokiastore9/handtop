@@ -818,21 +818,8 @@ class FilesContent(
     }
 
     private fun openWithAndroid(entry: Entry) {
-        val file = FilePlaces.resolve(context, entry.file)
-        val uri = try {
-            FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        } catch (_: IllegalArgumentException) {
-            setStatus(context.getString(R.string.files_no_app))
-            return
-        }
-        val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, entry.mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        val chooser = Intent.createChooser(view, entry.name).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         // On the display HandTop is on (DeX or the phone).
-        val options = ActivityOptions.makeBasic()
-        display?.let { options.launchDisplayId = it.displayId }
-        try {
-            context.startActivity(chooser, options.toBundle())
-        } catch (_: ActivityNotFoundException) {
+        if (!AndroidOpen.file(context, FilePlaces.resolve(context, entry.file), entry.mime, entry.name, display?.displayId)) {
             setStatus(context.getString(R.string.files_no_app))
         }
     }
