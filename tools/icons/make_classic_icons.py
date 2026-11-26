@@ -163,6 +163,11 @@ ICONS = {
     'linux': terminal('#FFC8335A', '#FF7CFC7C'),
     'terminal': terminal('#FF3C8C3C', WHITE),
     'more': [p(circle(12, y, 2), DARK) for y in (5, 12, 19)],
+    'search': [
+        p('M14.2,14.2L20.5,20.5', None, DARK, 3.2, 'round'),
+        p(circle(10, 10, 6.2), '#FFCFE8FF', DARK, 1.4),
+        p('M6.8,9.2a3.4,3.4 0 0,1 2.4,-2.4', None, WHITE, 1.0, 'round'),
+    ],
     'phone': [
         p('M7.5,2h9a1.5,1.5 0 0,1 1.5,1.5v17a1.5,1.5 0 0,1 -1.5,1.5h-9a1.5,1.5 0 0,1 -1.5,-1.5v-17A1.5,1.5 0 0,1 7.5,2z', '#FF303030'),
         p(rect(7.5, 4.5, 9, 14), SKY),

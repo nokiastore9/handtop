@@ -240,6 +240,17 @@
     <string name="files_select_all">Выбрать все</string>
     <string name="files_select_done">Закончить выбор</string>
     <string name="files_actions">Действия</string>
+    <string name="files_search">Поиск</string>
+    <string name="files_search_hint">Поиск в «%1$s»</string>
+    <string name="files_search_close">Закрыть поиск</string>
+    <string name="files_searching">Поиск…</string>
+    <string name="files_nothing_found">Ничего не найдено</string>
+    <plurals name="files_found">
+        <item quantity="one">Найден %d</item>
+        <item quantity="few">Найдено %d</item>
+        <item quantity="many">Найдено %d</item>
+        <item quantity="other">Найдено %d</item>
+    </plurals>
     <string name="files_no_app">Нет приложения, которое откроет этот файл</string>
     <string name="files_copying">Копирование…</string>
     <string name="files_moving">Перемещение…</string>

@@ -12,6 +12,9 @@ dates of the earlier ones are when they were finished.
 - Files: pick several files with a finger. A tap on a file's icon (or Select in its menu)
   starts it; taps then pick files, and a bar in place of the toolbar shows how many, Select
   all and their actions. Back, the ✕ or opening another folder ends it.
+- Files: search. The magnifier (or Ctrl+F) turns the path into a search field; files and
+  folders whose names have every word typed show up as you type, from the folder and the
+  folders inside it, each with where it is.
 
 ### Fixes
 

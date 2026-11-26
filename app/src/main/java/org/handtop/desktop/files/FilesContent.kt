@@ -18,9 +18,14 @@ import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
 import android.os.SystemClock
+import android.text.Editable
+import android.text.SpannableString
+import android.text.Spanned
 import android.text.TextUtils
+import android.text.TextWatcher
 import android.text.format.DateFormat
 import android.text.format.Formatter
+import android.text.style.ForegroundColorSpan
 import android.util.LruCache
 import android.util.Size
 import android.view.Gravity
@@ -29,6 +34,8 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -79,7 +86,8 @@ import java.util.concurrent.Executors
  * Mouse: click selects (Ctrl / Shift add), double click opens, right click shows the menu.
  * Touch: tap opens, long press shows the menu; a tap on a file's icon (or "Select" in its
  * menu) starts picking files, then taps pick them and a bar at the bottom acts on them.
- * Keys: Enter, Delete, F2, F5, Backspace, Alt+arrows, Ctrl+C / X / V / A / H.
+ * Search (the magnifier, Ctrl+F) finds files by name in the folder and the folders inside it.
+ * Keys: Enter, Delete, F2, F5, Backspace, Alt+arrows, Ctrl+C / X / V / A / H / F.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class FilesContent(
@@ -140,6 +148,16 @@ class FilesContent(
     private val selectionText = TextView(context)
     private val selectionBar = LinearLayout(context)
     private val toolbar = LinearLayout(context)
+    private val searchField = EditText(context)
+    private val searchButton = toolButton(R.drawable.ic_search, R.string.files_search) { if (searching) endSearch() else startSearch() }
+    /** The search field is shown (in place of the path). */
+    private var searching = false
+    private var searchQuery = ""
+    /** The folder searched in: results show their place relative to it. */
+    private var searchRoot: File = dir
+    private var searchRunning = false
+    private var searchGeneration = 0
+    private val runSearch = Runnable { search() }
     private val adapter = EntryAdapter()
     private val iconPx = dpi(24)
 
@@ -164,6 +182,42 @@ class FilesContent(
                 marginStart = dpi(6)
                 if (bevelled) setMargins(dpi(6), dpi(4), dpi(4), dpi(4))
             })
+            searchField.apply {
+                visibility = GONE
+                setSingleLine()
+                textSize = 14f
+                imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+                setTextColor(Palette.TEXT)
+                setHintTextColor(Palette.TEXT_DIM)
+                if (bevelled) styleField() else {
+                    background = roundedRect(Palette.FIELD_BG, dp(8f))
+                    setPadding(dpi(10), 0, dpi(10), 0)
+                }
+                addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                    override fun afterTextChanged(text: Editable?) {
+                        if (!searching) return
+                        searchQuery = text?.toString().orEmpty()
+                        main.removeCallbacks(runSearch)
+                        main.postDelayed(runSearch, SEARCH_DELAY_MS)
+                    }
+                })
+                setOnEditorActionListener { _, _, _ ->
+                    hideKeyboard()
+                    true
+                }
+                setOnKeyListener { _, keyCode, event ->
+                    if (keyCode == KeyEvent.KEYCODE_ESCAPE && event.action == KeyEvent.ACTION_DOWN) {
+                        endSearch()
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+            addView(searchField, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dpi(6), dpi(4), dpi(4), dpi(4)) })
+            addView(searchButton)
             addView(toolButton(R.drawable.ic_more, R.string.files_menu) { v ->
                 val at = IntArray(2).also { v.getLocationOnScreen(it) }
                 folderMenu(at[0].toFloat(), at[1] + v.height.toFloat())
@@ -256,10 +310,10 @@ class FilesContent(
         updateTitle()
     }
 
-    override val takesBack: Boolean get() = selection.touchMode
+    override val takesBack: Boolean get() = selection.touchMode || searching
 
-    /** Back ends picking files. */
-    override fun back() = endSelection()
+    /** Back ends picking files, then the search. */
+    override fun back() = if (selection.touchMode) endSelection() else endSearch()
 
     override fun onActivated() {
         requestFocus()
@@ -284,6 +338,7 @@ class FilesContent(
         }
         dir = resolved
         selection.clear()
+        closeSearch()
         list.setSelection(0)
         load()
     }
@@ -307,8 +362,13 @@ class FilesContent(
         selection.highlight(from) // show where we came from
     }
 
-    /** Lists [dir] in the background; a newer request wins. */
+    /** Shows [dir] again: the search results while searching, else the folder. */
     private fun load() {
+        if (searching && searchQuery.isNotBlank()) search() else listFolder()
+    }
+
+    /** Lists [dir] in the background; a newer request wins. */
+    private fun listFolder() {
         val generation = ++loadGeneration
         val target = dir
         val hidden = showHidden
@@ -316,13 +376,9 @@ class FilesContent(
         updateChrome()
         worker.execute {
             val files = target.listFiles()
-            val result = files?.filter { hidden || !it.name.startsWith(".") }?.map { f ->
-                val real = FilePlaces.resolve(appContext, f)
-                val isDir = real.isDirectory
-                Entry(f, isDir, if (isDir) 0 else real.length(), real.lastModified(), FileKinds.mimeOf(f, isDir))
-            }?.sortedWith(compareBy<Entry> { !it.isDir }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+            val result = files?.filter { hidden || !it.name.startsWith(".") }?.map { entryOf(appContext, it) }?.sortedWith(compareBy<Entry> { !it.isDir }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
             main.post {
-                if (generation != loadGeneration) return@post
+                if (generation != loadGeneration || searching && searchQuery.isNotBlank()) return@post
                 entries = result ?: emptyList()
                 selection.retain(entries.map { it.file })
                 adapter.notifyDataSetChanged()
@@ -331,6 +387,87 @@ class FilesContent(
             }
         }
     }
+
+    private fun entryOf(appContext: Context, f: File): Entry {
+        val real = FilePlaces.resolve(appContext, f)
+        val isDir = real.isDirectory
+        return Entry(f, isDir, if (isDir) 0 else real.length(), real.lastModified(), FileKinds.mimeOf(f, isDir))
+    }
+
+    // ---- search ----
+
+    private fun startSearch() {
+        if (selection.touchMode) endSelection()
+        searching = true
+        searchRoot = dir
+        searchQuery = ""
+        crumbScroll.visibility = GONE
+        searchField.visibility = VISIBLE
+        searchField.hint = context.getString(R.string.files_search_hint, FilePlaces.crumbs(context, dir).last().first)
+        searchField.setText("")
+        searchButton.setThemedIcon(R.drawable.ic_win_close, Palette.TEXT_SOFT)
+        searchButton.contentDescription = context.getString(R.string.files_search_close)
+        searchField.requestFocus()
+        searchField.post { context.getSystemService(InputMethodManager::class.java)?.showSoftInput(searchField, 0) }
+    }
+
+    /** Runs the search for [searchQuery] in the background; a newer one wins. */
+    private fun search() {
+        val query = searchQuery.trim()
+        val generation = ++searchGeneration
+        if (query.isEmpty()) {
+            searchRunning = false
+            listFolder()
+            return
+        }
+        val root = searchRoot
+        val hidden = showHidden
+        val appContext = context.applicationContext
+        searchRunning = true
+        updateStatus()
+        searchWorker.execute {
+            val found = FileSearch.search(root, query, hidden, SEARCH_LIMIT) { generation != searchGeneration }
+                .map { entryOf(appContext, it) }
+            main.post {
+                if (generation != searchGeneration || !searching) return@post
+                searchRunning = false
+                entries = found
+                selection.retain(entries.map { it.file })
+                adapter.notifyDataSetChanged()
+                showMessage(unreadable = false, empty = found.isEmpty())
+                updateStatus()
+            }
+        }
+    }
+
+    /** Hides the search field; the caller shows the folder. */
+    private fun closeSearch() {
+        if (!searching) return
+        searching = false
+        searchRunning = false
+        searchGeneration++ // a search still running is dropped
+        searchQuery = ""
+        main.removeCallbacks(runSearch)
+        hideKeyboard()
+        searchField.visibility = GONE
+        crumbScroll.visibility = VISIBLE
+        searchButton.setThemedIcon(R.drawable.ic_search, Palette.TEXT_SOFT)
+        searchButton.contentDescription = context.getString(R.string.files_search)
+        requestFocus()
+    }
+
+    private fun endSearch() {
+        closeSearch()
+        listFolder()
+    }
+
+    private fun hideKeyboard() {
+        context.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(searchField.windowToken, 0)
+    }
+
+    /** Where a search result is, relative to the folder searched ("" when right in it). */
+    private fun placeOf(entry: Entry): String =
+        entry.file.parentFile?.relativeToOrNull(searchRoot)?.path?.takeIf { it.isNotEmpty() } ?: ""
 
     private fun showMessage(unreadable: Boolean, empty: Boolean) {
         message.removeAllViews()
@@ -345,6 +482,7 @@ class FilesContent(
                 when {
                     noAccess -> R.string.files_no_access
                     unreadable -> R.string.files_unreadable
+                    searching -> R.string.files_nothing_found
                     else -> R.string.files_empty
                 },
             )
@@ -448,6 +586,9 @@ class FilesContent(
         }
         val text = if (selection.size > 0) {
             selectedSummary()
+        } else if (searching && searchQuery.isNotBlank()) {
+            if (searchRunning) context.getString(R.string.files_searching)
+            else context.resources.getQuantityString(R.plurals.files_found, entries.size, entries.size)
         } else {
             context.resources.getQuantityString(R.plurals.files_items, entries.size, entries.size)
         }
@@ -531,6 +672,8 @@ class FilesContent(
     private val files: List<File> get() = entries.map { it.file }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Typing a search: Backspace, arrows and Enter belong to the field.
+        if (searchField.hasFocus()) return super.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_DOWN && handleKey(event)) return true
         return super.dispatchKeyEvent(event)
     }
@@ -552,6 +695,7 @@ class FilesContent(
             KeyEvent.KEYCODE_V -> if (e.isCtrlPressed) paste() else return false
             KeyEvent.KEYCODE_A -> if (e.isCtrlPressed) selectAll() else return false
             KeyEvent.KEYCODE_H -> if (e.isCtrlPressed) toggleHidden() else return false
+            KeyEvent.KEYCODE_F -> if (e.isCtrlPressed) startSearch() else return false
             KeyEvent.KEYCODE_N -> if (e.isCtrlPressed && e.isShiftPressed) newFolder() else return false
             else -> return false
         }
@@ -864,7 +1008,10 @@ class FilesContent(
         }
 
         fun bind(entry: Entry) {
-            name.text = entry.name
+            val place = if (searching) placeOf(entry) else ""
+            name.text = if (place.isEmpty()) entry.name else SpannableString("${entry.name}   $place").apply {
+                setSpan(ForegroundColorSpan(Palette.TEXT_DIM), entry.name.length, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
             size.text = if (entry.isDir) "" else Formatter.formatShortFileSize(context, entry.size)
             val wide = this@FilesContent.width == 0 || this@FilesContent.width >= dpi(640)
             date.visibility = if (wide) VISIBLE else GONE
@@ -950,9 +1097,12 @@ class FilesContent(
         const val ICON_ZONE_DP = 52
         const val STATUS_MESSAGE_MS = 4000L
         const val MAX_APPS = 6
+        const val SEARCH_DELAY_MS = 300L
+        const val SEARCH_LIMIT = 500
 
         var clipboard: Clip? = null
         val worker = Executors.newSingleThreadExecutor()
+        val searchWorker = Executors.newSingleThreadExecutor()
         val thumbWorker = Executors.newFixedThreadPool(2)
         val pendingThumbs = HashSet<String>()
         val thumbnails = object : LruCache<String, Bitmap>(16 * 1024 * 1024) {
