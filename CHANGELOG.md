@@ -25,6 +25,10 @@ dates of the earlier ones are when they were finished.
   together with the other picked files: onto a folder, into another Files window, or a folder
   onto the desktop for a shortcut. On release a menu asks Move here or Copy here. A long press
   without a move still opens the file's menu.
+- The classic theme reaches Linux programs: Qt and KDE programs (Qt 5 and 6) get gray
+  bevelled controls, blue selection and the classic colours, and so do GTK 2 programs. Nothing
+  is installed in Linux and no user setting is changed: HandTop writes its own files and points
+  the programs to them while the classic theme is on. Programs take the theme when they start.
 
 ### Fixes
 

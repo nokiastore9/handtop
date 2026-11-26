@@ -204,6 +204,7 @@ object LinuxEnv {
         WaylandServer.ensureRunning(context, rootfsDir)
         ensureProfile(rootfsDir)
         LinuxOpen.install(rootfsDir)
+        LinuxTheme.install(rootfsDir)
         GpuDrivers.register(context)
 
         val storage = if (hasStorageAccess()) {
@@ -245,6 +246,7 @@ object LinuxEnv {
         ) + GraphicsEnv.variables + (if (X11Display.isInstalled(context)) listOf("DISPLAY=${X11Display.DISPLAY}") else emptyList()) +
             (if (SessionBus.isAvailable(context)) listOf("DBUS_SESSION_BUS_ADDRESS=${SessionBus.ADDRESS}") else emptyList()) +
             GpuDrivers.environment(context) +
+            LinuxTheme.environment(context) +
             program
 
         val env = LinkedHashMap(System.getenv())
