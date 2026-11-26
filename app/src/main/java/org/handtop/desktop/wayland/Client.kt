@@ -28,7 +28,13 @@ abstract class Resource(val client: Client, val id: Int, val version: Int) {
  * One connected Wayland client. Reading happens on a background thread; everything else
  * (dispatching requests, sending events) runs on the main thread.
  */
-class Client(val server: WaylandServer, private val fd: Int, private val main: Handler) {
+class Client(
+    val server: WaylandServer,
+    private val fd: Int,
+    private val main: Handler,
+    /** Connected on Xwayland's own socket: it is shown the X screen of [X11Scaling]. */
+    val isXwayland: Boolean = false,
+) {
 
     private val objects = HashMap<Int, Resource>()
     private var pending = ByteArray(0)

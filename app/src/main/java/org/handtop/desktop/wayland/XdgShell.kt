@@ -118,6 +118,7 @@ class XdgSurface(client: Client, id: Int, version: Int, val surface: WlSurface) 
 
 class XdgToplevel(client: Client, id: Int, version: Int, val xdg: XdgSurface) :
     Resource(client, id, version), Toplevel {
+    override val pixelScale get() = client.server.scale
     override val iface = "xdg_toplevel"
 
     override val surface get() = xdg.surface

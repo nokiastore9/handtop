@@ -63,6 +63,7 @@ class XWindow(val id: Int, var overrideRedirect: Boolean, var x: Int, var y: Int
 /** An X11 window shown as a desktop window. */
 class XwaylandToplevel(private val xwm: Xwm, val window: XWindow, override val surface: WlSurface) : Toplevel {
     override val client get() = surface.client
+    override val pixelScale get() = client.server.x11PixelScale
     override val title get() = window.netName ?: window.wmName ?: ""
     override val appId get() = window.wmClass
     override val parent get() = xwm.toplevelOf(window.transientFor)
@@ -146,6 +147,8 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
         x.changeProperty32(x.root, a("_NET_SUPPORTING_WM_CHECK"), ATOM_WINDOW, wmWindow)
         x.changePropertyUtf8(wmWindow, a("_NET_WM_NAME"), a("UTF8_STRING"), "HandTop")
         x.changeProperty32(x.root, a("_NET_SUPPORTED"), ATOM_ATOM, *SUPPORTED.map { a(it) }.toIntArray())
+        publishScale()
+        x.setSelectionOwner(wmWindow, a("_XSETTINGS_S0")) // HandTop is the XSETTINGS manager
         x.queryExtension("Composite") { composite, _ ->
             if (composite == 0) {
                 Log.e(TAG, "the X server has no Composite extension: X11 windows cannot be shown")
@@ -161,6 +164,26 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
                 startClipboard()
             }
         }
+    }
+
+    private var xsettingsSerial = 0
+
+    /**
+     * Tells X11 programs their scale (see [X11Scaling]): Xft.dpi and the cursor size in the X
+     * resources, which Xlib programs read when they start, and the XSETTINGS, which GTK and
+     * Chromium-based programs follow live, on HandTop's own window.
+     */
+    private fun publishScale() {
+        val mode = server.x11Mode
+        val resources = X11Scaling.resources(mode, server.scale).toByteArray(Charsets.ISO_8859_1)
+        x.changeProperty(x.root, a("RESOURCE_MANAGER"), ATOM_STRING, 8, resources, resources.size)
+        val settings = X11Scaling.xsettings(mode, server.scale, ++xsettingsSerial)
+        x.changeProperty(wmWindow, a("_XSETTINGS_SETTINGS"), a("_XSETTINGS_SETTINGS"), 8, settings, settings.size)
+    }
+
+    /** The interface scale changed: tell the X11 programs (those following XSETTINGS re-render). */
+    fun scaleChanged() {
+        if (wmWindow != 0) publishScale()
     }
 
     private fun shutdown() {
@@ -625,6 +648,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
             "_NET_WM_WINDOW_TYPE_TOOLTIP", "_NET_WM_WINDOW_TYPE_NOTIFICATION", "_NET_WM_WINDOW_TYPE_DND",
             "_MOTIF_WM_HINTS", "WL_SURFACE_ID", "WL_SURFACE_SERIAL",
             "CLIPBOARD", "TARGETS", "TEXT", "INCR", "HANDTOP_SELECTION", "text/plain;charset=utf-8", "text/plain",
+            "RESOURCE_MANAGER", "_XSETTINGS_S0", "_XSETTINGS_SETTINGS",
         )
     }
 }
@@ -707,7 +731,10 @@ class XdgOutput(client: Client, id: Int, version: Int, private val output: WlOut
     fun sendInfo(first: Boolean) {
         val s = client.server
         event(0) { int(0); int(0) } // logical_position
-        event(1) { int(s.outputWidth / s.scale); int(s.outputHeight / s.scale) } // logical_size
+        // logical_size; for Xwayland the X screen: physical when X11 programs draw sharp
+        val size = if (client.isXwayland) X11Scaling.screenSize(s.x11Mode, s.outputWidth, s.outputHeight, s.scale)
+        else intArrayOf(s.outputWidth / s.scale, s.outputHeight / s.scale)
+        event(1) { int(size[0]); int(size[1]) }
         if (version >= 2 && first) {
             event(3) { string("HandTop-1") } // name
             event(4) { string("HandTop desktop") } // description

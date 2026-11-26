@@ -6,10 +6,12 @@ import android.os.SystemClock
 import android.util.Log
 import org.handtop.desktop.wayland.WaylandServer
 import org.handtop.desktop.wayland.X11Connection
+import org.handtop.desktop.wayland.X11ScaleMode
 import org.handtop.desktop.wayland.Xwm
 import org.handtop.desktop.wayland.mainAsync
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * X11 programs: a rootless Xwayland inside the distribution (display :0), started with the
@@ -38,6 +40,35 @@ object X11Display {
 
     val isRunning get() = process?.isAlive == true
 
+    private const val PREFS = "x11"
+    private const val KEY_SCALE = "scale"
+
+    /** How X11 programs are scaled (Settings → Graphics and sound); sharp unless chosen otherwise. */
+    fun mode(context: Context): X11ScaleMode = X11ScaleMode.fromKey(prefs(context).getString(KEY_SCALE, null))
+
+    /** Changes how X11 programs are scaled: Xwayland starts again, its programs close. Main thread. */
+    fun setMode(context: Context, mode: X11ScaleMode) {
+        if (mode == mode(context)) return
+        prefs(context).edit().putString(KEY_SCALE, mode.key).apply()
+        restart(context)
+    }
+
+    private fun prefs(context: Context) =
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /** Starts Xwayland again (its X11 programs close), e.g. for a new scale mode. Main thread. */
+    fun restart(context: Context) {
+        val app = context.applicationContext
+        val running = process ?: return ensureRunning(app)
+        process = null // not an unexpected exit: the exit watcher leaves the restart to us
+        Thread({
+            // proot ignores destroy(): the X server itself is killed, and its proot exits with it.
+            LinuxEnv.killLinuxProgram(app, "Xwayland")
+            running.waitFor(5, TimeUnit.SECONDS)
+            main.post { ensureRunning(app) }
+        }, "xwayland-restart").start()
+    }
+
     /** The window manager is connected: X11 programs can start now. */
     fun isReady(context: Context) = WaylandServer.get(context).xwm?.ready == true
 
@@ -51,7 +82,13 @@ object X11Display {
         val socket = File(rootfs, "tmp/.X11-unix/X$NUMBER")
         socket.delete()
         File(rootfs, "tmp/.X$NUMBER-lock").delete()
-        val spec = LinuxEnv.commandSpec(app, "exec Xwayland $DISPLAY -rootless -shm -noreset -nolisten tcp -nolisten local")
+        // How X11 programs are scaled decides the X screen Xwayland is shown (see X11Scaling).
+        WaylandServer.get(app).x11Mode = mode(app)
+        // On a socket of its own, so the Wayland server knows which client is Xwayland.
+        val spec = LinuxEnv.commandSpec(
+            app,
+            "exec env WAYLAND_DISPLAY=${WaylandServer.X11_SOCKET_NAME} Xwayland $DISPLAY -rootless -shm -noreset -nolisten tcp -nolisten local",
+        )
         val log = File(rootfs, "tmp/handtop-xwayland.log")
         // Keep the previous run's output: after a crash it holds the backtrace.
         if (log.exists()) log.renameTo(File(rootfs, "tmp/handtop-xwayland.log.old"))

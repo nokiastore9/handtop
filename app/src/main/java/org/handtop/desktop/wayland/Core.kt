@@ -221,7 +221,7 @@ class WlOutput(client: Client, id: Int, version: Int) : Resource(client, id, ver
         }
         event(1) { uint(3); int(s.outputWidth); int(s.outputHeight); int(60_000) } // mode: current|preferred
         if (version >= 2) {
-            event(3) { int(s.scale) }
+            event(3) { int(if (client.isXwayland) s.x11PixelScale else s.scale) }
             event(2) // done
         }
     }

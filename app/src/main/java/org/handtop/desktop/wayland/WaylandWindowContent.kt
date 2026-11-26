@@ -22,7 +22,7 @@ import org.handtop.desktop.wm.WindowHost
 
 /**
  * Shows a Linux toplevel (and its popups) inside a desktop window, and feeds it pointer and
- * keyboard input. 1 logical Wayland unit = [WaylandServer.scale] view pixels.
+ * keyboard input. 1 unit of the program's surface = [scale] view pixels.
  */
 @SuppressLint("ViewConstructor")
 class WaylandWindowContent(
@@ -72,8 +72,11 @@ class WaylandWindowContent(
     override val view: View get() = this
 
     private val server = toplevel.client.server
-    /** Follows the server: the interface scale can change while the window is open. */
-    private val scale get() = server.scale
+    /**
+     * View pixels per surface unit ([Toplevel.pixelScale]); follows the server, the interface
+     * scale can change while the window is open.
+     */
+    val scale get() = toplevel.pixelScale
     private var host: WindowHost? = null
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val src = Rect()

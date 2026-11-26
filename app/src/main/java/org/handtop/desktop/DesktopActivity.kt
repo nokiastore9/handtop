@@ -457,7 +457,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         }
         // Size the window around what the program drew (in view pixels).
         val g = toplevel.visibleGeometry()
-        val s = toplevel.client.server.scale
+        val s = toplevel.pixelScale
         area.addWindow(window, g.width() * s, g.height() * s, parent)
     }
 

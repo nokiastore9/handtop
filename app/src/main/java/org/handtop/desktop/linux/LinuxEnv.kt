@@ -116,6 +116,35 @@ object LinuxEnv {
         if (killed > 0) Log.i("HandTopLinux", "stopped $killed Linux processes")
     }
 
+    /**
+     * Kills the Linux processes running the program [name] (their argv[0], or its last part).
+     * Under proot a Linux process runs as proot's loader, with the program's own command line.
+     */
+    fun killLinuxProgram(context: Context, name: String) {
+        val loader = context.applicationInfo.nativeLibraryDir + "/libproot-loader.so"
+        for (dir in File("/proc").listFiles() ?: emptyArray()) {
+            val pid = dir.name.toIntOrNull() ?: continue
+            val exe = try {
+                Os.readlink("/proc/$pid/exe")
+            } catch (_: Exception) {
+                continue
+            }
+            if (exe != loader) continue
+            val argv0 = try {
+                File(dir, "cmdline").readBytes().takeWhile { it != 0.toByte() }.toByteArray().toString(Charsets.UTF_8)
+            } catch (_: Exception) {
+                continue
+            }
+            if (argv0 != name && argv0.substringAfterLast('/') != name) continue
+            try {
+                Os.kill(pid, OsConstants.SIGKILL)
+                Log.i("HandTopLinux", "stopped $name ($pid)")
+            } catch (_: Exception) {
+                // already gone
+            }
+        }
+    }
+
     /** A login shell inside the installed distribution, as fake root, through proot, in [cwd]. */
     fun shellSpec(context: Context, cwd: String = HOME): ShellSpec {
         startServices(context)

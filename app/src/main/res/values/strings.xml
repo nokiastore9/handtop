@@ -149,6 +149,17 @@
     <string name="settings_x11_on">✓ X11 works (display :0)</string>
     <string name="settings_x11_off">Xwayland is installed; it starts with a Linux terminal or app</string>
     <string name="settings_x11_install">Install X11 support</string>
+    <string name="settings_x11_scale_text">How X11 programs meet the screen\'s density. Sharp: they draw at full resolution and scale themselves (VS Code, Firefox, GTK and Qt programs); very old ones look small. Scaled: HandTop enlarges them, softer. Changing it restarts X11: open X11 programs close.</string>
+    <string name="settings_x11_sharp">Sharp</string>
+    <string name="settings_x11_sharp_sub">programs scale themselves</string>
+    <string name="settings_x11_scaled">Scaled</string>
+    <string name="settings_x11_scaled_sub">softer, for old programs</string>
+    <string name="settings_x11_restart_title">Restart X11?</string>
+    <string name="settings_x11_restart">Restart</string>
+    <plurals name="settings_x11_restart_text">
+        <item quantity="one">%d X11 window is open. It will close; what is not saved in it is lost.</item>
+        <item quantity="other">%d X11 windows are open. They will close; what is not saved in them is lost.</item>
+    </plurals>
 
     <string name="settings_gpu_title">Graphics acceleration</string>
     <string name="settings_gpu_text">Linux programs draw on the phone\'s Adreno GPU (OpenGL 4.6, OpenGL ES 3.2, Vulkan 1.4) instead of the processor. The drivers come with HandTop and set themselves up. Programs that were open during a change need a restart.</string>

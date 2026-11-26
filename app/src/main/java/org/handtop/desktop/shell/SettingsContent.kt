@@ -13,6 +13,7 @@ import android.view.View
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -25,6 +26,8 @@ import org.handtop.desktop.linux.LinuxEnv
 import org.handtop.desktop.linux.LinuxInstaller
 import org.handtop.desktop.linux.LinuxSetup
 import org.handtop.desktop.linux.X11Display
+import org.handtop.desktop.wayland.WaylandServer
+import org.handtop.desktop.wayland.X11ScaleMode
 import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.term.TermSessions
@@ -93,6 +96,7 @@ class SettingsContent(
     private val soundStatus = TextView(context)
     private val soundButton = context.pushButton()
     private val x11Status = TextView(context)
+    private val x11ScaleRow = FrameLayout(context)
     private val x11Button = context.pushButton()
     private val notifyHint = TextView(context)
     private val notifyButton = context.pushButton()
@@ -273,6 +277,10 @@ class SettingsContent(
                 x11Button.setText(R.string.settings_x11_install)
                 x11Button.setOnClickListener { LinuxSetup.start(context) }
                 addView(x11Button, wrap())
+                addView(body(R.string.settings_x11_scale_text))
+                addView(x11ScaleChoices(), LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = dpi(6) })
             })
             addView(group(R.string.settings_sound_title).apply {
                 addView(body(R.string.settings_sound_text))
@@ -563,6 +571,45 @@ class SettingsContent(
             sublabels = null,
             selected = themes.indexOfFirst { it.first == Themes.current.id },
         ) { chooseTheme(themes[it].first) }
+    }
+
+    /** Sharp X11 programs (they scale themselves) or scaled by HandTop; see [X11ScaleMode]. */
+    private fun x11ScaleChoices(): View {
+        showX11Scale()
+        return x11ScaleRow
+    }
+
+    private fun showX11Scale() {
+        val modes = listOf(
+            Triple(X11ScaleMode.SHARP, R.string.settings_x11_sharp, R.string.settings_x11_sharp_sub),
+            Triple(X11ScaleMode.SCALED, R.string.settings_x11_scaled, R.string.settings_x11_scaled_sub),
+        )
+        x11ScaleRow.removeAllViews()
+        x11ScaleRow.addView(context.choices(
+            labels = modes.map { context.getString(it.second) },
+            sublabels = modes.map { context.getString(it.third) },
+            selected = modes.indexOfFirst { it.first == X11Display.mode(context) },
+        ) { chooseX11Scale(modes[it].first) })
+    }
+
+    /** X11 restarts for the new mode; open X11 programs would close, so that is asked first. */
+    private fun chooseX11Scale(mode: X11ScaleMode) {
+        val open = WaylandServer.get(context).xwm?.toplevels()?.size ?: 0
+        if (open == 0) {
+            X11Display.setMode(context, mode)
+            showX11Scale()
+            return
+        }
+        showDialog(
+            context.dialogBuilder()
+                .setTitle(R.string.settings_x11_restart_title)
+                .setMessage(context.resources.getQuantityString(R.plurals.settings_x11_restart_text, open, open))
+                .setPositiveButton(R.string.settings_x11_restart) { _, _ ->
+                    X11Display.setMode(context, mode)
+                    showX11Scale()
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ -> showX11Scale() },
+        )
     }
 
     private fun group(title: Int) = context.groupBox(context.getString(title))

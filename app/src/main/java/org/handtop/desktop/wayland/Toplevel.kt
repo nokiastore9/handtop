@@ -4,11 +4,16 @@ import android.graphics.Rect
 
 /**
  * A top-level Linux window shown on the desktop: an xdg_toplevel ([XdgToplevel]) or an X11
- * window through Xwayland ([XwaylandToplevel]). Sizes and positions are logical pixels.
+ * window through Xwayland ([XwaylandToplevel]). Sizes and positions are in [surface] units.
  */
 interface Toplevel {
     val client: Client
     val surface: WlSurface
+    /**
+     * Screen pixels per [surface] unit: the output scale for Wayland programs; for X11 ones
+     * 1 when they draw sharp at full resolution, the output scale when HandTop stretches them.
+     */
+    val pixelScale: Int
     val title: String
     /** xdg app_id, or the X11 WM_CLASS class; matched against menu entries for the icon. */
     val appId: String

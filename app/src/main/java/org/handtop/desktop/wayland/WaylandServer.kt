@@ -43,6 +43,7 @@ class WaylandServer private constructor(private val app: Context) {
     private val clients = ArrayList<Client>()
     private var serverFd = -1
     private var socketPath: String? = null
+    private var x11Fd = -1
     private var serial = 0
 
     /** HandTop as the window manager of Xwayland, while it runs (see X11Display). */
@@ -58,6 +59,13 @@ class WaylandServer private constructor(private val app: Context) {
     /** Integer output scale: client buffers are this many pixels per logical unit. */
     var scale = 1
         private set
+
+    /** How X11 programs are scaled; set by [org.handtop.desktop.linux.X11Display] before Xwayland starts. */
+    @Volatile
+    var x11Mode = X11ScaleMode.SHARP
+
+    /** Screen pixels per X pixel. */
+    val x11PixelScale get() = X11Scaling.pixelsPerUnit(x11Mode, scale)
     var outputWidth = 0
         private set
     var outputHeight = 0
@@ -83,6 +91,7 @@ class WaylandServer private constructor(private val app: Context) {
             client.resources().filterIsInstance<WlOutput>().forEach { it.sendInfo() }
             client.flush()
         }
+        xwm?.scaleChanged()
     }
 
     private fun applyDisplay(dm: DisplayMetrics): Boolean {
@@ -120,8 +129,12 @@ class WaylandServer private constructor(private val app: Context) {
     private fun ensureListening(rootfs: File) {
         val dir = File(rootfs, RUNTIME_DIR)
         val socket = File(dir, SOCKET_NAME)
-        if (serverFd >= 0 && socket.path == socketPath && socket.exists()) return
+        val x11Socket = File(dir, X11_SOCKET_NAME)
+        if (serverFd >= 0 && socket.path == socketPath && socket.exists() && x11Socket.exists()) return
         if (serverFd >= 0) Native.shutdown(serverFd) // stops the old accept thread
+        if (x11Fd >= 0) Native.shutdown(x11Fd)
+        serverFd = -1
+        x11Fd = -1
         dir.mkdirs()
         try {
             Os.chmod(dir.path, 0x1C0) // 0700, as XDG_RUNTIME_DIR must be
@@ -136,10 +149,18 @@ class WaylandServer private constructor(private val app: Context) {
         serverFd = fd
         socketPath = socket.path
         Log.i(TAG, "listening on $socket (scale $scale)")
-        Thread({ acceptLoop(fd) }, "wayland-accept").start()
+        Thread({ acceptLoop(fd, xwayland = false) }, "wayland-accept").start()
+        // Xwayland connects on a socket of its own, so HandTop knows which client it is.
+        val xfd = Native.listenUnix(x11Socket.path)
+        if (xfd < 0) {
+            Log.e(TAG, "cannot listen on $x11Socket: $xfd")
+            return
+        }
+        x11Fd = xfd
+        Thread({ acceptLoop(xfd, xwayland = true) }, "wayland-accept-x11").start()
     }
 
-    private fun acceptLoop(fd: Int) {
+    private fun acceptLoop(fd: Int, xwayland: Boolean) {
         while (true) {
             val clientFd = Native.accept(fd)
             if (clientFd < 0) {
@@ -148,7 +169,7 @@ class WaylandServer private constructor(private val app: Context) {
                 return
             }
             main.post {
-                val client = Client(this, clientFd, main)
+                val client = Client(this, clientFd, main, xwayland)
                 clients += client
                 client.start()
                 Log.i(TAG, "client connected (${clients.size})")
@@ -229,6 +250,8 @@ class WaylandServer private constructor(private val app: Context) {
         /** Paths inside the Linux root filesystem (guest view). */
         const val RUNTIME_DIR = "tmp/.handtop-runtime"
         const val SOCKET_NAME = "wayland-0"
+        /** Xwayland's socket in the same directory (see [Client.isXwayland]). */
+        const val X11_SOCKET_NAME = "wayland-x11"
 
         @Volatile
         private var instance: WaylandServer? = null

@@ -3,6 +3,23 @@
 What changed in each version of HandTop. 0.3.0 is the first version published as an APK; the
 dates of the earlier ones are when they were finished.
 
+## Unreleased
+
+### Changes
+
+- **Sharp X11 programs.** X11 programs now draw at the screen's full resolution and learn
+  their scale (Xft.dpi, XSETTINGS), so VS Code, Firefox, GTK and Qt programs on X11 are sharp
+  instead of stretched and blurry. Very old programs that cannot scale look small; for them,
+  Settings → Graphics and sound → X11 programs → Scaled brings back the stretched look.
+- X11 programs can resize their own windows (a game changing resolution, a growing dialog).
+
+### Fixes
+
+- A Linux menu opened while the on-screen keyboard was up stays under its button when the
+  keyboard hides.
+- The on-screen keyboard no longer pops up when a submenu opens.
+- Typing works again after closing a menu that had a submenu open.
+
 ## 0.3.0 — 2026-11-25 · alpha
 
 The first version meant to be shown publicly, published as a signed APK. Everything since 0.2.0:

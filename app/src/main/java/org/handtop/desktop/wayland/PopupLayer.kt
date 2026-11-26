@@ -57,8 +57,8 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
     }
 
     private fun reportPositions() {
-        val scale = server.scale
         for (window in windows) {
+            val scale = window.scale
             val origin = originOf(window) ?: continue
             val logical = Point(Math.floorDiv(origin.x, scale), Math.floorDiv(origin.y, scale))
             if (reported[window] == logical) continue
@@ -102,7 +102,7 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
         for (window in windows) {
             val origin = originOf(window) ?: continue
             lastOrigins[window] = origin
-            val scale = server.scale
+            val scale = window.scale
             for (popup in window.toplevel.popups) {
                 val at = popup.originInToplevel
                 window.drawSurface(canvas, popup.surface, popup.visibleGeometry(), origin.x + at.left * scale, origin.y + at.top * scale)
@@ -116,8 +116,8 @@ class PopupLayer(context: Context, private val server: WaylandServer) : View(con
 
     /** The topmost popup under layer pixel (px, py), with the point in its surface coordinates. */
     private fun popupAt(px: Float, py: Float): Hit? {
-        val scale = server.scale.toDouble()
         for (window in windows.asReversed()) {
+            val scale = window.scale.toDouble()
             val origin = originOf(window) ?: continue
             val lx = (px - origin.x) / scale
             val ly = (py - origin.y) / scale
