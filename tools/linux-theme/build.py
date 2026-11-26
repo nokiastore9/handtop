@@ -83,6 +83,7 @@ def square_corners(css):
 
 def write(path, text):
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    text = text.replace('\r\n', '\n')  # some upstream sources have Windows line ends
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(text)
     print('%s: %d bytes' % (os.path.relpath(path, ROOT), len(text.encode('utf-8'))))
