@@ -87,6 +87,9 @@ class WaylandWindowContent(
     init {
         isFocusable = true
         isFocusableInTouchMode = true
+        // Android's focus highlight would veil the program's pixels in white (16%) whenever
+        // the window takes focus after a key (DeX, a keyboard): colours looked washed out.
+        defaultFocusHighlightEnabled = false
         setBackgroundColor(Color.BLACK)
         toplevel.view = this
         toplevel.surface.onCommit = { invalidate() }

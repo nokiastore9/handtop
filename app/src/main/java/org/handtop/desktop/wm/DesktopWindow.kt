@@ -94,6 +94,7 @@ class DesktopWindow(
         // The window itself can hold focus when its content has no focusable views.
         isFocusable = true
         isFocusableInTouchMode = true
+        defaultFocusHighlightEnabled = false // no white veil over the window after a key
         descendantFocusability = FOCUS_AFTER_DESCENDANTS
         // Files dropped on a window that does not take them stay out of the desktop below.
         setOnDragListener { _, e -> e.localState is FileDrag }

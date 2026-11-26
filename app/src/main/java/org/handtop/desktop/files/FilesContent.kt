@@ -182,6 +182,7 @@ class FilesContent(
         setBackgroundColor(Palette.WINDOW_BG)
         isFocusable = true
         isFocusableInTouchMode = true
+        defaultFocusHighlightEnabled = false
         descendantFocusability = FOCUS_BEFORE_DESCENDANTS
 
         toolbar.apply {

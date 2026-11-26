@@ -28,6 +28,10 @@ dates of the earlier ones are when they were finished.
 
 ### Fixes
 
+- Linux programs no longer look washed out after a key press: a window that took focus from
+  the keyboard (DeX, a keyboard, scrcpy) had Android's focus highlight over it, a 16% white
+  veil (black showed as dark gray). The same veil could cover Files, terminals and the app
+  list.
 - Back closes an open menu of a Linux program instead of minimizing its window.
 - After a menu closes, the on-screen keyboard comes back only if it was up before; tapping a
   program's menu bar no longer flashes the keyboard.

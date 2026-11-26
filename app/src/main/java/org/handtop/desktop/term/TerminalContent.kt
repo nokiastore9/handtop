@@ -237,6 +237,7 @@ class TerminalContent(
         terminalView.setTerminalCursorBlinkerRate(CURSOR_BLINK_MS)
         terminalView.isFocusable = true
         terminalView.isFocusableInTouchMode = true
+        terminalView.defaultFocusHighlightEnabled = false
         terminalView.setOnCreateContextMenuListener { menu, _, _ -> buildContextMenu(menu) }
         addView(terminalView, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         addView(extraKeys, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))

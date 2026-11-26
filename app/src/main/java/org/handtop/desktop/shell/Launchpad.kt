@@ -83,6 +83,7 @@ class Launchpad(
         isClickable = true // touches do not fall through to the desktop
         isFocusable = true
         isFocusableInTouchMode = true
+        defaultFocusHighlightEnabled = false
         // Over a blurred desktop (Android 12+) a light veil is enough and lets its colours
         // through; over a sharp one, the icons need a darker one to stand out.
         setBackgroundColor(
