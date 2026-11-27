@@ -21,10 +21,12 @@ commits name the AI as their co-author.
 
 | | |
 |---|---|
-| ![Linux terminal and XTerm on the desktop](docs/screenshots/01-desktop.jpg) | ![glmark2 on the Adreno GPU](docs/screenshots/02-gpu.jpg) |
-| The Linux terminal and an X11 program (htop in XTerm) | 3D on the Adreno GPU: glmark2 through Mesa Turnip + Zink |
-| ![The Classic theme](docs/screenshots/03-classic.jpg) | ![Choosing a Linux distribution](docs/screenshots/04-linux.jpg) |
-| The Classic theme | Choose a distribution: Debian, Ubuntu, Alpine, Fedora |
+| ![The Linux terminal, GNOME Text Editor and KCalc on the desktop](docs/screenshots/01-desktop.jpg) | ![The full-screen launcher](docs/screenshots/02-launcher.jpg) |
+| Linux programs in their own windows: the terminal, GNOME Text Editor (GTK 4) and KCalc (Qt / KDE) | The full-screen launcher, with the programs' own icons |
+| ![The Classic theme with Linux programs](docs/screenshots/03-classic.jpg) | ![Dragging a file between two Files windows](docs/screenshots/04-files.jpg) |
+| The Classic theme reaches Linux programs too: GNOME Calculator, KCalc and Mines | Files: drag a file from one window into another |
+| ![glmark2 on the Adreno GPU](docs/screenshots/05-gpu.jpg) | ![Choosing a Linux distribution](docs/screenshots/06-linux.jpg) |
+| 3D on the Adreno GPU: glmark2 through Mesa Turnip + Zink | Choose a distribution: Debian, Ubuntu, Alpine, Fedora |
 
 ## Install
 
@@ -49,7 +51,8 @@ HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs
 - **The screen as a touchpad**, with a pointer: tap to click, hold for a right click or to drag,
   two fingers to scroll (long-press the keyboard button on the taskbar)
 - Windows: drag, resize (mouse cursors on the frame), minimize, maximize,
-  snap to the left / right half or full screen by dragging to the edge
+  snap to the left / right half or full screen by dragging to the edge; a long press (or right
+  click) on a window's taskbar button opens its menu
 - **Linux Terminal** through proot as fake root, no root needed. One-tap install of an official
   Docker Hub image (sha256-verified): **Debian 13**, **Ubuntu 26.04 LTS**, **Alpine**, **Fedora** —
   with their package managers (`apt`, `apk`, `dnf`). Switch or remove it in Settings
@@ -61,7 +64,11 @@ HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs
   Mesa Turnip + Zink, shipped in the APK (see [native/mesa](native/mesa/README.md))
 - **Linux sets itself up** after installing: GPU drivers, X11, sound and `gpg` on every
   distribution, with the progress on the taskbar
-- Files: a file manager for the phone and Linux
+- **Files**: a file manager for the phone and Linux — drag files between windows, onto folders or
+  onto the desktop, select several with a finger, search, KDE places; Linux file managers can open
+  files in Android apps (`handtop-open`)
+- **On-screen keyboard only when you touch a text field**, as on Android: not when a window opens
+  with its field active or a program moves the focus
 - Phone storage in Linux as `/sdcard` (optional "All files access")
 - Settings in categories: display, desktop, notifications, Linux, graphics and sound, Android
 - Android Terminal (the system shell), several terminals at once
