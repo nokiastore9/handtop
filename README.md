@@ -93,8 +93,7 @@ HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs
 
 Questions, bug reports and ideas:
 
-- WhatsApp and Telegram: +37455099693 ([WhatsApp](https://wa.me/37455099693), [Telegram](https://t.me/+37455099693))
-- Email: [nokiastore9@gmail.com](mailto:nokiastore9@gmail.com)
+- Email: [samsoft627@gmail.com](mailto:samsoft627@gmail.com)
 - [GitHub issues](https://github.com/nokiastore9/handtop/issues)
 
 ## Version history
