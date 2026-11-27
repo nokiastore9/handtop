@@ -45,6 +45,21 @@ class KeyboardPolicyTest {
     }
 
     @Test
+    fun aTapThatActivatesAWindowGetsItsFieldBackNotAnAnswer() {
+        // A tap on a button of a calculator behind another window: HandTop gives the window the
+        // keyboard focus, and the program puts the focus back into its field before it even sees
+        // the tap. That field coming back is the window's, not an answer to the tap.
+        assertTrue(KeyboardPolicy.restoresField(tapActivated = true, fieldWhenDeactivated = true, restored = false, inputNow = field))
+        // Only the first time: what comes after is the program answering the tap.
+        assertFalse(KeyboardPolicy.restoresField(tapActivated = true, fieldWhenDeactivated = true, restored = true, inputNow = field))
+        // The window was active already, or had no field: a field taking the focus answers the tap.
+        assertFalse(KeyboardPolicy.restoresField(tapActivated = false, fieldWhenDeactivated = true, restored = false, inputNow = field))
+        assertFalse(KeyboardPolicy.restoresField(tapActivated = true, fieldWhenDeactivated = false, restored = false, inputNow = field))
+        // No field yet.
+        assertFalse(KeyboardPolicy.restoresField(tapActivated = true, fieldWhenDeactivated = true, restored = false, inputNow = null))
+    }
+
+    @Test
     fun theCaretsLineIsTheBandAroundTheCaretRectangle() {
         // Caret at y 100, 20 high: the line is 90 to 130 (half a caret above, half below).
         assertTrue(KeyboardPolicy.onCaretLine(caretY = 100, caretHeight = 20, y = 92.0))

@@ -105,6 +105,7 @@ class WaylandWindowContent(
     }
 
     override fun onActivated() {
+        activatedAt = SystemClock.uptimeMillis()
         requestFocus()
         server.textInputs.addListener(textInputListener)
         server.textInputs.addCommitListener(textInputCommitListener)
@@ -137,6 +138,15 @@ class WaylandWindowContent(
     private var tapCommits = 0
     private var tapOnCaretLine = false
     private var awaitingTapAnswer = false
+    /** The surface the finger went down on, and the row on it (surface units). */
+    private var tapSurface: WlSurface? = null
+    private var tapSurfaceY = 0.0
+    /** When the window last became the active one, and whether a field of it had the focus when it stopped being. */
+    private var activatedAt = 0L
+    private var fieldWhenDeactivated = false
+    /** The tap activated the window; [tapRestored]: the window's field came back since. */
+    private var tapActivated = false
+    private var tapRestored = false
 
     /**
      * An editor for Android only while the program has a text field focused (or the user asked
@@ -211,9 +221,17 @@ class WaylandWindowContent(
         tapInput = input
         tapCommits = input?.commits ?: 0
         val (surface, at) = hit(event.x, event.y) ?: (null to null)
-        tapOnCaretLine = input != null && surface != null && at != null && input.focused === surface &&
-            KeyboardPolicy.onCaretLine(input.cursorY, input.cursorHeight, at[1])
+        tapSurface = surface
+        tapSurfaceY = at?.get(1) ?: 0.0
+        tapOnCaretLine = onCaretLine(input)
+        // The press made the window active (DesktopArea raises it before the window sees the press).
+        tapActivated = activatedAt >= event.downTime
+        tapRestored = false
     }
+
+    private fun onCaretLine(input: TextInput?) =
+        input != null && tapSurface != null && input.focused === tapSurface &&
+            KeyboardPolicy.onCaretLine(input.cursorY, input.cursorHeight, tapSurfaceY)
 
     /**
      * A finger came up: if it was a tap (not a drag that scrolled), see what the program makes
@@ -231,6 +249,15 @@ class WaylandWindowContent(
 
     /** The program answered something soon after a tap: maybe its field, a moment later. */
     private fun textInputCommitted() {
+        val input = ownTextInput()
+        if (KeyboardPolicy.restoresField(tapActivated, fieldWhenDeactivated, tapRestored, input)) {
+            // The window's own field came back with the focus: the tap is measured from here.
+            tapRestored = true
+            tapInput = input
+            tapCommits = input?.commits ?: 0
+            tapOnCaretLine = onCaretLine(input)
+            return
+        }
         if (!awaitingTapAnswer) return
         if (SystemClock.uptimeMillis() - tapAt > KeyboardPolicy.TAP_ANSWER_MS) {
             awaitingTapAnswer = false
@@ -267,6 +294,7 @@ class WaylandWindowContent(
         resources.configuration.hardKeyboardHidden == android.content.res.Configuration.HARDKEYBOARDHIDDEN_NO
 
     override fun onDeactivated() {
+        fieldWhenDeactivated = ownTextInput() != null
         server.textInputs.removeListener(textInputListener)
         server.textInputs.removeCommitListener(textInputCommitListener)
         removeCallbacks(checkTapAnswer)

@@ -33,6 +33,17 @@ object KeyboardPolicy {
             (inputNow !== inputAtTap || commitsNow != commitsAtTap || tappedCaretLine)
 
     /**
+     * Whether the field focused now ([inputNow]) is the window's own field coming back rather
+     * than an answer to the tap: the tap activated the window ([tapActivated]), which had a
+     * field focused when it lost the focus ([fieldWhenDeactivated]). HandTop gives the window
+     * the keyboard focus on the press, and the program puts the focus back into that field
+     * before it even sees the tap. Only the first field to come ([restored]): what follows is
+     * the program answering the tap.
+     */
+    fun restoresField(tapActivated: Boolean, fieldWhenDeactivated: Boolean, restored: Boolean, inputNow: Any?): Boolean =
+        tapActivated && fieldWhenDeactivated && !restored && inputNow != null
+
+    /**
      * Whether surface row [y] is on the line of the caret the program last reported (its top
      * [caretY], [caretHeight] high): from half a caret above it to half a caret below.
      */
