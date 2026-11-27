@@ -6,7 +6,7 @@
 No root required. For phones, tablets and external screens, with or without Samsung DeX.
 
 > [!WARNING]
-> **Early version — 0.3.1 alpha.** HandTop is young and changes fast, so expect rough edges,
+> **Early version — 0.3.2 alpha.** HandTop is young and changes fast, so expect rough edges,
 > bugs and things that will be reworked. So far it has been tested on one phone, a Samsung Galaxy
 > S24 Ultra (Snapdragon 8 Gen 3). Ideas and bug reports are welcome, see [Support](#support).
 
@@ -30,7 +30,7 @@ commits name the AI as their co-author.
 
 ## Install
 
-1. Download `handtop-0.3.1-alpha.apk` from [Releases](https://github.com/nokiastore9/handtop/releases).
+1. Download `handtop-0.3.2-alpha.apk` from [Releases](https://github.com/nokiastore9/handtop/releases).
 2. Open it on the phone. If Android asks, allow your browser or file manager to install apps.
 3. Start HandTop and tap **Linux Terminal**, choose a distribution and tap **Install**. Linux is
    downloaded (4–68 MB) and sets itself up in a few minutes.

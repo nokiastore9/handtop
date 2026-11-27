@@ -3,7 +3,7 @@
 What changed in each version of HandTop. 0.3.0 is the first version published as an APK; the
 dates of the earlier ones are when they were finished.
 
-## Unreleased
+## 0.3.2 — 2026-11-28 · alpha
 
 ### Changes
 
@@ -42,8 +42,9 @@ dates of the earlier ones are when they were finished.
 
 - The on-screen keyboard comes up only when you touch a text field: not when a window opens
   with its field already active, not when a program moves the focus to a field, and not for a
-  tap on a button while a field has the focus, also when that tap brings the window to the front. Linux programs, Files' search and HandTop's
-  dialogs alike; the taskbar's keyboard button still brings it up anywhere.
+  tap on a button while a field has the focus, also when that tap brings the window to the
+  front. Linux programs, Files' search and HandTop's dialogs alike; the taskbar's keyboard
+  button still brings it up anywhere.
 - Rename and New folder in Files: in landscape some keyboards (Samsung's) filled the screen with
   their own edit box and hid the dialog; now the keyboard stays a keyboard, the dialog moves above
   it, and its Done key confirms.
