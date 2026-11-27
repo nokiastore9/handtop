@@ -7,6 +7,7 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -51,35 +52,35 @@ import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.FileProvider
-import org.handtop.desktop.R
-import org.handtop.desktop.linux.LinuxApp
-import org.handtop.desktop.linux.LinuxApps
-import org.handtop.desktop.linux.LinuxEnv
-import org.handtop.desktop.ui.MenuEntry
-import org.handtop.desktop.ui.Palette
-import org.handtop.desktop.ui.setThemedIcon
-import org.handtop.desktop.ui.styleListBox
-import org.handtop.desktop.ui.styleField
-import org.handtop.desktop.ui.showDialog
-import org.handtop.desktop.ui.pushButton
-import org.handtop.desktop.ui.dialogBuilder
-import org.handtop.desktop.ui.bevel
-import org.handtop.desktop.ui.Themes
-import org.handtop.desktop.ui.Bevel
-import org.handtop.desktop.ui.dp
-import org.handtop.desktop.ui.dpi
-import org.handtop.desktop.ui.hideSystemBarsOfWindow
-import org.handtop.desktop.ui.roundedRect
-import org.handtop.desktop.ui.selectableBackground
-import org.handtop.desktop.ui.selectionMark
-import org.handtop.desktop.ui.showPopupMenu
-import org.handtop.desktop.wm.WindowContent
-import org.handtop.desktop.wm.WindowHost
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.util.Date
 import java.util.concurrent.Executors
+import org.handtop.desktop.R
+import org.handtop.desktop.linux.LinuxApp
+import org.handtop.desktop.linux.LinuxApps
+import org.handtop.desktop.linux.LinuxEnv
+import org.handtop.desktop.ui.Bevel
+import org.handtop.desktop.ui.MenuEntry
+import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Themes
+import org.handtop.desktop.ui.bevel
+import org.handtop.desktop.ui.dialogBuilder
+import org.handtop.desktop.ui.dp
+import org.handtop.desktop.ui.dpi
+import org.handtop.desktop.ui.hideSystemBarsOfWindow
+import org.handtop.desktop.ui.pushButton
+import org.handtop.desktop.ui.roundedRect
+import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.selectionMark
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.showDialog
+import org.handtop.desktop.ui.showPopupMenu
+import org.handtop.desktop.ui.styleField
+import org.handtop.desktop.ui.styleListBox
+import org.handtop.desktop.wm.WindowContent
+import org.handtop.desktop.wm.WindowHost
 
 /**
  * HandTop's file manager: the phone's storage, SD cards and the Linux file system in one
@@ -203,7 +204,7 @@ class FilesContent(
                 visibility = GONE
                 setSingleLine()
                 textSize = 14f
-                imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+                imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN
                 setTextColor(Palette.TEXT)
                 setHintTextColor(Palette.TEXT_DIM)
                 if (bevelled) styleField() else {
@@ -1037,7 +1038,7 @@ class FilesContent(
         // Select the name without its extension, as desktops do.
         val dot = entry.name.lastIndexOf('.').takeIf { it > 0 && !entry.isDir } ?: entry.name.length
         field.setSelection(0, dot)
-        showDialog(
+        val dialog = showDialog(
             context.dialogBuilder()
                 .setTitle(R.string.files_rename)
                 .setView(padded(field))
@@ -1051,12 +1052,13 @@ class FilesContent(
                 }
                 .setNegativeButton(android.R.string.cancel, null),
         )
+        doneConfirms(field, dialog)
     }
 
     private fun newFolder() {
         val field = nameField(context.getString(R.string.files_new_folder_name))
         field.selectAll()
-        showDialog(
+        val dialog = showDialog(
             context.dialogBuilder()
                 .setTitle(R.string.files_new_folder)
                 .setView(padded(field))
@@ -1070,6 +1072,7 @@ class FilesContent(
                 }
                 .setNegativeButton(android.R.string.cancel, null),
         )
+        doneConfirms(field, dialog)
     }
 
     private fun copyPath(chosen: List<Entry>) {
@@ -1106,10 +1109,24 @@ class FilesContent(
 
     private val restoreStatus = Runnable { updateStatus() }
 
+    /**
+     * The name field of a dialog. The keyboard stays a keyboard (in landscape some fill the
+     * screen with their own edit box, hiding the dialog), and its Done key confirms.
+     */
     private fun nameField(text: String) = EditText(context).apply {
         setText(text)
         setSingleLine()
+        imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN
         styleField()
+    }
+
+    /** The keyboard's Done key in [field] presses [dialog]'s positive button. */
+    private fun doneConfirms(field: EditText, dialog: AlertDialog) {
+        field.setOnEditorActionListener { _, action, _ ->
+            if (action != EditorInfo.IME_ACTION_DONE) return@setOnEditorActionListener false
+            dialog.getButton(DialogInterface.BUTTON_POSITIVE)?.performClick()
+            true
+        }
     }
 
     private fun padded(view: View) = FrameLayout(context).apply {

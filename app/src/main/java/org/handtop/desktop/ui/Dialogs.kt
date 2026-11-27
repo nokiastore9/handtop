@@ -21,7 +21,10 @@ fun Context.dialogBuilder(): AlertDialog.Builder =
  */
 fun showDialog(builder: AlertDialog.Builder): AlertDialog {
     val dialog = builder.create()
-    dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+    // Above the keyboard when it is up, so a field near the bottom stays visible.
+    dialog.window?.setSoftInputMode(
+        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
+    )
     dialog.setOnShowListener {
         dialog.window?.decorView?.hideSystemBarsOfWindow()
         if (Themes.current.bevelled) {
