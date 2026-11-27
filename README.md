@@ -28,6 +28,26 @@ commits name the AI as their co-author.
 | ![glmark2 on the Adreno GPU](docs/screenshots/05-gpu.jpg) | ![Choosing a Linux distribution](docs/screenshots/06-linux.jpg) |
 | 3D on the Adreno GPU: glmark2 through Mesa Turnip + Zink | Choose a distribution: Debian, Ubuntu, Alpine, Fedora |
 
+### Well-known programs, on a monitor with Samsung DeX
+
+Ubuntu 26.04 in HandTop on a Galaxy S24 Ultra, HandTop's window maximized in DeX. Left: the
+Modern theme, right: the Classic theme.
+
+| Modern | Classic |
+|---|---|
+| ![Visual Studio Code, Firefox and the terminal](docs/screenshots/programs/dev-modern.jpg) | ![Visual Studio Code, Firefox and the terminal, Classic theme](docs/screenshots/programs/dev-classic.jpg) |
+| Development: Visual Studio Code with HandTop's own source, Firefox and the terminal | |
+| ![LibreOffice Writer and Calc](docs/screenshots/programs/office-modern.jpg) | ![LibreOffice Writer and Calc, Classic theme](docs/screenshots/programs/office-classic.jpg) |
+| Office: LibreOffice Writer and Calc side by side | |
+| ![GIMP and Inkscape](docs/screenshots/programs/graphics-modern.jpg) | ![GIMP and Inkscape, Classic theme](docs/screenshots/programs/graphics-classic.jpg) |
+| Graphics: GIMP 3 and Inkscape | |
+| ![Celluloid and Audacity](docs/screenshots/programs/media-modern.jpg) | ![Celluloid and Audacity, Classic theme](docs/screenshots/programs/media-classic.jpg) |
+| Multimedia: Celluloid (mpv) playing Big Buck Bunny, Audacity | |
+| ![Blender on the Adreno GPU](docs/screenshots/programs/3d-modern.jpg) | ![Blender on the Adreno GPU, Classic theme](docs/screenshots/programs/3d-classic.jpg) |
+| 3D: Blender 5 on the Adreno GPU, OpenGL 4.6 through Zink on Turnip | |
+
+Big Buck Bunny © Blender Foundation, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+
 ## Install
 
 1. Download `handtop-0.3.2-alpha.apk` from [Releases](https://github.com/nokiastore9/handtop/releases).
