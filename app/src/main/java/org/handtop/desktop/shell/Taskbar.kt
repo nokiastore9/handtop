@@ -13,16 +13,20 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import org.handtop.desktop.R
-import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.Bevel
-import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.MenuEntry
+import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.showPopupMenu
 import org.handtop.desktop.wm.DesktopArea
 import org.handtop.desktop.wm.DesktopWindow
+import org.handtop.desktop.wm.WindowAction
+import org.handtop.desktop.wm.windowActions
 
 /**
  * Bottom panel: start button, the Linux programs, one button per open window, the Linux
@@ -155,6 +159,9 @@ class Taskbar(
                 onWindowButton()
                 if (w === area.activeWindow && !w.minimized) area.minimize(w) else area.activate(w)
             }
+            // A long press or a right click: the window's menu.
+            setOnLongClickListener { showWindowMenu(this, w); true }
+            setOnContextClickListener { showWindowMenu(this, w); true }
         }
         val icon = ImageView(context).apply {
             val bitmap = w.iconBitmap
@@ -178,6 +185,29 @@ class Taskbar(
             marginStart = if (Themes.current.startLabel) dpi(4) else dpi(2)
         }
         return item
+    }
+
+    /** Minimize or restore, maximize or normal size, close: above the window's button. */
+    private fun showWindowMenu(button: View, w: DesktopWindow) {
+        onWindowButton()
+        val at = IntArray(2).also { button.getLocationOnScreen(it) }
+        val entries = windowActions(w.minimized, w.mode == DesktopWindow.Mode.MAXIMIZED, w.resizable).map { action ->
+            when (action) {
+                WindowAction.RESTORE -> MenuEntry(context.getString(R.string.action_restore), R.drawable.ic_win_restore) { area.activate(w) }
+                WindowAction.MINIMIZE -> MenuEntry(context.getString(R.string.action_minimize), R.drawable.ic_win_minimize) { area.minimize(w) }
+                WindowAction.MAXIMIZE -> MenuEntry(context.getString(R.string.action_maximize), R.drawable.ic_win_maximize) {
+                    area.activate(w)
+                    area.toggleMaximize(w)
+                }
+                WindowAction.NORMAL_SIZE -> MenuEntry(context.getString(R.string.action_normal_size), R.drawable.ic_win_restore) {
+                    area.activate(w)
+                    area.toggleMaximize(w)
+                }
+                WindowAction.CLOSE -> MenuEntry(context.getString(R.string.action_close), R.drawable.ic_win_close) { w.requestClose() }
+            }
+        }
+        // The close entry apart from the others, as in a window's own menu.
+        showPopupMenu(button, at[0].toFloat(), at[1].toFloat(), entries.dropLast(1) + null + entries.last())
     }
 
     private fun iconButton(icon: Int, desc: Int, tint: Int? = null, onClick: (View) -> Unit) = ImageButton(context).apply {

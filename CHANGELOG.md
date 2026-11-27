@@ -7,6 +7,8 @@ dates of the earlier ones are when they were finished.
 
 ### Changes
 
+- A window's button on the taskbar has a menu (long press or right click): minimize or restore,
+  maximize or normal size, close. Also the way to a window dragged off the screen.
 - On a phone on its side, windows that bring no size of their own (Settings, terminals) open
   nearly as tall as the desktop instead of 62% of it. DeX and monitors keep the old size.
 - Files: pick several files with a finger. A tap on a file's icon (or Select in its menu)
@@ -38,6 +40,12 @@ dates of the earlier ones are when they were finished.
   with its field already active, not when a program moves the focus to a field, and not for a
   tap on a button while a field has the focus. Linux programs, Files' search and HandTop's
   dialogs alike; the taskbar's keyboard button still brings it up anywhere.
+- Rename and New folder in Files: in landscape some keyboards (Samsung's) filled the screen with
+  their own edit box and hid the dialog; now the keyboard stays a keyboard, the dialog moves above
+  it, and its Done key confirms.
+- A Linux window that could not shrink to fit above the on-screen keyboard (GTK programs with a
+  large minimum size) stayed short, its bottom cut off, after the keyboard went away; it now gets
+  its height back.
 - Linux programs no longer look washed out after a key press: a window that took focus from
   the keyboard (DeX, a keyboard, scrcpy) had Android's focus highlight over it, a 16% white
   veil (black showed as dark gray). The same veil could cover Files, terminals and the app

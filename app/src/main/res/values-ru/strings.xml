@@ -12,6 +12,8 @@
     <string name="action_minimize">Свернуть</string>
     <string name="terminal_extra_keys">Доп. клавиши (Esc, Ctrl, стрелки)</string>
     <string name="action_maximize">Развернуть</string>
+    <string name="action_restore">Восстановить</string>
+    <string name="action_normal_size">Обычный размер</string>
     <string name="action_close">Закрыть</string>
     <string name="action_paste">Вставить</string>
     <string name="action_copy_all">Копировать весь текст</string>
