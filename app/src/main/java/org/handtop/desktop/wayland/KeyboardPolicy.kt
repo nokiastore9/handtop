@@ -1,35 +1,49 @@
 package org.handtop.desktop.wayland
 
-/** When HandTop brings the on-screen keyboard up by itself for a Linux program. */
+/**
+ * When the on-screen keyboard comes up for a Linux program: only when the user touches one of
+ * its text fields. A field that gets the focus by itself (a window opening with its search
+ * field active, a program moving the focus) leaves the keyboard down; the taskbar's keyboard
+ * button brings it up for any program.
+ */
 object KeyboardPolicy {
 
-    /**
-     * A text field just got the focus ([fieldFocused], and none had it before): the keyboard
-     * comes up by itself, unless a hardware keyboard is attached or the focus is on a menu
-     * ([onMenu], a popup). Nobody types into a menu, but GTK 3 enables its text view's input on
-     * the menu surface while a submenu opens; the keyboard would pop up at every submenu and
-     * squeeze the menus. A text field in a popup (a GTK 4 popover) still gets typed into, after
-     * the taskbar's keyboard button.
-     *
-     * A menu that took the focus from a text field hides the keyboard while it is open; when
-     * the field gets the focus back ([returningFromMenu]) the keyboard returns only if it was up
-     * before the menu ([keyboardWasUp]): a keyboard the user had put away stays away.
-     */
-    fun showsByItself(
-        fieldFocused: Boolean,
-        hadField: Boolean,
-        hardwareKeyboard: Boolean,
-        onMenu: Boolean,
-        returningFromMenu: Boolean = false,
-        keyboardWasUp: Boolean = false,
-    ): Boolean =
-        fieldFocused && !hadField && !hardwareKeyboard && !onMenu && (!returningFromMenu || keyboardWasUp)
+    /** How long after a finger tap the program's answer (focus, caret) still counts as the tap's. */
+    const val TAP_ANSWER_MS = 600L
 
     /**
-     * A finger tap in the active window while the program has a text field focused brings the
-     * keyboard back, like on Android; asked a moment after the tap, so that a tap that opened a
-     * menu ([menuOpen]: the menu bar of a text editor) does not flash the keyboard.
+     * A finger tap in the active window that the program answered with a text field
+     * ([fieldAnswered], see [fieldAnswered]) brings the keyboard up. Asked a moment after the
+     * tap, so that a tap that opened a menu ([menuOpen]: the menu bar of a text editor) does
+     * not flash the keyboard.
      */
-    fun showsOnTap(fieldFocused: Boolean, hardwareKeyboard: Boolean, activeWindow: Boolean, menuOpen: Boolean): Boolean =
-        fieldFocused && !hardwareKeyboard && activeWindow && !menuOpen
+    fun showsOnTap(fieldAnswered: Boolean, hardwareKeyboard: Boolean, activeWindow: Boolean, menuOpen: Boolean): Boolean =
+        fieldAnswered && !hardwareKeyboard && activeWindow && !menuOpen
+
+    /**
+     * Whether the program answered a tap with a text field: the text input focused now
+     * ([inputNow], null for none) took the focus since the tap ([inputAtTap]), or committed its
+     * state since then ([commitsNow] against [commitsAtTap]): Qt and Firefox commit when the
+     * caret moves, and GTK when the tap lands on the caret. GTK says nothing when a tap only
+     * moves the caret, so a tap on the caret's line ([tappedCaretLine], see [onCaretLine]) of
+     * the field that keeps the focus counts too. A tap elsewhere does none of these.
+     */
+    fun fieldAnswered(inputAtTap: Any?, commitsAtTap: Int, inputNow: Any?, commitsNow: Int, tappedCaretLine: Boolean): Boolean =
+        inputNow != null &&
+            (inputNow !== inputAtTap || commitsNow != commitsAtTap || tappedCaretLine)
+
+    /**
+     * Whether surface row [y] is on the line of the caret the program last reported (its top
+     * [caretY], [caretHeight] high): from half a caret above it to half a caret below.
+     */
+    fun onCaretLine(caretY: Int, caretHeight: Int, y: Double): Boolean =
+        caretHeight > 0 && y >= caretY - caretHeight / 2.0 && y <= caretY + caretHeight * 1.5
+
+    /**
+     * Without a tap the keyboard comes up only for a field getting the focus back from a menu
+     * ([returningFromMenu]) when it was up before the menu ([keyboardWasUp]): HandTop hid it
+     * for the menu (GTK moves the focus to it), and it returns to where the user left it.
+     */
+    fun showsByItself(returningFromMenu: Boolean, keyboardWasUp: Boolean, hardwareKeyboard: Boolean): Boolean =
+        returningFromMenu && keyboardWasUp && !hardwareKeyboard
 }

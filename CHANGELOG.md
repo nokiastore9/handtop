@@ -34,6 +34,10 @@ dates of the earlier ones are when they were finished.
 
 ### Fixes
 
+- The on-screen keyboard comes up only when you touch a text field: not when a window opens
+  with its field already active, not when a program moves the focus to a field, and not for a
+  tap on a button while a field has the focus. Linux programs, Files' search and HandTop's
+  dialogs alike; the taskbar's keyboard button still brings it up anywhere.
 - Linux programs no longer look washed out after a key press: a window that took focus from
   the keyboard (DeX, a keyboard, scrcpy) had Android's focus highlight over it, a 16% white
   veil (black showed as dark gray). The same veil could cover Files, terminals and the app

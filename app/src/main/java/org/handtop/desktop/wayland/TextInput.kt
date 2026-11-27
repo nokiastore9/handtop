@@ -16,6 +16,7 @@ class TextInputs(private val server: WaylandServer) {
 
     private val inputs = ArrayList<TextInput>()
     private val listeners = ArrayList<() -> Unit>()
+    private val commitListeners = ArrayList<() -> Unit>()
 
     fun add(input: TextInput) {
         inputs += input
@@ -36,6 +37,15 @@ class TextInputs(private val server: WaylandServer) {
         listeners -= listener
     }
 
+    /** Called on every commit of any text input, also when nothing the keyboard needs changed. */
+    fun addCommitListener(listener: () -> Unit) {
+        commitListeners += listener
+    }
+
+    fun removeCommitListener(listener: () -> Unit) {
+        commitListeners -= listener
+    }
+
     /** The text input of the focused surface, if its program enabled it (a text field has focus). */
     fun active(): TextInput? {
         val focus = server.seat.keyboardFocus ?: return null
@@ -51,6 +61,9 @@ class TextInputs(private val server: WaylandServer) {
 
     /** Enabled state or content type changed: the keyboard may have to appear or change. */
     fun changed() = listeners.toList().forEach { it() }
+
+    /** A program committed its text input state (programs do on every caret move). */
+    fun committed() = commitListeners.toList().forEach { it() }
 }
 
 class TextInputManager(client: Client, id: Int) : Resource(client, id, 1) {
@@ -82,11 +95,20 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
     var contentPurpose = 0
         private set
 
+    /** The caret the program last committed, in its focused surface's coordinates (height 0: none). */
+    var cursorY = 0
+        private set
+    var cursorHeight = 0
+        private set
+
     private var pendingEnabled = false
     private var pendingHint = 0
     private var pendingPurpose = 0
+    private var pendingCursorY = 0
+    private var pendingCursorHeight = 0
     /** Number of commit requests received; echoed in done so the client can match state. */
-    private var commits = 0
+    var commits = 0
+        private set
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
@@ -100,7 +122,12 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
             3 -> { r.string(); r.int(); r.int() } // set_surrounding_text (keyboards get no context yet)
             4 -> r.uint() // set_text_change_cause
             5 -> { pendingHint = r.uint(); pendingPurpose = r.uint() } // set_content_type
-            6 -> repeat(4) { r.int() } // set_cursor_rectangle
+            6 -> { // set_cursor_rectangle(x, y, width, height)
+                r.int()
+                pendingCursorY = r.int()
+                r.int()
+                pendingCursorHeight = r.int()
+            }
             7 -> commit()
             else -> super.dispatch(opcode, r)
         }
@@ -112,8 +139,11 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
         enabled = pendingEnabled
         contentHint = pendingHint
         contentPurpose = pendingPurpose
+        cursorY = pendingCursorY
+        cursorHeight = pendingCursorHeight
         // Only real changes reach the keyboard (programs commit on every cursor move).
         if (changed) client.server.textInputs.changed()
+        client.server.textInputs.committed()
     }
 
     fun enter(surface: WlSurface) {

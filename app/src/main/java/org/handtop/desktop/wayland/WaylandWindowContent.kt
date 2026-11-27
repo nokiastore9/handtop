@@ -6,10 +6,12 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
+import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
@@ -105,6 +107,7 @@ class WaylandWindowContent(
     override fun onActivated() {
         requestFocus()
         server.textInputs.addListener(textInputListener)
+        server.textInputs.addCommitListener(textInputCommitListener)
         server.seat.setKeyboardFocus(toplevel.surface)
         sendState()
     }
@@ -124,6 +127,16 @@ class WaylandWindowContent(
     /** A menu opened since the field lost the focus (see [KeyboardPolicy.showsByItself]). */
     private var menuSinceFieldLost = false
     private val textInputListener: () -> Unit = { textInputChanged() }
+    private val textInputCommitListener: () -> Unit = { textInputCommitted() }
+
+    // The last finger tap, to tell whether the program answered it with a text field.
+    private var tapAt = 0L
+    private var tapDownX = 0f
+    private var tapDownY = 0f
+    private var tapInput: TextInput? = null
+    private var tapCommits = 0
+    private var tapOnCaretLine = false
+    private var awaitingTapAnswer = false
 
     /**
      * An editor for Android only while the program has a text field focused (or the user asked
@@ -149,7 +162,8 @@ class WaylandWindowContent(
 
     /**
      * A text field of this program got or lost focus (or changed type): refresh what the
-     * keyboard sends, and show it on its own when there is no hardware keyboard.
+     * keyboard sends. The keyboard does not come up for the field by itself (see
+     * [KeyboardPolicy]): only for a tap into it, or back after a menu.
      */
     private fun textInputChanged() {
         val input = ownTextInput()
@@ -164,8 +178,9 @@ class WaylandWindowContent(
         }
         if (fieldLost && (onMenu || toplevel.popups.isNotEmpty())) menuSinceFieldLost = true
         if (KeyboardPolicy.showsByItself(
-                input != null, lastTextInput != null, hasHardwareKeyboard(), onMenu,
-                returningFromMenu = field && menuSinceFieldLost, keyboardWasUp = keyboardUpWhenFieldLost,
+                returningFromMenu = field && lastTextInput == null && menuSinceFieldLost,
+                keyboardWasUp = keyboardUpWhenFieldLost,
+                hardwareKeyboard = hasHardwareKeyboard(),
             )
         ) {
             requestFocus()
@@ -185,12 +200,60 @@ class WaylandWindowContent(
     private fun keyboardVisible() =
         ViewCompat.getRootWindowInsets(this)?.isVisible(WindowInsetsCompat.Type.ime()) == true
 
-    private val showKeyboardAfterTap = Runnable {
-        if (!KeyboardPolicy.showsOnTap(ownTextInput() != null, hasHardwareKeyboard(), isActiveWindow(), toplevel.popups.isNotEmpty())) {
-            return@Runnable
+    /**
+     * A finger went down: which field had the focus, how far its state had got, and whether
+     * the finger is on the line of its caret.
+     */
+    private fun pressedField(event: MotionEvent) {
+        tapDownX = event.x
+        tapDownY = event.y
+        val input = ownTextInput()
+        tapInput = input
+        tapCommits = input?.commits ?: 0
+        val (surface, at) = hit(event.x, event.y) ?: (null to null)
+        tapOnCaretLine = input != null && surface != null && at != null && input.focused === surface &&
+            KeyboardPolicy.onCaretLine(input.cursorY, input.cursorHeight, at[1])
+    }
+
+    /**
+     * A finger came up: if it was a tap (not a drag that scrolled), see what the program makes
+     * of it. Its answer may come before the finger is lifted, or a little after.
+     */
+    private fun tapped(event: MotionEvent) {
+        val slop = ViewConfiguration.get(context).scaledTouchSlop
+        if (Math.hypot((event.x - tapDownX).toDouble(), (event.y - tapDownY).toDouble()) > slop) return
+        tapAt = SystemClock.uptimeMillis()
+        awaitingTapAnswer = true
+        removeCallbacks(checkTapAnswer)
+        // The program first answers the tap: a menu it opens takes the text field's focus.
+        postDelayed(checkTapAnswer, TAP_KEYBOARD_DELAY_MS)
+    }
+
+    /** The program answered something soon after a tap: maybe its field, a moment later. */
+    private fun textInputCommitted() {
+        if (!awaitingTapAnswer) return
+        if (SystemClock.uptimeMillis() - tapAt > KeyboardPolicy.TAP_ANSWER_MS) {
+            awaitingTapAnswer = false
+            return
         }
-        imm?.showSoftInput(this, 0)
-        keyboardAutoShown = true
+        removeCallbacks(checkTapAnswer)
+        postDelayed(checkTapAnswer, ANSWER_SETTLE_MS)
+    }
+
+    private val checkTapAnswer = Runnable {
+        if (!awaitingTapAnswer) return@Runnable
+        val input = ownTextInput()
+        val onMenu = (input?.focused?.role as? SurfaceRole.Xdg)?.xdg?.popup != null
+        val answered = !onMenu && KeyboardPolicy.fieldAnswered(
+            tapInput, tapCommits, input, input?.commits ?: 0, tapOnCaretLine && input === tapInput,
+        )
+        if (KeyboardPolicy.showsOnTap(answered, hasHardwareKeyboard(), isActiveWindow(), toplevel.popups.isNotEmpty())) {
+            awaitingTapAnswer = false
+            if (!keyboardVisible()) imm?.showSoftInput(this, 0)
+            keyboardAutoShown = true
+        } else if (SystemClock.uptimeMillis() - tapAt > KeyboardPolicy.TAP_ANSWER_MS) {
+            awaitingTapAnswer = false
+        }
     }
 
     private fun isActiveWindow() = windowControl.isActive()
@@ -205,6 +268,9 @@ class WaylandWindowContent(
 
     override fun onDeactivated() {
         server.textInputs.removeListener(textInputListener)
+        server.textInputs.removeCommitListener(textInputCommitListener)
+        removeCallbacks(checkTapAnswer)
+        awaitingTapAnswer = false
         keyboardRequested = false
         if (keyboardAutoShown) hideKeyboard()
         // Menus close when their window loses focus, as on a desktop.
@@ -378,6 +444,8 @@ class WaylandWindowContent(
                     startMove()
                     return true
                 }
+                // Programs move a field's caret on the press: note the field state before it.
+                if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) pressedField(event)
                 motion(event)
                 seat.pointerButton(buttonOf(event), true)
             }
@@ -386,12 +454,8 @@ class WaylandWindowContent(
                 pressed = false
                 motion(event)
                 seat.pointerButton(lastButton, false)
-                // A finger tap into a text field brings the keyboard back, like on Android.
-                if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) {
-                    removeCallbacks(showKeyboardAfterTap)
-                    // The program first answers the tap: a menu it opens takes the text field's focus.
-                    postDelayed(showKeyboardAfterTap, TAP_KEYBOARD_DELAY_MS)
-                }
+                // A finger tap into a text field brings the keyboard up, like on Android.
+                if (!event.isFromSource(InputDevice.SOURCE_MOUSE)) tapped(event)
             }
             MotionEvent.ACTION_CANCEL -> {
                 pressed = false
@@ -443,6 +507,9 @@ class WaylandWindowContent(
 
     private companion object {
         const val TAP_KEYBOARD_DELAY_MS = 150L
+
+        /** After the program's answer, a moment for a menu it opens to appear. */
+        const val ANSWER_SETTLE_MS = 50L
 
         // xdg_toplevel.resize_edge bits
         const val XDG_EDGE_TOP = 1

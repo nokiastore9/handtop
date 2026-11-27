@@ -431,8 +431,8 @@ class FilesContent(
         searchField.setText("")
         searchButton.setThemedIcon(R.drawable.ic_win_close, Palette.TEXT_SOFT)
         searchButton.contentDescription = context.getString(R.string.files_search_close)
+        // Focused for a hardware keyboard; the on-screen one comes up when the field is touched.
         searchField.requestFocus()
-        searchField.post { context.getSystemService(InputMethodManager::class.java)?.showSoftInput(searchField, 0) }
     }
 
     /** Runs the search for [searchQuery] in the background; a newer one wins. */

@@ -3,6 +3,7 @@ package org.handtop.desktop.ui
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
+import android.view.WindowManager
 import org.handtop.desktop.R
 
 /**
@@ -14,9 +15,13 @@ fun Context.dialogBuilder(): AlertDialog.Builder =
     if (!Themes.current.bevelled) AlertDialog.Builder(this)
     else AlertDialog.Builder(this, R.style.HandTop_ClassicDialog)
 
-/** Shows the dialog from [builder], keeping HandTop full screen while it is open. */
+/**
+ * Shows the dialog from [builder], keeping HandTop full screen while it is open. A text field
+ * in it does not bring the on-screen keyboard up by itself: touching the field does.
+ */
 fun showDialog(builder: AlertDialog.Builder): AlertDialog {
     val dialog = builder.create()
+    dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     dialog.setOnShowListener {
         dialog.window?.decorView?.hideSystemBarsOfWindow()
         if (Themes.current.bevelled) {
