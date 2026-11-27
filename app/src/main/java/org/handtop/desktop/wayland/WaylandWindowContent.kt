@@ -1,12 +1,16 @@
 package org.handtop.desktop.wayland
 
 import android.annotation.SuppressLint
+import android.content.ClipData
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Point
 import android.graphics.Rect
+import android.graphics.RectF
 import android.os.SystemClock
+import android.view.DragEvent
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -17,6 +21,7 @@ import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import org.handtop.desktop.R
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_BOTTOM
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_LEFT
 import org.handtop.desktop.wm.DesktopWindow.Companion.EDGE_RIGHT
@@ -461,6 +466,12 @@ class WaylandWindowContent(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         lastRawX = event.rawX
         lastRawY = event.rawY
+        // The program's drag has the finger: nothing reaches the program (not even the release,
+        // which would end its drag) until a new touch.
+        if (linuxDragging) {
+            if (event.actionMasked != MotionEvent.ACTION_DOWN) return true
+            linuxDragging = false
+        }
         if (handleGrab(event)) return true
         val seat = server.seat
         when (event.actionMasked) {
@@ -494,6 +505,79 @@ class WaylandWindowContent(
     }
 
     private var lastButton = BTN_LEFT
+
+    // ---- drag and drop (see DragAndDrop) ----
+
+    /** A drag this window's program started is going on. */
+    private var linuxDragging = false
+
+    /** The program started a drag (start_drag) while the finger or a button is down here. */
+    fun startLinuxDrag(drag: LinuxDrag): Boolean {
+        if (!pressed || grab != Grab.NONE) return false
+        val started = startDragAndDrop(ClipData.newPlainText("Linux", ""), LinuxDragShadow(drag), drag, 0)
+        if (started) {
+            linuxDragging = true
+            pressed = false
+            server.seat.pointerLeave() // the drag has the pointer until it ends
+        }
+        return started
+    }
+
+    /** The program drew (or changed) its drag icon. */
+    fun updateLinuxDragShadow(drag: LinuxDrag) = updateDragShadow(LinuxDragShadow(drag))
+
+    override fun onDragEvent(event: DragEvent): Boolean {
+        val dnd = server.dnd
+        val payload = event.localState
+        when (event.action) {
+            // The window a drag started in hears its end in any case.
+            DragEvent.ACTION_DRAG_STARTED ->
+                return dnd.accepts(payload, toplevel.client) || (payload as? LinuxDrag)?.view === this
+            DragEvent.ACTION_DRAG_LOCATION -> hit(event.x, event.y)?.let { (surface, p) -> dnd.over(payload, surface, p[0], p[1]) }
+            DragEvent.ACTION_DRAG_EXITED -> dnd.left(payload)
+            DragEvent.ACTION_DROP -> {
+                val (surface, p) = hit(event.x, event.y) ?: return false
+                return dnd.drop(payload, surface, p[0], p[1])
+            }
+            DragEvent.ACTION_DRAG_ENDED -> {
+                if ((payload as? LinuxDrag)?.view === this) linuxDragging = false
+                dnd.ended(payload, event.result)
+            }
+        }
+        return true
+    }
+
+    /** Under the finger: the program's drag icon, or a file icon until it draws one. */
+    private inner class LinuxDragShadow(drag: LinuxDrag) : DragShadowBuilder() {
+        private val icon = drag.icon?.bitmap?.takeIf { it.width > 0 && it.height > 0 }
+        private val iconScale = scale.toFloat() / (drag.icon?.bufferScale ?: 1).coerceAtLeast(1)
+        private val chip = (resources.displayMetrics.density * 48).toInt()
+        private var w = chip
+        private var h = chip
+
+        override fun onProvideShadowMetrics(outShadowSize: Point, outShadowTouchPoint: Point) {
+            if (icon != null) {
+                w = (icon.width * iconScale).toInt().coerceIn(1, chip * 4)
+                h = (icon.height * iconScale).toInt().coerceIn(1, chip * 4)
+            }
+            outShadowSize.set(w, h)
+            outShadowTouchPoint.set(w / 2, h / 2)
+        }
+
+        override fun onDrawShadow(canvas: Canvas) {
+            if (icon != null) {
+                canvas.drawBitmap(icon, null, Rect(0, 0, w, h), paint)
+                return
+            }
+            val back = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC202833.toInt() }
+            canvas.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), w / 5f, w / 5f, back)
+            context.getDrawable(R.drawable.ic_file)?.apply {
+                setTint(Color.WHITE)
+                setBounds(w / 5, h / 5, w - w / 5, h - h / 5)
+                draw(canvas)
+            }
+        }
+    }
 
     private fun buttonOf(event: MotionEvent): Int {
         lastButton = when {

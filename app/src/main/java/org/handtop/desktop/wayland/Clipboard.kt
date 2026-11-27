@@ -288,12 +288,15 @@ class WlDataSource(client: Client, id: Int, version: Int) : Resource(client, id,
     val mimeTypes = LinkedHashSet<String>()
     var alive = true
         private set
+    /** Drag and drop actions it allows (set_actions, v3); null: not said, copy. */
+    var dndActions: Int? = null
+        private set
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
             0 -> r.string()?.let { mimeTypes += it } // offer
             1 -> destroy()
-            2 -> r.uint() // set_actions (drag & drop)
+            2 -> dndActions = r.uint() // set_actions (drag and drop)
             else -> super.dispatch(opcode, r)
         }
     }
@@ -301,6 +304,7 @@ class WlDataSource(client: Client, id: Int, version: Int) : Resource(client, id,
     override fun destroyed() {
         alive = false
         client.server.clipboard.sourceGone(this)
+        client.server.dnd.sourceGone(this)
     }
 }
 
@@ -309,10 +313,12 @@ class WlDataDevice(client: Client, id: Int, version: Int) : Resource(client, id,
 
     override fun dispatch(opcode: Int, r: MessageReader) {
         when (opcode) {
-            0 -> { // start_drag(source, origin, icon, serial): no drag & drop yet
+            0 -> { // start_drag(source, origin, icon, serial)
                 val source = client.optional<WlDataSource>(r.obj())
-                r.obj(); r.obj(); r.uint()
-                source?.event(2) // cancelled
+                val origin = client.optional<WlSurface>(r.obj())
+                val icon = client.optional<WlSurface>(r.obj())
+                r.uint()
+                client.server.dnd.start(source, origin, icon)
             }
             1 -> { // set_selection(source, serial)
                 val source = client.optional<WlDataSource>(r.obj())

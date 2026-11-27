@@ -11,6 +11,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.StateListDrawable
 import android.text.TextUtils
 import android.view.GestureDetector
+import android.view.DragEvent
 import android.view.Gravity
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -25,6 +26,7 @@ import androidx.annotation.StringRes
 import kotlin.math.hypot
 import org.handtop.desktop.R
 import org.handtop.desktop.files.FileDrag
+import org.handtop.desktop.wayland.LinuxDrag
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
@@ -96,8 +98,11 @@ class DesktopWindow(
         isFocusableInTouchMode = true
         defaultFocusHighlightEnabled = false // no white veil over the window after a key
         descendantFocusability = FOCUS_AFTER_DESCENDANTS
-        // Files dropped on a window that does not take them stay out of the desktop below.
-        setOnDragListener { _, e -> e.localState is FileDrag }
+        // Files dropped on a window that does not take them stay out of the desktop below; the
+        // drop itself fails (a Linux program that dragged them hears it was cancelled).
+        setOnDragListener { _, e ->
+            (e.localState is FileDrag || e.localState is LinuxDrag) && e.action != DragEvent.ACTION_DROP
+        }
 
         titleBar.orientation = HORIZONTAL
         titleBar.gravity = Gravity.CENTER_VERTICAL

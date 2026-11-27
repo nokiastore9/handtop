@@ -339,7 +339,15 @@ mailto, tel…) — сразу её приложению. Ярлык «Прил�
 саму себя или вложенную, файлы туда, где они уже лежат. При отпускании — меню «Переместить
 сюда / Копировать сюда / Отмена», операция в фоне, после неё обновляются все окна «Файлов».
 Папка на рабочий стол — ярлык. Другие окна HandTop бросок глотают (ничего не делают).
-Не сделано: перетаскивание в программы Linux и из них (Wayland `wl_data_device`, X11 XDND).
+Перетаскивание с программами Linux (2026-11-28, `DragAndDrop`): каждое перетаскивание между окнами —
+системное Android; окно Linux получает его как `wl_data_device` enter / motion / leave / drop с
+`wl_data_offer` от HandTop, а `start_drag` программы запускает `startDragAndDrop` из её окна (тень —
+значок программы). Files отдаёт `text/uri-list` (`UriList`), читает его у программ и спрашивает
+«Переместить / Копировать»; источнику Linux Files всегда сообщает copy. Перед `drop` окну под пальцем
+возвращается указатель (`wl_pointer.enter`): без этого Qt не открывает меню «копировать / переместить»
+(«parent window has received input»). Проверено: Files ↔ Thunar, Files ↔ PCManFM-Qt, Files → GNOME
+Text Editor, Thunar → Text Editor, бросок мимо — `cancelled`. Не сделано: X11 (XDND в `Xwm`).
+Спецификация: `docs/superpowers/specs/2026-11-27-linux-drag-and-drop-design.md`.
 Классическая тема для программ Linux (2026-11-26, `LinuxTheme`, `tools/linux-theme`): при
 классической теме HandTop кладёт свои файлы в `/usr/local/share/handtop/classic` и задаёт
 программам переменные (только при запуске; модерн — ничего): ничего не ставится в Linux, файлы

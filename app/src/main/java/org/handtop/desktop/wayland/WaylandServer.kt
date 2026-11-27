@@ -52,6 +52,7 @@ class WaylandServer private constructor(private val app: Context) {
 
     val seat = Seat(this)
     val clipboard = Clipboard(this, app)
+    val dnd = DragAndDrop(this)
     val textInputs = TextInputs(this)
     /** XKB keymap text sent to clients, NUL-terminated as libxkbcommon expects. */
     val keymap: ByteArray = app.assets.open("keymap-us.xkb").use { it.readBytes() } + byteArrayOf(0)

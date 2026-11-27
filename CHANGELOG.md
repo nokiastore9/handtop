@@ -7,6 +7,10 @@ dates of the earlier ones are when they were finished.
 
 ### Changes
 
+- Drag and drop between Files and Linux programs: drop files from Files into a GTK or Qt window
+  (an editor opens them, a file manager copies them), and drag files out of a Linux file manager
+  into Files, which asks Move or Copy. Linux programs also drag to each other through HandTop.
+  X11 programs do not take part yet.
 - A window's button on the taskbar has a menu (long press or right click): minimize or restore,
   maximize or normal size, close. Also the way to a window dragged off the screen.
 - On a phone on its side, windows that bring no size of their own (Settings, terminals) open

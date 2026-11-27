@@ -1,9 +1,13 @@
 package org.handtop.desktop.files
 
+import org.handtop.desktop.wayland.DraggedFiles
 import java.io.File
 
-/** Files being dragged in HandTop (the drag's local state): from a file manager window. */
-class FileDrag(val files: List<File>)
+/**
+ * Files being dragged in HandTop (the drag's local state): from a file manager window. Linux
+ * windows take them by their [linuxPaths] (those that have one).
+ */
+class FileDrag(val files: List<File>, override val linuxPaths: List<String>) : DraggedFiles
 
 /** Where dragged files may be dropped in a file manager window. */
 object DropRules {

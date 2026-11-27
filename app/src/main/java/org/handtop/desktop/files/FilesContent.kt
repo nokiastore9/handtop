@@ -61,6 +61,7 @@ import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxApp
 import org.handtop.desktop.linux.LinuxApps
 import org.handtop.desktop.linux.LinuxEnv
+import org.handtop.desktop.linux.LinuxPaths
 import org.handtop.desktop.ui.Bevel
 import org.handtop.desktop.ui.MenuEntry
 import org.handtop.desktop.ui.Palette
@@ -79,6 +80,7 @@ import org.handtop.desktop.ui.showDialog
 import org.handtop.desktop.ui.showPopupMenu
 import org.handtop.desktop.ui.styleField
 import org.handtop.desktop.ui.styleListBox
+import org.handtop.desktop.wayland.LinuxDrag
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
 
@@ -796,41 +798,68 @@ class FilesContent(
         val label = if (dragged.size == 1) dragged.single().name
         else context.resources.getQuantityString(R.plurals.files_items, dragged.size, dragged.size)
         val icon = (list.getChildAt(position - list.firstVisiblePosition) as? Row)?.iconDrawable()
-        // The Linux paths as text, for whatever may take text one day (a terminal).
+        // Linux windows take the files by their Linux paths; as text too, for whatever takes text.
+        val paths = dragged.mapNotNull { FilePlaces.linuxPath(context, it) }
         val clip = ClipData.newPlainText(label, dragged.joinToString("\n") { FilePlaces.linuxPath(context, it) ?: it.path })
-        if (!list.startDragAndDrop(clip, DragChip(label, icon), FileDrag(dragged), 0)) dragging = false
+        if (!list.startDragAndDrop(clip, DragChip(label, icon), FileDrag(dragged, paths), 0)) dragging = false
     }
 
+    /** Files from this or another file manager window, or from a Linux program's drag. */
     private fun onDrag(e: DragEvent): Boolean {
-        val drag = e.localState as? FileDrag ?: return false
+        val drag = e.localState as? FileDrag
+        val linux = (e.localState as? LinuxDrag)?.takeIf { it.offersFiles }
+        if (drag == null && linux == null) return false
         when (e.action) {
             DragEvent.ACTION_DRAG_STARTED -> return true
-            DragEvent.ACTION_DRAG_LOCATION -> showDropTarget(drag, e.x, e.y)
+            DragEvent.ACTION_DRAG_LOCATION -> showDropTarget(drag?.files, e.x, e.y)
             DragEvent.ACTION_DRAG_EXITED -> hideDropTarget()
             DragEvent.ACTION_DRAG_ENDED -> {
                 hideDropTarget()
                 dragging = false
             }
             DragEvent.ACTION_DROP -> {
-                val target = dropTargetAt(drag, e.x, e.y)
-                hideDropTarget()
-                if (target == null) return false
                 val at = IntArray(2).also { list.getLocationOnScreen(it) }
-                dropMenu(drag.files, target, at[0] + e.x, at[1] + e.y)
+                val x = at[0] + e.x
+                val y = at[1] + e.y
+                hideDropTarget()
+                if (drag != null) {
+                    val target = dropTargetAt(drag.files, e.x, e.y) ?: return false
+                    dropMenu(drag.files, target, x, y)
+                } else if (linux != null) {
+                    // What the program drags is known only now: read it, then the same rules.
+                    val folder = folderAt(e.x, e.y)
+                    val shown = shownFolder()
+                    linux.dropFiles { paths ->
+                        val files = paths.mapNotNull { path ->
+                            LinuxPaths.toAndroid(path, LinuxEnv.rootfs(context), FilePlaces.phoneRoot(), LinuxEnv.hasStorageAccess())
+                        }.filter { it.exists() }
+                        val target = DropRules.target(files, folder, shown)
+                        if (files.isNotEmpty() && target != null) dropMenu(files, target, x, y)
+                    }
+                }
             }
         }
         return true
     }
 
-    /** The folder dropped files would go to at ([x], [y]) in the list, or null. */
-    private fun dropTargetAt(drag: FileDrag, x: Float, y: Float): File? {
-        val folder = entries.getOrNull(list.pointToPosition(x.toInt(), y.toInt()))?.takeIf { it.isDir }?.file
-        return DropRules.target(drag.files, folder, if (searching) searchRoot else dir)
+    private fun shownFolder() = if (searching) searchRoot else dir
+
+    /** The folder row at ([x], [y]) in the list, or null. */
+    private fun folderAt(x: Float, y: Float): File? =
+        entries.getOrNull(list.pointToPosition(x.toInt(), y.toInt()))?.takeIf { it.isDir }?.file
+
+    /**
+     * The folder dropped files would go to at ([x], [y]) in the list, or null. Before a Linux
+     * program's files are known ([files] null): the folder under the finger, or the shown one.
+     */
+    private fun dropTargetAt(files: List<File>?, x: Float, y: Float): File? {
+        val folder = folderAt(x, y)
+        return if (files == null) folder ?: shownFolder() else DropRules.target(files, folder, shownFolder())
     }
 
     /** A folder row lights up, or the whole list when the shown folder takes the files. */
-    private fun showDropTarget(drag: FileDrag, x: Float, y: Float) {
-        val target = dropTargetAt(drag, x, y)
+    private fun showDropTarget(files: List<File>?, x: Float, y: Float) {
+        val target = dropTargetAt(files, x, y)
         val rowTarget = target?.takeIf { t -> entries.any { it.file == t } }
         if (rowTarget != dropFolder) {
             dropFolder = rowTarget

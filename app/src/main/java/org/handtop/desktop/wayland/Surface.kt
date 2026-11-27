@@ -9,6 +9,8 @@ sealed interface SurfaceRole {
     /** A window or popup: see [XdgSurface]. */
     class Xdg(val xdg: XdgSurface) : SurfaceRole
     object Cursor : SurfaceRole
+    /** What a program draws under the finger while it drags (wl_data_device.start_drag). */
+    object DndIcon : SurfaceRole
     class Subsurface(val subsurface: WlSubsurface) : SurfaceRole
     /** An X11 window through Xwayland: see [Xwm]. */
     class Xwayland(val surface: XwaylandSurface) : SurfaceRole
@@ -236,6 +238,7 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
         for (child in stack) if (child !== this) child.subsurface?.parentCommitted()
         (role as? SurfaceRole.Xdg)?.xdg?.surfaceCommitted()
         if (role === SurfaceRole.Cursor) client.server.seat.cursorCommitted(this)
+        if (role === SurfaceRole.DndIcon) client.server.dnd.iconCommitted(this)
         if (role is SurfaceRole.Subsurface) contentChanged()
         (role as? SurfaceRole.Xwayland)?.surface?.committed()
         onCommit?.invoke()
@@ -267,8 +270,9 @@ class WlSurface(client: Client, id: Int, version: Int) : Resource(client, id, ve
             dropContent()
             bufferWidth = buffer.width
             bufferHeight = buffer.height
-            // Pointer icons need a software bitmap.
-            frames = if (role === SurfaceRole.Cursor) null else HardwareFrames.create(bufferWidth, bufferHeight)
+            // Pointer and drag icons need a software bitmap.
+            frames = if (role === SurfaceRole.Cursor || role === SurfaceRole.DndIcon) null
+            else HardwareFrames.create(bufferWidth, bufferHeight)
         }
         val hardware = frames
         if (hardware != null) {
