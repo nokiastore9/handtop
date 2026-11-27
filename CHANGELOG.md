@@ -3,6 +3,19 @@
 What changed in each version of HandTop. 0.3.0 is the first version published as an APK; the
 dates of the earlier ones are when they were finished.
 
+## Unreleased
+
+### Changes
+
+- Drag and drop works with X11 programs too: drop files from Files or a Wayland program into an
+  X11 window (Thunar and other programs running under X11), and drag files out of an X11
+  program into Files, a Wayland program or another X11 window.
+
+### Fixes
+
+- Taps no longer stop reaching windows when an X11 program keeps a tiny window off the screen
+  (GTK does around drag and drop): such windows are not taken for menus.
+
 ## 0.3.2 — 2026-11-28 · alpha
 
 ### Changes

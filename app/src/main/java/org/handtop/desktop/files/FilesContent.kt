@@ -80,7 +80,7 @@ import org.handtop.desktop.ui.showDialog
 import org.handtop.desktop.ui.showPopupMenu
 import org.handtop.desktop.ui.styleField
 import org.handtop.desktop.ui.styleListBox
-import org.handtop.desktop.wayland.LinuxDrag
+import org.handtop.desktop.wayland.ProgramDrag
 import org.handtop.desktop.wm.WindowContent
 import org.handtop.desktop.wm.WindowHost
 
@@ -807,7 +807,7 @@ class FilesContent(
     /** Files from this or another file manager window, or from a Linux program's drag. */
     private fun onDrag(e: DragEvent): Boolean {
         val drag = e.localState as? FileDrag
-        val linux = (e.localState as? LinuxDrag)?.takeIf { it.offersFiles }
+        val linux = (e.localState as? ProgramDrag)?.takeIf { it.offersFiles }
         if (drag == null && linux == null) return false
         when (e.action) {
             DragEvent.ACTION_DRAG_STARTED -> return true

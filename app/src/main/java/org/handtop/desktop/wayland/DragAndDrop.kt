@@ -14,64 +14,103 @@ interface DraggedFiles {
 }
 
 /**
- * A drag a Linux program started (wl_data_device.start_drag): the localState of the Android
- * drag that carries it across windows. [view] is the window it started in, [icon] the surface
- * the program draws under the finger.
+ * A drag a Linux program started, carried across windows as an Android drag (its localState):
+ * by a Wayland program ([LinuxDrag]) or an X11 program ([X11Drag]).
+ */
+sealed interface ProgramDrag {
+    /** The window the drag started in. */
+    val view: View
+
+    /** It carries files (a file manager), not only text. */
+    val offersFiles: Boolean
+
+    /**
+     * Dropped on a HandTop window that takes files (Files): their Linux paths, on the main
+     * thread (empty if there are none). The program is told it was a copy: HandTop does any
+     * moving itself, the program deletes nothing.
+     */
+    fun dropFiles(done: (List<String>) -> Unit)
+}
+
+/**
+ * A drag a Wayland program started (wl_data_device.start_drag). [view] is the window it
+ * started in, [icon] the surface the program draws under the finger.
  */
 class LinuxDrag(
     private val server: WaylandServer,
     val source: WlDataSource,
     val icon: WlSurface?,
-    val view: View,
-) {
-    /** The program offers files (a file manager), not only text. */
-    val offersFiles get() = UriList.MIME in source.mimeTypes
+    override val view: View,
+) : ProgramDrag {
+    override val offersFiles get() = UriList.MIME in source.mimeTypes
 
-    /**
-     * Dropped on a HandTop window that takes files: reads them from the program and gives
-     * their Linux paths to [done] on the main thread (empty if the program sends none). The
-     * program is told it was a copy: HandTop does the moving, the program deletes nothing.
-     */
-    fun dropFiles(done: (List<String>) -> Unit) {
-        if (!source.client.connected || !source.alive || !offersFiles) return done(emptyList())
-        if (source.version >= 3) {
-            source.event(5) { uint(DndActions.COPY) } // action
-            source.event(3) // dnd_drop_performed
-        }
+    override fun dropFiles(done: (List<String>) -> Unit) {
+        if (!offersFiles) return done(emptyList())
+        droppedElsewhere()
         server.dnd.droppedOutside(this)
+        read(UriList.MIME) { bytes ->
+            finishedElsewhere()
+            done(UriList.parse(String(bytes ?: ByteArray(0), Charsets.UTF_8)))
+        }
+    }
+
+    /** Dropped somewhere that is not a Wayland window (Files, an X11 window): it was a copy. */
+    fun droppedElsewhere() {
+        if (!source.client.connected || !source.alive || source.version < 3) return
+        source.event(5) { uint(DndActions.COPY) } // action
+        source.event(3) // dnd_drop_performed
+        source.client.flush()
+    }
+
+    /** That drop has its data. */
+    fun finishedElsewhere() {
+        if (!source.client.connected || !source.alive || source.version < 3) return
+        source.event(4) // dnd_finished
+        source.client.flush()
+    }
+
+    /** What the program drags as [mime], read through a pipe; [done] on the main thread (null if none). */
+    fun read(mime: String, done: (ByteArray?) -> Unit) {
+        if (!source.client.connected || !source.alive || mime !in source.mimeTypes) return done(null)
         val pipe = ParcelFileDescriptor.createPipe()
-        source.event(1) { string(UriList.MIME); fd(pipe[1].detachFd()) } // send
+        source.event(1) { string(mime); fd(pipe[1].detachFd()) } // send
         source.client.flush()
         val main = Handler(Looper.getMainLooper())
         Thread({
-            val text = try {
+            val bytes = try {
                 ParcelFileDescriptor.AutoCloseInputStream(pipe[0]).use { input ->
                     val out = ByteArrayOutputStream()
                     val buf = ByteArray(16 * 1024)
-                    while (out.size() < MAX_URI_BYTES) {
+                    while (out.size() < MAX_BYTES) {
                         val n = input.read(buf)
                         if (n < 0) break
                         out.write(buf, 0, n)
                     }
-                    out.toString(Charsets.UTF_8.name())
+                    out.toByteArray()
                 }
             } catch (e: Exception) {
-                Log.w(WaylandServer.TAG, "drag: reading the files failed", e)
-                ""
+                Log.w(WaylandServer.TAG, "drag: reading from the program failed", e)
+                null
             }
-            main.post {
-                if (source.client.connected && source.alive && source.version >= 3) {
-                    source.event(4) // dnd_finished
-                    source.client.flush()
-                }
-                done(UriList.parse(text))
-            }
+            main.post { done(bytes) }
         }, "drag-read").start()
     }
 
     private companion object {
-        const val MAX_URI_BYTES = 4 * 1024 * 1024
+        const val MAX_BYTES = 4 * 1024 * 1024
     }
+}
+
+/**
+ * A drag an X11 program started: what it carries (Wayland MIME type to bytes: files, text),
+ * fetched from it as it began (see Xwm). The program's own drag ends when the finger leaves
+ * its window; from there the drag is HandTop's.
+ */
+class X11Drag(val data: Map<String, ByteArray>, override val view: View) : ProgramDrag {
+    override val offersFiles get() = UriList.MIME in data
+
+    override fun dropFiles(done: (List<String>) -> Unit) =
+        done(UriList.parse(String(data[UriList.MIME] ?: ByteArray(0), Charsets.UTF_8)))
 }
 
 /**
@@ -96,12 +135,14 @@ class DragAndDrop(private val server: WaylandServer) {
         val sourceActions: Int
             get() = when (val p = payload) {
                 is LinuxDrag -> p.source.dndActions ?: DndActions.COPY
+                is X11Drag -> DndActions.COPY
                 else -> DndActions.COPY or DndActions.MOVE
             }
 
         val mimeTypes: List<String>
             get() = when (val p = payload) {
                 is LinuxDrag -> p.source.mimeTypes.toList()
+                is X11Drag -> p.data.keys.toList()
                 else -> listOf(UriList.MIME)
             }
     }
@@ -145,6 +186,7 @@ class DragAndDrop(private val server: WaylandServer) {
         if (client.isXwayland || server.clipboard.devices.none { it.client === client }) return false
         val takes = when (payload) {
             is LinuxDrag -> payload.source.alive && payload.source.mimeTypes.isNotEmpty()
+            is X11Drag -> payload.data.isNotEmpty()
             is DraggedFiles -> payload.linuxPaths.isNotEmpty()
             else -> false
         }
@@ -299,9 +341,11 @@ class DragAndDrop(private val server: WaylandServer) {
                     Native.close(fd)
                 }
             }
-            is DraggedFiles -> {
-                if (mime != UriList.MIME) return Native.close(fd)
-                val bytes = UriList.encode(p.linuxPaths).toByteArray(Charsets.UTF_8)
+            is DraggedFiles, is X11Drag -> {
+                val bytes = when (p) {
+                    is X11Drag -> p.data[mime]
+                    else -> if (mime == UriList.MIME) UriList.encode((p as DraggedFiles).linuxPaths).toByteArray(Charsets.UTF_8) else null
+                } ?: return Native.close(fd)
                 val out = ParcelFileDescriptor.adoptFd(fd)
                 Thread({
                     try {

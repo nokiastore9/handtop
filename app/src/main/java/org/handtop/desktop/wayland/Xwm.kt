@@ -4,6 +4,7 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import org.handtop.desktop.wayland.X11Connection.Companion.ATOM_ATOM
 import org.handtop.desktop.wayland.X11Connection.Companion.ATOM_CARDINAL
 import org.handtop.desktop.wayland.X11Connection.Companion.ATOM_STRING
@@ -231,6 +232,11 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
                 win.x = e.s16(16); win.y = e.s16(18)
                 win.width = e.u16(20); win.height = e.u16(22)
                 win.popup?.owner?.view?.contentChanged() // a menu moved
+                // A window moved onto the screen becomes a menu, one moved off it stops being one.
+                if (win.overrideRedirect && win.mapped) {
+                    val off = X11Sizing.offScreen(win.x, win.y, win.width, win.height, x.rootWidth, x.rootHeight)
+                    if (off && win.popup != null) hide(win) else if (!off && win.popup == null) update(win)
+                }
             }
             EV_PROPERTY_NOTIFY -> windows[e.u32(4)]?.let { propertyChanged(it, e.u32(8)) }
             EV_CLIENT_MESSAGE -> clientMessage(e)
@@ -255,6 +261,8 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
             x.watchSelection(xfixes, wmWindow, a("CLIPBOARD")) { ok ->
                 if (!ok) return@watchSelection
                 xfixesEvent = firstEvent
+                // An X11 program that starts dragging takes XdndSelection: HandTop hears it too.
+                x.watchSelection(xfixes, wmWindow, a("XdndSelection")) {}
                 server.clipboard.onChange = { fromX11 -> if (!fromX11 && server.clipboard.hasSelection) claimClipboard() }
                 if (server.clipboard.hasSelection && !server.clipboard.isX11) claimClipboard()
                 Log.i(TAG, "clipboard shared with X11")
@@ -273,6 +281,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
     private fun selectionOwnerChanged(e: XMessage) {
         val owner = e.u32(8)
         val selection = e.u32(12)
+        if (selection == a("XdndSelection")) return xdndOwnerChanged(owner)
         if (selection != a("CLIPBOARD")) return
         if (owner == wmWindow) return
         ownClipboard = false
@@ -288,6 +297,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
     private fun selectionNotify(e: XMessage) {
         val target = e.u32(16)
         val property = e.u32(20)
+        if (e.u32(8) == wmWindow && e.u32(12) == a("XdndSelection")) return xdndNotify(target, property)
         if (e.u32(8) != wmWindow || e.u32(12) != a("CLIPBOARD")) return
         if (property == 0) {
             if (target == a("UTF8_STRING")) fetchClipboard(ATOM_STRING) // older programs: Latin-1 only
@@ -312,6 +322,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
         val target = e.u32(20)
         val property = e.u32(24).takeIf { it != 0 } ?: target // obsolete clients: property = target
         fun refuse() = x.selectionNotify(requestor, selection, target, 0, time)
+        if (selection == a("XdndSelection")) return xdndRequest(requestor, selection, target, property, time)
         if (selection != a("CLIPBOARD") || !ownClipboard) return refuse()
         val utf8 = a("UTF8_STRING")
         val textTargets = setOf(utf8, ATOM_STRING, a("TEXT"), a("text/plain;charset=utf-8"), a("text/plain"))
@@ -335,6 +346,215 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
             else -> refuse()
         }
     }
+
+    // ---- drag and drop: XDND (X11 programs) and HandTop's drags ----
+
+    /**
+     * A drag over X11 windows that HandTop carries (from Files, a Wayland program or an X11
+     * program whose window the finger left): HandTop's window is the XDND source.
+     */
+    private class OutgoingDrag(val payload: Any, val targets: List<String>) {
+        /** The X11 window under the finger and the XDND version it speaks (0: none, or not known yet). */
+        var target = 0
+        var version = 0
+        var accepted = false
+        var rootX = 0
+        var rootY = 0
+        var dropped = false
+    }
+
+    private var outgoing: OutgoingDrag? = null
+    /** What HandTop's XdndSelection holds: the payload of the last drag into an X11 window. */
+    private var xdndPayload: Any? = null
+
+    /** The MIME types (files, text) of an Android drag's [payload] that X11 programs take. */
+    private fun dragMimes(payload: Any?): List<String> = when (payload) {
+        is DraggedFiles -> if (payload.linuxPaths.isEmpty()) emptyList() else listOf(UriList.MIME, "text/plain;charset=utf-8")
+        is LinuxDrag -> payload.source.mimeTypes.mapNotNull { Xdnd.mimeOf(it) }.distinct()
+        is X11Drag -> payload.data.keys.mapNotNull { Xdnd.mimeOf(it) }.distinct()
+        else -> emptyList()
+    }
+
+    /** Android's drag started: whether X11 windows could take what it carries. */
+    fun dragAccepts(payload: Any?) = ready && Xdnd.targetsFor(dragMimes(payload)).isNotEmpty()
+
+    private fun outgoingFor(payload: Any?): OutgoingDrag? {
+        if (payload == null) return null
+        outgoing?.let { if (it.payload === payload) return it }
+        val targets = Xdnd.targetsFor(dragMimes(payload))
+        if (targets.isEmpty()) return null
+        outgoing?.let { if (!it.dropped) leaveTarget(it) }
+        return OutgoingDrag(payload, targets).also { outgoing = it }
+    }
+
+    /** The drag is over X11 window [win], at ([px], [py]) in its pixels. */
+    fun dragOver(payload: Any?, win: XWindow, px: Int, py: Int) {
+        val d = outgoingFor(payload) ?: return
+        if (d.dropped) return
+        d.rootX = win.x + px
+        d.rootY = win.y + py
+        if (d.target == win.id) {
+            if (d.version > 0) sendPosition(d)
+            return
+        }
+        leaveTarget(d)
+        d.target = win.id
+        x.getProperty(win.id, a("XdndAware"), 1) { value ->
+            if (outgoing !== d || d.target != win.id || d.dropped) return@getProperty
+            d.version = Xdnd.version(if (value != null && value.format == 32 && value.data.size >= 4) le32(value.data, 0) else 0)
+            if (d.version == 0) return@getProperty // the window takes no drops
+            if (xdndPayload !== d.payload) {
+                x.setSelectionOwner(wmWindow, a("XdndSelection"))
+                xdndPayload = d.payload
+            }
+            val types = d.targets.map { a(it) }
+            if (types.size > 3) x.changeProperty32(wmWindow, a("XdndTypeList"), ATOM_ATOM, *types.toIntArray())
+            x.clientMessage(win.id, a("XdndEnter"), *Xdnd.enter(wmWindow, d.version, types))
+            sendPosition(d)
+        }
+    }
+
+    private fun sendPosition(d: OutgoingDrag) =
+        x.clientMessage(d.target, a("XdndPosition"), *Xdnd.position(wmWindow, d.rootX, d.rootY, 0, a("XdndActionCopy")))
+
+    private fun leaveTarget(d: OutgoingDrag) {
+        if (d.target != 0 && d.version > 0) x.clientMessage(d.target, a("XdndLeave"), *Xdnd.leave(wmWindow))
+        d.target = 0
+        d.version = 0
+        d.accepted = false
+    }
+
+    /** The drag left the X11 window. */
+    fun dragLeft(payload: Any?) {
+        val d = outgoing?.takeIf { it.payload === payload && !it.dropped } ?: return
+        leaveTarget(d)
+    }
+
+    /**
+     * Dropped on X11 window [win] at ([px], [py]): true when its program takes the drop (its
+     * last XdndStatus said so). It then reads the data from HandTop's XdndSelection.
+     */
+    fun dragDrop(payload: Any?, win: XWindow, px: Int, py: Int): Boolean {
+        val d = outgoingFor(payload) ?: return false
+        dragOver(payload, win, px, py)
+        if (d.target != win.id || d.version == 0 || !d.accepted) {
+            leaveTarget(d)
+            return false
+        }
+        d.dropped = true
+        x.clientMessage(win.id, a("XdndDrop"), *Xdnd.drop(wmWindow, 0))
+        (payload as? LinuxDrag)?.droppedElsewhere()
+        return true
+    }
+
+    /** Android's drag ended. */
+    fun dragEnded(payload: Any?) {
+        val d = outgoing?.takeIf { it.payload === payload } ?: return
+        if (!d.dropped) leaveTarget(d)
+        outgoing = null
+    }
+
+    /** XdndStatus and XdndFinished from the X11 window HandTop drags over. */
+    private fun xdndMessage(e: XMessage) {
+        when (e.u32(8)) {
+            a("XdndStatus") -> outgoing?.let { d -> if (e.u32(12) == d.target) d.accepted = Xdnd.accepts(e.u32(16)) }
+            a("XdndFinished") -> (xdndPayload as? LinuxDrag)?.finishedElsewhere()
+        }
+    }
+
+    /** The X11 window a drag was dropped on reads it (or asks what it holds). */
+    private fun xdndRequest(requestor: Int, selection: Int, target: Int, property: Int, time: Int) {
+        fun refuse() = x.selectionNotify(requestor, selection, target, 0, time)
+        val payload = xdndPayload ?: return refuse()
+        val offered = Xdnd.targetsFor(dragMimes(payload))
+        if (target == a("TARGETS")) {
+            x.changeProperty32(requestor, property, ATOM_ATOM, a("TARGETS"), *offered.map { a(it) }.toIntArray())
+            x.selectionNotify(requestor, selection, target, property, time)
+            return
+        }
+        val mime = offered.firstOrNull { a(it) == target }?.let { Xdnd.mimeOf(it) } ?: return refuse()
+        dragData(payload, mime) { bytes ->
+            if (bytes == null) return@dragData refuse()
+            val room = X11Connection.MAX_REQUEST_BYTES - 64
+            val data = if (bytes.size > room) bytes.copyOf(room) else bytes
+            x.changeProperty(requestor, property, target, 8, data, data.size)
+            x.selectionNotify(requestor, selection, target, property, time)
+        }
+    }
+
+    /** What [payload] carries as [mime] (files or text); [done] on the main thread, null if nothing. */
+    private fun dragData(payload: Any, mime: String, done: (ByteArray?) -> Unit) {
+        when (payload) {
+            is DraggedFiles -> done(
+                if (mime == UriList.MIME) UriList.encode(payload.linuxPaths).toByteArray()
+                else payload.linuxPaths.joinToString("\n").toByteArray(),
+            )
+            is X11Drag -> done(payload.data[mime])
+            is LinuxDrag -> payload.read(payload.source.mimeTypes.firstOrNull { Xdnd.mimeOf(it) == mime } ?: mime, done)
+            else -> done(null)
+        }
+    }
+
+    /**
+     * An X11 program started dragging (it took XdndSelection): what it carries, fetched at
+     * once, for when the finger leaves its window (see [takeX11Drag]).
+     */
+    private class IncomingDrag {
+        val data = LinkedHashMap<String, ByteArray>()
+        val queue = ArrayDeque<String>()
+        var ready = false
+    }
+
+    private var incoming: IncomingDrag? = null
+
+    private fun xdndOwnerChanged(owner: Int) {
+        if (owner == wmWindow) return
+        if (owner == 0) {
+            incoming = null
+            return
+        }
+        incoming = IncomingDrag()
+        x.convertSelection(wmWindow, a("XdndSelection"), a("TARGETS"), a("HANDTOP_DND"))
+    }
+
+    private fun xdndNotify(target: Int, property: Int) {
+        val d = incoming ?: return
+        if (property == 0) return fetchNext(d) // that type was refused
+        x.getProperty(wmWindow, property, longs = MAX_DND_BYTES / 4) { value ->
+            if (incoming !== d) return@getProperty
+            if (value != null && target == a("TARGETS") && value.format == 32) {
+                val names = (0 until value.data.size / 4).mapNotNull { i -> atomName(le32(value.data, i * 4)) }
+                d.queue.addAll(Xdnd.wanted(names))
+            } else if (value != null && value.format == 8 && value.type != a("INCR")) {
+                atomName(target)?.let { Xdnd.mimeOf(it) }?.let { d.data[it] = value.data }
+            }
+            fetchNext(d)
+        }
+    }
+
+    private fun fetchNext(d: IncomingDrag) {
+        val next = d.queue.removeFirstOrNull() ?: run {
+            d.ready = true
+            return
+        }
+        x.convertSelection(wmWindow, a("XdndSelection"), a(next), a("HANDTOP_DND"))
+    }
+
+    /**
+     * The finger left an X11 window while its program drags: what the drag carries, for an
+     * Android drag from [view] (null when there is nothing HandTop can carry).
+     */
+    fun takeX11Drag(view: View): X11Drag? {
+        val d = incoming?.takeIf { it.ready && it.data.isNotEmpty() } ?: return null
+        incoming = null
+        return X11Drag(LinkedHashMap(d.data), view)
+    }
+
+    private fun atomName(atom: Int): String? = atoms.entries.firstOrNull { it.value == atom }?.key
+
+    private fun le32(b: ByteArray, at: Int) =
+        (b[at].toInt() and 0xff) or ((b[at + 1].toInt() and 0xff) shl 8) or
+            ((b[at + 2].toInt() and 0xff) shl 16) or ((b[at + 3].toInt() and 0xff) shl 24)
 
     /** A program wants to show a window (MapRequest): read its properties, then map it. */
     private fun manage(win: XWindow) {
@@ -388,6 +608,7 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
 
     private fun clientMessage(e: XMessage) {
         val type = e.u32(8)
+        if (e.u32(4) == wmWindow) return xdndMessage(e)
         val win = windows[e.u32(4)] ?: return
         when (type) {
             a("WL_SURFACE_SERIAL") -> serialFor(win, (e.u32(12).toLong() and 0xffffffffL) or (e.u32(16).toLong() shl 32))
@@ -543,6 +764,9 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
 
     private fun showPopup(win: XWindow, surface: WlSurface) {
         if (win.popup != null) return
+        // Windows the program keeps off the screen (GTK's for drag and drop) are no menus: as
+        // popups they would take every tap on the desktop as a tap outside a menu.
+        if (X11Sizing.offScreen(win.x, win.y, win.width, win.height, x.rootWidth, x.rootHeight)) return
         val owner = ownerFor(win) ?: return
         val popup = XwaylandPopup(this, win, owner, surface)
         win.popup = popup
@@ -632,6 +856,8 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
         const val MWM_HINTS_DECORATIONS = 2
         const val MOVERESIZE_MOVE = 8
         const val MAX_CLIPBOARD_BYTES = 8 * 1024 * 1024
+        /** At most this much of what an X11 program drags is fetched (files and text). */
+        const val MAX_DND_BYTES = 1024 * 1024
 
         /** _NET_WM_MOVERESIZE directions 0..7 (top-left clockwise) as xdg resize edges. */
         val RESIZE_EDGES = intArrayOf(5, 1, 9, 8, 10, 2, 6, 4)
@@ -649,6 +875,8 @@ class Xwm(private val server: WaylandServer, private val x: X11Connection) {
             "_MOTIF_WM_HINTS", "WL_SURFACE_ID", "WL_SURFACE_SERIAL",
             "CLIPBOARD", "TARGETS", "TEXT", "INCR", "HANDTOP_SELECTION", "text/plain;charset=utf-8", "text/plain",
             "RESOURCE_MANAGER", "_XSETTINGS_S0", "_XSETTINGS_SETTINGS",
+            "XdndAware", "XdndSelection", "XdndEnter", "XdndPosition", "XdndStatus", "XdndLeave", "XdndDrop",
+            "XdndFinished", "XdndActionCopy", "XdndTypeList", "text/uri-list", "HANDTOP_DND",
         )
     }
 }

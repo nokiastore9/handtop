@@ -473,6 +473,10 @@ class WaylandWindowContent(
             linuxDragging = false
         }
         if (handleGrab(event)) return true
+        // An X11 program drags something and the finger leaves its window: HandTop carries it on.
+        if (event.actionMasked == MotionEvent.ACTION_MOVE && pressed && toplevel is XwaylandToplevel &&
+            (event.x < 0 || event.y < 0 || event.x >= width || event.y >= height) && startX11Drag()
+        ) return true
         val seat = server.seat
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -514,7 +518,7 @@ class WaylandWindowContent(
     /** The program started a drag (start_drag) while the finger or a button is down here. */
     fun startLinuxDrag(drag: LinuxDrag): Boolean {
         if (!pressed || grab != Grab.NONE) return false
-        val started = startDragAndDrop(ClipData.newPlainText("Linux", ""), LinuxDragShadow(drag), drag, 0)
+        val started = startDragAndDrop(ClipData.newPlainText("Linux", ""), LinuxDragShadow(drag.icon), drag, 0)
         if (started) {
             linuxDragging = true
             pressed = false
@@ -524,15 +528,39 @@ class WaylandWindowContent(
     }
 
     /** The program drew (or changed) its drag icon. */
-    fun updateLinuxDragShadow(drag: LinuxDrag) = updateDragShadow(LinuxDragShadow(drag))
+    fun updateLinuxDragShadow(drag: LinuxDrag) = updateDragShadow(LinuxDragShadow(drag.icon))
+
+    /**
+     * The finger left this X11 window while its program drags: the drag goes on as HandTop's,
+     * with what the program carries (fetched when it began, see Xwm). The program sees the
+     * button go up outside its window, which ends its own drag.
+     */
+    private fun startX11Drag(): Boolean {
+        val drag = server.xwm?.takeX11Drag(this) ?: return false
+        if (!startDragAndDrop(ClipData.newPlainText("Linux", ""), LinuxDragShadow(null), drag, 0)) return false
+        // The program's own drag must end without a drop: the button going up where the finger
+        // last was in its window would drop the files there (onto a folder of its sidebar: a
+        // move). Escape cancels a drag in GTK, Qt and Chromium; the button then goes up far
+        // outside every window.
+        val seat = server.seat
+        seat.key(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE))
+        seat.key(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE))
+        seat.pointerFocus?.let { seat.pointerMotion(it, OUTSIDE, OUTSIDE) }
+        seat.pointerButton(lastButton, false)
+        seat.pointerLeave()
+        linuxDragging = true
+        pressed = false
+        return true
+    }
 
     override fun onDragEvent(event: DragEvent): Boolean {
         val dnd = server.dnd
         val payload = event.localState
+        (toplevel as? XwaylandToplevel)?.let { return onX11DragEvent(event, payload, it) }
         when (event.action) {
             // The window a drag started in hears its end in any case.
             DragEvent.ACTION_DRAG_STARTED ->
-                return dnd.accepts(payload, toplevel.client) || (payload as? LinuxDrag)?.view === this
+                return dnd.accepts(payload, toplevel.client) || (payload as? ProgramDrag)?.view === this
             DragEvent.ACTION_DRAG_LOCATION -> hit(event.x, event.y)?.let { (surface, p) -> dnd.over(payload, surface, p[0], p[1]) }
             DragEvent.ACTION_DRAG_EXITED -> dnd.left(payload)
             DragEvent.ACTION_DROP -> {
@@ -540,17 +568,40 @@ class WaylandWindowContent(
                 return dnd.drop(payload, surface, p[0], p[1])
             }
             DragEvent.ACTION_DRAG_ENDED -> {
-                if ((payload as? LinuxDrag)?.view === this) linuxDragging = false
+                if ((payload as? ProgramDrag)?.view === this) linuxDragging = false
                 dnd.ended(payload, event.result)
             }
         }
         return true
     }
 
+    /** A drag over an X11 window: XDND, HandTop being the source (see Xwm). */
+    private fun onX11DragEvent(event: DragEvent, payload: Any?, top: XwaylandToplevel): Boolean {
+        val xwm = server.xwm
+        when (event.action) {
+            DragEvent.ACTION_DRAG_STARTED ->
+                return xwm?.dragAccepts(payload) == true || (payload as? ProgramDrag)?.view === this
+            DragEvent.ACTION_DRAG_LOCATION -> hit(event.x, event.y)?.let { (_, p) ->
+                xwm?.dragOver(payload, top.window, p[0].toInt(), p[1].toInt())
+            }
+            DragEvent.ACTION_DRAG_EXITED -> xwm?.dragLeft(payload)
+            DragEvent.ACTION_DROP -> {
+                val (_, p) = hit(event.x, event.y) ?: return false
+                return xwm?.dragDrop(payload, top.window, p[0].toInt(), p[1].toInt()) == true
+            }
+            DragEvent.ACTION_DRAG_ENDED -> {
+                if ((payload as? ProgramDrag)?.view === this) linuxDragging = false
+                xwm?.dragEnded(payload)
+                server.dnd.ended(payload, event.result) // a Wayland program's drag hears how it ended
+            }
+        }
+        return true
+    }
+
     /** Under the finger: the program's drag icon, or a file icon until it draws one. */
-    private inner class LinuxDragShadow(drag: LinuxDrag) : DragShadowBuilder() {
-        private val icon = drag.icon?.bitmap?.takeIf { it.width > 0 && it.height > 0 }
-        private val iconScale = scale.toFloat() / (drag.icon?.bufferScale ?: 1).coerceAtLeast(1)
+    private inner class LinuxDragShadow(iconSurface: WlSurface?) : DragShadowBuilder() {
+        private val icon = iconSurface?.bitmap?.takeIf { it.width > 0 && it.height > 0 }
+        private val iconScale = scale.toFloat() / (iconSurface?.bufferScale ?: 1).coerceAtLeast(1)
         private val chip = (resources.displayMetrics.density * 48).toInt()
         private var w = chip
         private var h = chip
@@ -622,6 +673,9 @@ class WaylandWindowContent(
 
         /** After the program's answer, a moment for a menu it opens to appear. */
         const val ANSWER_SETTLE_MS = 50L
+
+        /** A point far outside every X11 window (surface units), where nothing takes a drop. */
+        const val OUTSIDE = -100000.0
 
         // xdg_toplevel.resize_edge bits
         const val XDG_EDGE_TOP = 1

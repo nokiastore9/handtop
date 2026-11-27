@@ -346,7 +346,15 @@ mailto, tel…) — сразу её приложению. Ярлык «Прил�
 «Переместить / Копировать»; источнику Linux Files всегда сообщает copy. Перед `drop` окну под пальцем
 возвращается указатель (`wl_pointer.enter`): без этого Qt не открывает меню «копировать / переместить»
 («parent window has received input»). Проверено: Files ↔ Thunar, Files ↔ PCManFM-Qt, Files → GNOME
-Text Editor, Thunar → Text Editor, бросок мимо — `cancelled`. Не сделано: X11 (XDND в `Xwm`).
+Text Editor, Thunar → Text Editor, бросок мимо — `cancelled`.
+X11 (2026-11-28, XDND в `Xwm`, `Xdnd` в `DragData`): над окном X11 источник — окно WM HandTop: оно
+владеет `XdndSelection`, шлёт `XdndEnter / Position / Drop / Leave` (copy) окнам с `XdndAware` и
+отдаёт данные по `SelectionRequest`. Перетаскивание программы X11 HandTop видит через XFixes
+(`XdndSelection` сменила владельца), сразу забирает `text/uri-list` и текст, а когда палец уходит
+из окна, продолжает его как своё (`X11Drag`): программе — Escape и отпускание кнопки далеко за
+окнами, чтобы её собственный бросок не случился. Окна GTK 2×2 за экраном (−100, −100) не считаются
+меню (`X11Sizing.offScreen`), иначе слой меню глотал касания. Проверено: Files → Thunar (X11),
+Thunar (X11) → Files, Thunar (X11) → GNOME Text Editor, PCManFM-Qt → Thunar (X11), Thunar → Thunar.
 Спецификация: `docs/superpowers/specs/2026-11-27-linux-drag-and-drop-design.md`.
 Классическая тема для программ Linux (2026-11-26, `LinuxTheme`, `tools/linux-theme`): при
 классической теме HandTop кладёт свои файлы в `/usr/local/share/handtop/classic` и задаёт
@@ -457,7 +465,7 @@ X11) ждал до одного обновления, и программа, ж�
 
 Дальше:
 - GPU-клиенты через dmabuf / общий `AHardwareBuffer` (этап 5): без копирования кадров;
-- Qt-приложения (не проверялись), drag & drop, primary selection (вставка средней кнопкой);
+- Qt-приложения (не проверялись), primary selection (вставка средней кнопкой);
 - окружающий текст для клавиатуры (`set_surrounding_text`) — автозамена и подсказки по
   контексту; дополнительные клавиши (Esc, Ctrl, Alt, стрелки) для окон Linux на телефоне.
 

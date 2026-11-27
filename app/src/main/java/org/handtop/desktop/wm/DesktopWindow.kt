@@ -26,7 +26,7 @@ import androidx.annotation.StringRes
 import kotlin.math.hypot
 import org.handtop.desktop.R
 import org.handtop.desktop.files.FileDrag
-import org.handtop.desktop.wayland.LinuxDrag
+import org.handtop.desktop.wayland.ProgramDrag
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
@@ -101,7 +101,7 @@ class DesktopWindow(
         // Files dropped on a window that does not take them stay out of the desktop below; the
         // drop itself fails (a Linux program that dragged them hears it was cancelled).
         setOnDragListener { _, e ->
-            (e.localState is FileDrag || e.localState is LinuxDrag) && e.action != DragEvent.ACTION_DROP
+            (e.localState is FileDrag || e.localState is ProgramDrag) && e.action != DragEvent.ACTION_DROP
         }
 
         titleBar.orientation = HORIZONTAL
