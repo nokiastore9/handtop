@@ -8,11 +8,11 @@ No root required. For phones, tablets and external screens, with or without Sams
 > [!WARNING]
 > **Early version — 0.3.1 alpha.** HandTop is young and changes fast, so expect rough edges,
 > bugs and things that will be reworked. So far it has been tested on one phone, a Samsung Galaxy
-> S24 Ultra (Snapdragon 8 Gen 3). Ideas and bug reports are welcome.
+> S24 Ultra (Snapdragon 8 Gen 3). Ideas and bug reports are welcome, see [Support](#support).
 
 ## Vibe-coded
 
-HandTop is a vibe-coding project by **Samson Vardanyan**. It is built by talking to an AI coding
+HandTop is a vibe-coding project by **Samson**. It is built by talking to an AI coding
 agent, [Claude Code](https://claude.com/claude-code). The agent writes the code, the tests and these
 docs. Samson sets the direction, tries every build on a real phone and decides what ships. The
 commits name the AI as their co-author.
@@ -89,6 +89,14 @@ HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs
   Settings → Android shows its status and how to turn it off.
 - x86 Linux programs (box64) and Windows programs (Wine) are not supported yet.
 
+## Support
+
+Questions, bug reports and ideas:
+
+- WhatsApp and Telegram: +37455099693 ([WhatsApp](https://wa.me/37455099693), [Telegram](https://t.me/+37455099693))
+- Email: [nokiastore9@gmail.com](mailto:nokiastore9@gmail.com)
+- [GitHub issues](https://github.com/nokiastore9/handtop/issues)
+
 ## Version history
 
 See [CHANGELOG.md](CHANGELOG.md).
@@ -120,7 +128,7 @@ key (see `app/build.gradle.kts`) and left unsigned otherwise.
 
 ## License
 
-HandTop © 2026 Samson Vardanyan, under the [GNU GPL v3](LICENSE). Third-party code keeps its license:
+HandTop © 2026 Samson, under the [GNU GPL v3](LICENSE). Third-party code keeps its license:
 
 - `terminal-emulator`, `terminal-view` — from [Termux](https://github.com/termux/termux-app), Apache 2.0
 - `native/proot` — [termux/proot](https://github.com/termux/proot), GPL v2+
