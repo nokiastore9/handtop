@@ -464,8 +464,8 @@ class DesktopArea(context: Context) : ViewGroup(context) {
         if (resizeEdges != 0) return false // the user is resizing a window: the hand decides
         val (fw, fh) = window.frameSizeFor(contentWidth, contentHeight)
         frameOf(window, width, height, frame)
-        val w = if (width > 0) min(fw, width) else fw
-        val h = if (height > 0) min(fh, height) else fh
+        // Not limited by the keyboard: a window that shrank above it would stay short.
+        val (w, h) = WindowSizing.fitContent(fw, fh, width, height, keyboardCover).toList()
         window.bounds.set(frame.left, frame.top, frame.left + w, frame.top + h)
         requestLayout()
         return true

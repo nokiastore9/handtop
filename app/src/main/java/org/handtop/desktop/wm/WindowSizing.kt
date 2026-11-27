@@ -17,4 +17,17 @@ object WindowSizing {
         val tall = min(areaHeight - dp(48), dp(480))
         return intArrayOf(width, max(share, tall))
     }
+
+    /**
+     * The frame size a program's window takes for the size it draws ([frameWidth] x
+     * [frameHeight] pixels, with HandTop's frame): within the desktop ([areaWidth] x
+     * [areaHeight], 0 before its first layout) as if the on-screen keyboard did not hide
+     * [keyboardCover] of it. The keyboard only hides the window's bottom for a while (the
+     * layout fits it above), so the window gets its size back when the keyboard goes.
+     */
+    fun fitContent(frameWidth: Int, frameHeight: Int, areaWidth: Int, areaHeight: Int, keyboardCover: Int): IntArray =
+        intArrayOf(
+            if (areaWidth > 0) min(frameWidth, areaWidth) else frameWidth,
+            if (areaHeight > 0) min(frameHeight, areaHeight + keyboardCover) else frameHeight,
+        )
 }
