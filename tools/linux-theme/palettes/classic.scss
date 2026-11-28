@@ -1,0 +1,21 @@
+// HandTop's Classic palette for the classic Linux theme: the shell's ClassicTheme.kt colours.
+// build.py copies it into each build as _handtop-palette.scss; glossy.scss has the same names.
+$hp_light: #ffffff;
+$hp_inner_light: #dfdfdf;
+$hp_shadow: #808080;
+$hp_dark_shadow: #0a0a0a;
+$hp_title_active: #000080;
+$hp_title_active_end: #1084d0;
+$hp_title_inactive: #808080;
+$hp_title_inactive_end: #b4b4b4;
+$hp_title_text_active: #ffffff;
+$hp_title_text_inactive: #dfdfdf;
+$hp_tooltip: #ffffe1;
+$hp_trough: #dfdfdf;
+$hp_face: #c0c0c0;
+$hp_field: #ffffff;
+$hp_text: #000000;
+$hp_disabled: #808080;
+$hp_selection: #000080;
+$hp_selection_text: #ffffff;
+$hp_dark_fill: #a0a0a0;

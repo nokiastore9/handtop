@@ -1,11 +1,12 @@
 /* HandTop classic palette for GTK 4 and libadwaita, imported after libadwaita's own colours.
-   The colours are the shell's classic theme (ClassicTheme.kt). libadwaita normally defines
+   The colours come from the variant's palette (palettes/*.scss). libadwaita normally defines
    the accent colours at run time; with GTK_THEME set it does not, so they are here too. */
+@import 'handtop-palette';
 
 // The accent: classic navy selection.
-@define-color accent_bg_color #000080;
-@define-color accent_fg_color #ffffff;
-@define-color accent_color #000080;
+@define-color accent_bg_color #{$hp_selection};
+@define-color accent_fg_color #{$hp_selection_text};
+@define-color accent_color #{$hp_selection};
 
 // Buttons and labels keep the classic gray; these colour only text and level bars.
 @define-color destructive_bg_color #a00000;
@@ -25,51 +26,51 @@
 @define-color error_color #a00000;
 
 // Window
-@define-color window_bg_color #c0c0c0;
-@define-color window_fg_color #000000;
+@define-color window_bg_color #{$hp_face};
+@define-color window_fg_color #{$hp_text};
 
 // Views - e.g. text view or tree view
-@define-color view_bg_color #ffffff;
-@define-color view_fg_color #000000;
+@define-color view_bg_color #{$hp_field};
+@define-color view_fg_color #{$hp_text};
 
 // Header bars stand in for the title bar: classic navy (the gradient is in _classic.scss).
-@define-color headerbar_bg_color #000080;
-@define-color headerbar_fg_color #ffffff;
-@define-color headerbar_border_color #0a0a0a;
-@define-color headerbar_backdrop_color #808080;
+@define-color headerbar_bg_color #{$hp_title_active};
+@define-color headerbar_fg_color #{$hp_title_text_active};
+@define-color headerbar_border_color #{$hp_dark_shadow};
+@define-color headerbar_backdrop_color #{$hp_title_inactive};
 @define-color headerbar_shade_color transparent;
 @define-color headerbar_darker_shade_color transparent;
 
 // Split pane views: white, like the shell's side lists.
-@define-color sidebar_bg_color #ffffff;
-@define-color sidebar_fg_color #000000;
-@define-color sidebar_backdrop_color #ffffff;
+@define-color sidebar_bg_color #{$hp_field};
+@define-color sidebar_fg_color #{$hp_text};
+@define-color sidebar_backdrop_color #{$hp_field};
 @define-color sidebar_shade_color transparent;
-@define-color sidebar_border_color #808080;
+@define-color sidebar_border_color #{$hp_shadow};
 
-@define-color secondary_sidebar_bg_color #ffffff;
-@define-color secondary_sidebar_fg_color #000000;
-@define-color secondary_sidebar_backdrop_color #ffffff;
+@define-color secondary_sidebar_bg_color #{$hp_field};
+@define-color secondary_sidebar_fg_color #{$hp_text};
+@define-color secondary_sidebar_backdrop_color #{$hp_field};
 @define-color secondary_sidebar_shade_color transparent;
-@define-color secondary_sidebar_border_color #808080;
+@define-color secondary_sidebar_border_color #{$hp_shadow};
 
 // Cards, boxed lists: white sunken boxes.
-@define-color card_bg_color #ffffff;
-@define-color card_fg_color #000000;
-@define-color card_shade_color #c0c0c0;
+@define-color card_bg_color #{$hp_field};
+@define-color card_fg_color #{$hp_text};
+@define-color card_shade_color #{$hp_face};
 
 // Dialogs
-@define-color dialog_bg_color #c0c0c0;
-@define-color dialog_fg_color #000000;
+@define-color dialog_bg_color #{$hp_face};
+@define-color dialog_fg_color #{$hp_text};
 
 // Popovers (menus)
-@define-color popover_bg_color #c0c0c0;
-@define-color popover_fg_color #000000;
+@define-color popover_bg_color #{$hp_face};
+@define-color popover_fg_color #{$hp_text};
 @define-color popover_shade_color transparent;
 
 // Miscellaneous
-@define-color thumbnail_bg_color #ffffff;
-@define-color thumbnail_fg_color #000000;
+@define-color thumbnail_bg_color #{$hp_field};
+@define-color thumbnail_fg_color #{$hp_text};
 
 @define-color shade_color transparent;
 @define-color scrollbar_outline_color transparent;

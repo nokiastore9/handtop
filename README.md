@@ -155,6 +155,6 @@ HandTop © 2026 Samson, under the [GNU GPL v3](LICENSE). Third-party code keeps 
 - `terminal-emulator`, `terminal-view` — from [Termux](https://github.com/termux/termux-app), Apache 2.0
 - `native/proot` — [termux/proot](https://github.com/termux/proot), GPL v2+
 - `native/talloc` — [talloc](https://talloc.samba.org/), LGPL v3+
-- `app/src/main/assets/linux-theme` — the Classic theme for GTK, built by `tools/linux-theme` from the
+- `app/src/main/assets/linux-theme` — the classic theme for GTK (in the Classic and the Glossy colours), built by `tools/linux-theme` from the
   stylesheets of [GTK](https://gitlab.gnome.org/GNOME/gtk)'s Adwaita and [libadwaita](https://gitlab.gnome.org/GNOME/libadwaita), LGPL v2.1+
 - [AndroidSVG](https://github.com/BigBadaboom/androidsvg) (a dependency) draws the SVG icons of Linux programs, Apache 2.0

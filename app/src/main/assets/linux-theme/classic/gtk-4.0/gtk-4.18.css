@@ -156,7 +156,7 @@
 }
 
 /* HandTop classic palette for GTK 4 and libadwaita, imported after libadwaita's own colours.
-   The colours are the shell's classic theme (ClassicTheme.kt). libadwaita normally defines
+   The colours come from the variant's palette (palettes/*.scss). libadwaita normally defines
    the accent colours at run time; with GTK_THEME set it does not, so they are here too. */
 @define-color accent_bg_color #000080;
 @define-color accent_fg_color #ffffff;

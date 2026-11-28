@@ -3,6 +3,7 @@ package org.handtop.desktop.linux
 import android.content.Context
 import android.util.Log
 import org.handtop.desktop.ui.ClassicTheme
+import org.handtop.desktop.ui.GlossyTheme
 import org.handtop.desktop.ui.ThemeColors
 import org.handtop.desktop.ui.ThemeId
 import org.handtop.desktop.ui.Themes
@@ -10,12 +11,12 @@ import java.io.File
 import java.io.IOException
 
 /**
- * HandTop's look inside Linux programs. With the classic theme, every program HandTop starts
- * (menu, terminals, Files) finds classic settings for its toolkit; with the modern one,
- * programs keep their own look. Programs take the look when they start.
+ * HandTop's look inside Linux programs. With the Classic or the Glossy theme, every program
+ * HandTop starts (menu, terminals, Files) finds classic settings for its toolkit, in that
+ * theme's colours; with Modern or Soft, programs keep their own look. Programs take the look when they start.
  *
  * Nothing is installed in the distribution and no user file is changed: HandTop writes its
- * files under [DIR] and points the toolkits there with environment variables, so it works the
+ * files under [Variant.dir] and points the toolkits there with environment variables, so it works the
  * same on every distribution, with or without a desktop's packages:
  * - Qt and KDE programs: Qt's built-in "kde" platform theme reads `kdeglobals` from the XDG
  *   config dirs (widget style "Windows", Qt's own, and the palette); KDE Frameworks read the
@@ -30,36 +31,49 @@ import java.io.IOException
  */
 object LinuxTheme {
 
-    /** HandTop's classic files inside Linux. */
-    const val DIR = "/usr/local/share/handtop/classic"
+    /**
+     * The classic theme in one palette: its folder inside Linux, the names its GTK theme and KDE
+     * colour scheme go by, the built GTK themes in the app's assets, and the colours of the
+     * files written for Qt, KDE and GTK 2.
+     */
+    class Variant(val name: String, val title: String, val colors: ThemeColors) {
+        val dir = "/usr/local/share/handtop/$name"
+        val kdeScheme = "HandTop$title"
+        val gtkName = "HandTop-$title"
 
-    /** The KDE colour scheme's id (its file name in color-schemes). */
-    const val KDE_SCHEME = "HandTopClassic"
+        /** The GTK 2 rc file, relative to [dir]. */
+        val gtk2Rc = "share/themes/$gtkName/gtk-2.0/gtkrc"
+        val assets = "linux-theme/$name"
+    }
 
-    /** The GTK theme's name (a folder in themes). */
-    const val GTK_NAME = "HandTop-Classic"
+    val CLASSIC = Variant("classic", "Classic", ClassicTheme.colors)
+    val GLOSSY = Variant("glossy", "Glossy", GlossyTheme.colors)
 
-    /** The GTK 2 rc file, relative to [DIR]. */
-    const val GTK2_RC = "share/themes/$GTK_NAME/gtk-2.0/gtkrc"
+    /** The variants [install] writes: all of them, so switching themes needs no setup. */
+    val installed = listOf(CLASSIC, GLOSSY)
+
+    /** The variant [theme] gives Linux programs, or null for none (they keep their own look). */
+    fun variant(theme: ThemeId): Variant? = when (theme) {
+        ThemeId.MODERN, ThemeId.SOFT -> null
+        ThemeId.CLASSIC -> CLASSIC
+        ThemeId.GLOSSY -> GLOSSY
+    }
 
     private const val TAG = "HandTopTheme"
-
-    /** The app assets with the built GTK themes (gtk-3.0, gtk-4.0). */
-    private const val ASSETS = "linux-theme/classic"
 
     /** Where distributions keep libgtk-4: Debian and Ubuntu, Alpine, Fedora. */
     private val GTK4_LIBRARY_DIRS = listOf("usr/lib/aarch64-linux-gnu", "usr/lib", "usr/lib64")
 
     /** The variables Linux programs get for [theme]. */
-    fun environment(theme: ThemeId): List<String> = when (theme) {
-        ThemeId.MODERN, ThemeId.SOFT -> emptyList()
-        ThemeId.CLASSIC, ThemeId.GLOSSY -> listOf(
+    fun environment(theme: ThemeId): List<String> {
+        val v = variant(theme) ?: return emptyList()
+        return listOf(
             "QT_QPA_PLATFORMTHEME=kde",
             "KDE_SESSION_VERSION=6",
-            "XDG_CONFIG_DIRS=$DIR/xdg:/etc/xdg",
-            "XDG_DATA_DIRS=$DIR/share:/usr/local/share:/usr/share",
-            "GTK2_RC_FILES=$DIR/$GTK2_RC:/root/.gtkrc-2.0",
-            "GTK_THEME=$GTK_NAME",
+            "XDG_CONFIG_DIRS=${v.dir}/xdg:/etc/xdg",
+            "XDG_DATA_DIRS=${v.dir}/share:/usr/local/share:/usr/share",
+            "GTK2_RC_FILES=${v.dir}/${v.gtk2Rc}:/root/.gtkrc-2.0",
+            "GTK_THEME=${v.gtkName}",
             "GTK_OVERLAY_SCROLLING=0",
         )
     }
@@ -71,23 +85,25 @@ object LinuxTheme {
     }
 
     /**
-     * Writes the classic files into [rootfs]: after a HandTop update, or when the GTK 4 in
-     * Linux needs the other stylesheet (it may be installed or upgraded at any time). Cheap
-     * otherwise: a stamp file says what was written.
+     * Writes the files of every [installed] variant into [rootfs]: after a HandTop update, or
+     * when the GTK 4 in Linux needs the other stylesheet (it may be installed or upgraded at any
+     * time). Cheap otherwise: a stamp file in each variant's folder says what was written.
      */
     fun install(context: Context, rootfs: File) {
-        val dir = File(rootfs, DIR.removePrefix("/"))
         val gtk4 = gtk4Stylesheet(gtk4Minor(GTK4_LIBRARY_DIRS.flatMap { File(rootfs, it).list()?.toList().orEmpty() }))
         val updated = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
         val stamp = "$updated $gtk4\n"
-        val stampFile = File(dir, ".installed")
-        try {
-            if (stampFile.isFile && stampFile.readText() == stamp) return
-            for ((path, text) in files(ClassicTheme.colors)) write(File(dir, path), text.toByteArray())
-            copyAssets(context, ASSETS, File(dir, "share/themes/$GTK_NAME"), gtk4)
-            stampFile.writeText(stamp)
-        } catch (e: IOException) {
-            Log.w(TAG, "cannot write the classic theme into $dir", e)
+        for (v in installed) {
+            val dir = File(rootfs, v.dir.removePrefix("/"))
+            val stampFile = File(dir, ".installed")
+            try {
+                if (stampFile.isFile && stampFile.readText() == stamp) continue
+                for ((path, text) in files(v)) write(File(dir, path), text.toByteArray())
+                copyAssets(context, v.assets, File(dir, "share/themes/${v.gtkName}"), gtk4)
+                stampFile.writeText(stamp)
+            } catch (e: IOException) {
+                Log.w(TAG, "cannot write the ${v.name} theme into $dir", e)
+            }
         }
     }
 
@@ -123,43 +139,43 @@ object LinuxTheme {
      */
     fun gtk4Stylesheet(minor: Int?): String = if (minor != null && minor < 20) "gtk-4.18.css" else "gtk.css"
 
-    /** The classic files, by path relative to [DIR], in the colours of [c]. */
-    fun files(c: ThemeColors): Map<String, String> = mapOf(
-        "xdg/kdeglobals" to kdeglobals(c),
-        "share/color-schemes/$KDE_SCHEME.colors" to kdeColorScheme(c),
-        "share/themes/$GTK_NAME/index.theme" to INDEX_THEME,
-        GTK2_RC to gtk2Rc(c),
+    /** The files of [v] for Qt, KDE and GTK 2, by path relative to its [Variant.dir], in its colours. */
+    fun files(v: Variant): Map<String, String> = mapOf(
+        "xdg/kdeglobals" to kdeglobals(v),
+        "share/color-schemes/${v.kdeScheme}.colors" to kdeColorScheme(v),
+        "share/themes/${v.gtkName}/index.theme" to indexTheme(v),
+        v.gtk2Rc to gtk2Rc(v.colors),
     )
 
     // ---- Qt and KDE ----
 
-    private fun kdeglobals(c: ThemeColors) = """
+    private fun kdeglobals(v: Variant) = """
         |# Written by HandTop for its classic theme; changes are overwritten.
         |# Qt reads the top-level keys, KDE Frameworks [KDE] and [UiSettings].
         |[General]
-        |ColorScheme=$KDE_SCHEME
+        |ColorScheme=${v.kdeScheme}
         |widgetStyle=Windows
         |
         |[KDE]
         |widgetStyle=Windows
         |
         |[UiSettings]
-        |ColorScheme=$KDE_SCHEME
+        |ColorScheme=${v.kdeScheme}
         |
-        |""".trimMargin() + kdeColors(c)
+        |""".trimMargin() + kdeColors(v.colors)
 
-    private fun kdeColorScheme(c: ThemeColors) = """
+    private fun kdeColorScheme(v: Variant) = """
         |[General]
-        |ColorScheme=$KDE_SCHEME
-        |Name=HandTop Classic
+        |ColorScheme=${v.kdeScheme}
+        |Name=HandTop ${v.title}
         |
-        |""".trimMargin() + kdeColors(c) + """
+        |""".trimMargin() + kdeColors(v.colors) + """
         |
         |[WM]
-        |activeBackground=${rgb(c.titleActive)}
-        |activeForeground=${rgb(c.titleTextActive)}
-        |inactiveBackground=${rgb(c.titleInactive)}
-        |inactiveForeground=${rgb(c.titleTextInactive)}
+        |activeBackground=${rgb(v.colors.titleActive)}
+        |activeForeground=${rgb(v.colors.titleTextActive)}
+        |inactiveBackground=${rgb(v.colors.titleInactive)}
+        |inactiveForeground=${rgb(v.colors.titleTextInactive)}
         |""".trimMargin()
 
     /** The colour groups of a KDE scheme: gray surfaces, white views, blue selection. */
@@ -213,15 +229,15 @@ object LinuxTheme {
 
     // ---- GTK ----
 
-    private val INDEX_THEME = """
+    private fun indexTheme(v: Variant) = """
         |[Desktop Entry]
         |Type=X-GNOME-Metatheme
-        |Name=$GTK_NAME
+        |Name=${v.gtkName}
         |Comment=HandTop's classic theme, written by HandTop
         |Encoding=UTF-8
         |
         |[X-GNOME-Metatheme]
-        |GtkTheme=$GTK_NAME
+        |GtkTheme=${v.gtkName}
         |""".trimMargin() + "\n"
 
     /** GTK 2's default engine draws the classic bevels from bg's light and dark shades. */

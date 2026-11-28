@@ -1,40 +1,41 @@
 // HandTop classic palette for GTK 3 (replaces Adwaita's _colors.scss; same variable names).
-// The colours are the shell's classic theme (app/src/main/java/org/handtop/desktop/ui/ClassicTheme.kt).
+// The colours come from the variant's palette (palettes/*.scss: the shell's theme colours).
 // Inactive windows ("backdrop") keep their colours, as in the shell.
+@import 'handtop-palette';
 
 // The four edges of a classic bevel.
-$classic_light: #ffffff;
-$classic_inner_light: #dfdfdf;
-$classic_shadow: #808080;
-$classic_dark_shadow: #0a0a0a;
+$classic_light: $hp_light;
+$classic_inner_light: $hp_inner_light;
+$classic_shadow: $hp_shadow;
+$classic_dark_shadow: $hp_dark_shadow;
 
 // Title bars (GTK 3 header bars stand in for them).
-$classic_title_active: #000080;
-$classic_title_active_end: #1084d0;
-$classic_title_inactive: #808080;
-$classic_title_inactive_end: #b4b4b4;
-$classic_title_text_active: #ffffff;
-$classic_title_text_inactive: #dfdfdf;
+$classic_title_active: $hp_title_active;
+$classic_title_active_end: $hp_title_active_end;
+$classic_title_inactive: $hp_title_inactive;
+$classic_title_inactive_end: $hp_title_inactive_end;
+$classic_title_text_active: $hp_title_text_active;
+$classic_title_text_inactive: $hp_title_text_inactive;
 
-$classic_tooltip: #ffffe1;
-$classic_trough: #dfdfdf;
+$classic_tooltip: $hp_tooltip;
+$classic_trough: $hp_trough;
 
-$base_color: #ffffff;
-$text_color: #000000;
-$caret_color: #000000;
-$bg_color: #c0c0c0;
-$fg_color: #000000;
+$base_color: $hp_field;
+$text_color: $hp_text;
+$caret_color: $hp_text;
+$bg_color: $hp_face;
+$fg_color: $hp_text;
 
-$selected_fg_color: #ffffff;
-$selected_bg_color: #000080;
-$selected_borders_color: #000080;
+$selected_fg_color: $hp_selection_text;
+$selected_bg_color: $hp_selection;
+$selected_borders_color: $hp_selection;
 $borders_color: $classic_shadow;
 $alt_borders_color: $classic_dark_shadow;
 $borders_edge: transparentize(white, 1);
 $link_color: #0000ff;
 $link_visited_color: #800080;
 $top_hilight: $borders_edge;
-$dark_fill: #a0a0a0;
+$dark_fill: $hp_dark_fill;
 $headerbar_color: $classic_title_active;
 $menu_color: $bg_color;
 $popover_bg_color: $bg_color;
