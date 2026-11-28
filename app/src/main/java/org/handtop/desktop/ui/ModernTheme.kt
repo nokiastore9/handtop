@@ -56,6 +56,12 @@ object ModernTheme : Theme(
         innerLight = 0x1AFFFFFF,
         shadow = 0x66000000,
         darkShadow = 0x99000000.toInt(),
+        taskbarText = 0xFFE6EAF2.toInt(),
+        taskbarTextDim = 0xFF8A94A8.toInt(),
+        taskbarIcon = 0,
+        iconTint = 0,
+        titleGlyph = 0,
+        onAccent = 0xFFE6EAF2.toInt(),
     ),
 ) {
     override val animations = true
@@ -64,6 +70,8 @@ object ModernTheme : Theme(
     override val tintIcons = true
     override val roundedCorners = true
     override val bevelled = false
+    override val light = false
+    override val titleCentered = false
 
     override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
         GradientDrawable().apply {

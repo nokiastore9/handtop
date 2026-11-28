@@ -45,7 +45,6 @@ import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.applyTheme
 import org.handtop.desktop.ui.Themes
-import org.handtop.desktop.ui.ThemeId
 import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -83,7 +82,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
     // Notifications: icons of the latest ones, a bell with the count; opens the center.
     private val notificationCenter = (context as? Activity)?.let { NotificationCenter(it) }
     private val notifyIcons = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-    private val bell = ImageView(context).apply { setThemedIcon(R.drawable.ic_bell, Palette.TEXT) }
+    private val bell = ImageView(context).apply { setThemedIcon(R.drawable.ic_bell, Palette.TASKBAR_TEXT) }
     private val badge = TextView(context)
     private val notifyGroup: LinearLayout
     private val notificationsListener: () -> Unit = { refreshNotifications() }
@@ -294,7 +293,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
             } catch (_: RuntimeException) {
                 continue // the posting app's resources are not visible to us
             }
-            view.setColorFilter(Palette.TEXT)
+            view.setColorFilter(Palette.TASKBAR_TEXT)
             notifyIcons.addView(view, LayoutParams(dpi(16), dpi(16)).apply { marginEnd = dpi(4) })
         }
         badge.text = if (items.size > 99) "99+" else items.size.toString()
@@ -403,7 +402,8 @@ class StatusArea(context: Context) : LinearLayout(context) {
     private fun showCalendar(anchor: View) {
         // Android's calendar takes its colours from the context's theme: dark text on the
         // classic gray panel, light text on the modern dark one.
-        val themed = if (Themes.current.id == ThemeId.CLASSIC) ContextThemeWrapper(context, R.style.HandTop_ClassicCalendar) else context
+        val style = Themes.current.calendarStyle
+        val themed = if (style != 0) ContextThemeWrapper(context, style) else context
         val calendar = CalendarView(themed)
         val popup = PopupWindow(calendar, WRAP_CONTENT, WRAP_CONTENT, true)
         popup.applyTheme(context, Themes.current.panel(context, 14f), 20f)
@@ -427,7 +427,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
         val time = TextClock(context).apply {
             format24Hour = "HH:mm"
             format12Hour = "h:mm a"
-            setTextColor(Palette.TEXT)
+            setTextColor(Palette.TASKBAR_TEXT)
             textSize = 13f
             gravity = Gravity.CENTER
         }
@@ -435,7 +435,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
         val date = TextClock(context).apply {
             format24Hour = datePattern
             format12Hour = datePattern
-            setTextColor(Palette.TEXT_DIM)
+            setTextColor(Palette.TASKBAR_TEXT_DIM)
             textSize = 11f
             gravity = Gravity.CENTER
         }
@@ -456,7 +456,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
     private fun label(text: String, sizeSp: Float) = TextView(context).apply {
         this.text = text
         textSize = sizeSp
-        setTextColor(Palette.TEXT)
+        setTextColor(Palette.TASKBAR_TEXT)
         gravity = Gravity.CENTER
         includeFontPadding = false
     }
@@ -492,10 +492,10 @@ class SignalIcon(context: Context, private val kind: Kind) : View(context) {
             if (field != value) { field = value; invalidate() }
         }
 
-    private val on = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.TEXT }
+    private val on = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.TASKBAR_TEXT }
     private val off = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.STATUS_ICON_OFF }
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Palette.TEXT
+        color = Palette.TASKBAR_TEXT
         style = Paint.Style.STROKE
         strokeWidth = dp(1.6f)
         strokeCap = Paint.Cap.ROUND
@@ -573,11 +573,11 @@ class BatteryIcon(context: Context) : View(context) {
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = dp(1.4f)
-        color = Palette.TEXT
+        color = Palette.TASKBAR_TEXT
     }
-    private val solid = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.TEXT }
+    private val solid = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.TASKBAR_TEXT }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val boltFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.TEXT }
+    private val boltFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.TASKBAR_TEXT }
     private val boltEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = dp(1.2f)
@@ -611,7 +611,7 @@ class BatteryIcon(context: Context) : View(context) {
         fill.color = when {
             charging -> Palette.BATTERY_CHARGING
             percent <= 15 -> Palette.BATTERY_LOW
-            else -> Palette.TEXT
+            else -> Palette.TASKBAR_TEXT
         }
         val pad = dp(2.4f)
         val inner = body.width() - 2 * pad + 2 * half

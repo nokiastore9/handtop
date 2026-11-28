@@ -1,5 +1,6 @@
 package org.handtop.desktop.ui
 
+import org.handtop.desktop.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -81,5 +82,68 @@ class ThemeTest {
         assertTrue(shadows)
         assertTrue(tintIcons)
         assertTrue(roundedCorners)
+    }
+    @Test
+    fun taskbarTextIsTodaysTextInModernAndClassic() {
+        for (t in listOf(ModernTheme, ClassicTheme)) with(t.colors) {
+            assertEquals(text, taskbarText)
+            assertEquals(textDim, taskbarTextDim)
+            assertEquals(0, iconTint)
+            assertEquals(0, titleGlyph)
+        }
+        assertEquals(ModernTheme.colors.text, ModernTheme.colors.onAccent)
+    }
+
+    @Test
+    fun modernAndClassicKeepTheirBaseAndTitles() {
+        for (t in listOf(ModernTheme, ClassicTheme)) {
+            assertFalse(t.light)
+            assertFalse(t.titleCentered)
+        }
+        assertEquals(0, ModernTheme.dialogStyle)
+        assertEquals(0, ModernTheme.calendarStyle)
+        assertEquals(R.style.HandTop_ClassicDialog, ClassicTheme.dialogStyle)
+        assertEquals(R.style.HandTop_ClassicCalendar, ClassicTheme.calendarStyle)
+    }
+
+    @Test
+    fun contrastOfBlackOnWhiteIs21() {
+        assertEquals(21.0, contrast(0xFF000000.toInt(), 0xFFFFFFFF.toInt()), 0.01)
+        assertEquals(1.0, contrast(0xFF808080.toInt(), 0xFF808080.toInt()), 0.001)
+        // Half-transparent black over white is mid gray.
+        assertEquals(0xFF7F7F7F.toInt(), over(0x80000000.toInt(), 0xFFFFFFFF.toInt()))
+    }
+
+    // ---- readability (WCAG 2 contrast) ----
+
+    /** Relative luminance of an opaque ARGB colour. */
+    private fun luminance(argb: Int): Double {
+        fun channel(v: Int): Double {
+            val c = v / 255.0
+            return if (c <= 0.03928) c / 12.92 else Math.pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * channel(argb shr 16 and 0xFF) + 0.7152 * channel(argb shr 8 and 0xFF) + 0.0722 * channel(argb and 0xFF)
+    }
+
+    /** [top] (maybe translucent) composited over opaque [bottom]. */
+    private fun over(top: Int, bottom: Int): Int {
+        val a = (top ushr 24) / 255.0
+        fun mix(shift: Int) = Math.round((top shr shift and 0xFF) * a + (bottom shr shift and 0xFF) * (1 - a)).toInt()
+        return (0xFF shl 24) or (mix(16) shl 16) or (mix(8) shl 8) or mix(0)
+    }
+
+    private fun contrast(fg: Int, bg: Int): Double {
+        val a = luminance(fg)
+        val b = luminance(bg)
+        return (maxOf(a, b) + 0.05) / (minOf(a, b) + 0.05)
+    }
+
+    /** [fg] reads on [bg] at [min] : 1 or better; a translucent [bg] over white and over black. */
+    private fun assertReadable(what: String, fg: Int, bg: Int, min: Double = 4.5) {
+        for (backdrop in listOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt())) {
+            val under = over(bg, backdrop)
+            val ratio = contrast(over(fg, under), under)
+            assertTrue("$what: %.2f < $min on #%08X".format(ratio, under), ratio >= min)
+        }
     }
 }

@@ -194,13 +194,13 @@ private fun Context.chipItem(label: CharSequence, sub: CharSequence?, chosen: Bo
     addView(TextView(context).apply {
         text = label
         textSize = 15f
-        setTextColor(Palette.TEXT)
+        setTextColor(if (chosen) Palette.ON_ACCENT else Palette.TEXT)
         gravity = Gravity.CENTER
     })
     if (sub != null) addView(TextView(context).apply {
         text = sub
         textSize = 11f
-        setTextColor(if (chosen) Palette.TEXT else Palette.TEXT_DIM)
+        setTextColor(if (chosen) Palette.ON_ACCENT else Palette.TEXT_DIM)
         gravity = Gravity.CENTER
     })
 }

@@ -11,9 +11,10 @@ import org.handtop.desktop.R
  * one (dark text, navy buttons) for the classic look, whose window [showDialog] then gives
  * a raised gray frame and raised buttons.
  */
-fun Context.dialogBuilder(): AlertDialog.Builder =
-    if (!Themes.current.bevelled) AlertDialog.Builder(this)
-    else AlertDialog.Builder(this, R.style.HandTop_ClassicDialog)
+fun Context.dialogBuilder(): AlertDialog.Builder {
+    val style = Themes.current.dialogStyle
+    return if (style == 0) AlertDialog.Builder(this) else AlertDialog.Builder(this, style)
+}
 
 /**
  * Shows the dialog from [builder], keeping HandTop full screen while it is open. A text field

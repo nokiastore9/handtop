@@ -22,14 +22,16 @@ object ClassicIcons {
 }
 
 /**
- * One of HandTop's icons in the current theme: the white icon tinted [tint] (or as it is)
- * in the modern look, the colour icon untinted in the classic one.
+ * One of HandTop's icons in the current theme: the white icon tinted [tint] (or the theme's
+ * [ThemeColors.iconTint], or as it is) in the modern look, the colour icon untinted in the
+ * classic one.
  */
 fun ImageView.setThemedIcon(@DrawableRes res: Int, tint: Int? = null) {
     imageTintList = null
     if (Themes.current.tintIcons) {
         setImageResource(res)
-        if (tint != null) setColorFilter(tint) else clearColorFilter()
+        val color = tint ?: Themes.current.colors.iconTint.takeIf { it != 0 }
+        if (color != null) setColorFilter(color) else clearColorFilter()
     } else {
         setImageResource(ClassicIcons.forBase(res))
         clearColorFilter()

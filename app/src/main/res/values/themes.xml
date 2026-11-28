@@ -10,6 +10,16 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+    <!-- Light themes that are not bevelled: Android's light base gives light buttons, fields,
+         ripples, dialogs and calendar. -->
+    <style name="Theme.HandTop.Light" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/desktop_bg</item>
+        <item name="android:colorAccent">#FF2A68C8</item>
+        <item name="android:colorPrimary">@color/desktop_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
     <!-- Dialogs in the classic theme: dark text; HandTop gives the window a raised gray frame. -->
     <style name="HandTop.ClassicDialog" parent="@android:style/Theme.Material.Light.Dialog.Alert">
         <item name="android:colorAccent">#FF000080</item>

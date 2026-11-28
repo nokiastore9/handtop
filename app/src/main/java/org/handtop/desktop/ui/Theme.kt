@@ -71,6 +71,17 @@ class ThemeColors(
     val innerLight: Int,
     val shadow: Int,
     val darkShadow: Int,
+    /** Text and icons on the taskbar itself (window buttons, clock, status icons); popups use [text]. */
+    val taskbarText: Int,
+    val taskbarTextDim: Int,
+    /** Tint of the icons on the taskbar; 0 keeps each icon's usual tint. */
+    val taskbarIcon: Int,
+    /** The tint of a monochrome icon given no tint of its own; 0 leaves the white icon as it is. */
+    val iconTint: Int,
+    /** The glyph on title bar buttons; 0 for the theme's usual icons. */
+    val titleGlyph: Int,
+    /** Text on an [accent] fill (a chosen chip). */
+    val onAccent: Int,
 )
 
 /**
@@ -87,6 +98,18 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
     /** Controls are drawn as classic 3D: raised buttons, sunken lists and fields, etched groups. */
     abstract val bevelled: Boolean
 
+    /**
+     * Light content with flat (not [bevelled]) controls: the desktop takes Android's light
+     * base theme, so its buttons, fields, ripples, dialogs and the calendar come out light.
+     */
+    abstract val light: Boolean
+
+    /** Dialogs are built with this style (0: the desktop's own). */
+    open val dialogStyle: Int = 0
+
+    /** The calendar's context is wrapped in this style (0: none). */
+    open val calendarStyle: Int = 0
+
     // ---- windows ----
 
     /** The frame around a window: [floating] is false when maximized or snapped to a side. */
@@ -99,6 +122,9 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
     abstract fun titleButton(context: Context, close: Boolean, checked: Boolean = false): Drawable
 
     abstract val titleBold: Boolean
+
+    /** The window's title is centered in its title bar instead of following the icon. */
+    abstract val titleCentered: Boolean
 
     // ---- menus and popups ----
 

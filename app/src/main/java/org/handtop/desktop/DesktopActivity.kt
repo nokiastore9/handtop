@@ -152,9 +152,11 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        // The theme first: every view below takes its colours and shapes from it.
+        // The theme first: every view below takes its colours and shapes from it, and a light
+        // theme needs Android's light base before the window is made.
         Themes.load(this)
+        setTheme(if (Themes.current.light) R.style.Theme_HandTop_Light else R.style.Theme_HandTop)
+        super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // Exclusive full screen, drawing under the camera cutout too: the taskbar replaces
         // Android's status bar.

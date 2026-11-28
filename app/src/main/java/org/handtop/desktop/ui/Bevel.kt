@@ -36,7 +36,7 @@ enum class Bevel {
  */
 class BevelDrawable(private val kind: Bevel, private val fill: Int?, private val edge: Int) : Drawable() {
 
-    private val c = ClassicTheme.colors
+    private val c = Themes.current.colors
     private val paint = Paint()
     private val checker: Paint? = if (kind == Bevel.CHECKERED) checkerPaint() else null
 
@@ -132,5 +132,5 @@ class BevelDrawable(private val kind: Bevel, private val fill: Int?, private val
 }
 
 /** A [BevelDrawable] with edges of one point at this context's density. */
-fun Context.bevel(kind: Bevel, fill: Int? = ClassicTheme.colors.face): BevelDrawable =
+fun Context.bevel(kind: Bevel, fill: Int? = Themes.current.colors.face): BevelDrawable =
     BevelDrawable(kind, fill, max(1, dp(1f).roundToInt()))

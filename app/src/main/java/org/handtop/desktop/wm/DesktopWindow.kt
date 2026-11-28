@@ -32,6 +32,7 @@ import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.ThemeColors
 import org.handtop.desktop.ui.setThemedIcon
 
 /**
@@ -116,6 +117,7 @@ class DesktopWindow(
         titleView.text = title
         titleView.textSize = 13f
         if (Themes.current.titleBold) titleView.setTypeface(titleView.typeface, Typeface.BOLD)
+        if (Themes.current.titleCentered) titleView.gravity = Gravity.CENTER
         titleView.isSingleLine = true
         titleView.ellipsize = TextUtils.TruncateAt.END
         titleBar.addView(titleView, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
@@ -206,13 +208,13 @@ class DesktopWindow(
         titleView.setTextColor(if (isActiveWindow) Palette.TITLE_TEXT_ACTIVE else Palette.TITLE_TEXT_INACTIVE)
         iconView.alpha = if (isActiveWindow) 1f else 0.6f
         elevation = if (!theme.shadows) 0f else if (isActiveWindow) dp(18f) else dp(6f)
-        maximizeButton.setThemedIcon(if (mode == Mode.MAXIMIZED) R.drawable.ic_win_restore else R.drawable.ic_win_maximize)
+        maximizeButton.setTitleGlyph(if (mode == Mode.MAXIMIZED) R.drawable.ic_win_restore else R.drawable.ic_win_maximize)
         invalidateOutline()
     }
 
     private fun makeButton(@DrawableRes icon: Int, @StringRes desc: Int, danger: Boolean, onClick: () -> Unit) =
         ImageButton(context).apply {
-            setThemedIcon(icon)
+            setTitleGlyph(icon)
             contentDescription = context.getString(desc)
             tooltipText = contentDescription
             scaleType = ImageView.ScaleType.CENTER
@@ -221,6 +223,15 @@ class DesktopWindow(
             setOnClickListener { onClick() }
             layoutParams = LayoutParams(dpi(44), LayoutParams.MATCH_PARENT)
         }
+
+    /** A title button's glyph: in the theme's [ThemeColors.titleGlyph] colour when it has one (the white icon, tinted). */
+    private fun ImageView.setTitleGlyph(@DrawableRes icon: Int) {
+        val glyph = Themes.current.colors.titleGlyph
+        if (glyph == 0) return setThemedIcon(icon)
+        imageTintList = null
+        setImageResource(icon)
+        setColorFilter(glyph)
+    }
 
     // ---- dragging by the title bar ----
 

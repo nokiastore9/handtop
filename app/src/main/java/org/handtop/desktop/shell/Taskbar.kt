@@ -63,7 +63,7 @@ class Taskbar(
         startButton = if (theme.startLabel) labelledStartButton() else iconButton(R.drawable.ic_handtop, R.string.start_menu, Palette.ACCENT) { onStart(it) }
         addView(startButton, LayoutParams(if (theme.startLabel) LayoutParams.WRAP_CONTENT else dpi(52), LayoutParams.MATCH_PARENT))
         // The Linux programs, as GNOME's "Show Applications".
-        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps, Palette.TEXT_SOFT) { onApps() },
+        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps, barTint(Palette.TEXT_SOFT)) { onApps() },
             LayoutParams(dpi(44), LayoutParams.MATCH_PARENT))
 
         strip.orientation = HORIZONTAL
@@ -76,7 +76,7 @@ class Taskbar(
 
         addView(SetupIndicator(context) { onSetup() }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
 
-        keyboardButton = iconButton(R.drawable.ic_keyboard, R.string.action_keyboard) { onKeyboard() }.apply {
+        keyboardButton = iconButton(R.drawable.ic_keyboard, R.string.action_keyboard, barTint(null)) { onKeyboard() }.apply {
             setOnLongClickListener {
                 onKeyboardLong()
                 true
@@ -101,11 +101,11 @@ class Taskbar(
         setOnClickListener { onStart(it) }
         addView(ImageView(context).apply {
             setImageResource(R.drawable.ic_handtop)
-            setColorFilter(Palette.ACCENT)
+            setColorFilter(barTint(Palette.ACCENT)!!)
         }, LayoutParams(dpi(20), dpi(20)))
         addView(TextView(context).apply {
             setText(R.string.start_menu)
-            setTextColor(Palette.TEXT)
+            setTextColor(Palette.TASKBAR_TEXT)
             textSize = 14f
             setTypeface(typeface, Typeface.BOLD)
             setPadding(dpi(6), 0, 0, 0)
@@ -165,14 +165,14 @@ class Taskbar(
         }
         val icon = ImageView(context).apply {
             val bitmap = w.iconBitmap
-            if (bitmap != null) setImageBitmap(bitmap) else setThemedIcon(w.iconRes)
+            if (bitmap != null) setImageBitmap(bitmap) else setThemedIcon(w.iconRes, barTint(null))
             alpha = if (w.minimized) 0.6f else 1f
         }
         item.addView(icon, LayoutParams(dpi(20), dpi(20)))
         val label = TextView(context).apply {
             text = w.title
             // Modern dims a minimized window's name; Classic keeps it black, gray would read as disabled.
-            setTextColor(if (w.minimized && !Themes.current.bevelled) Palette.TEXT_DISABLED else Palette.TEXT)
+            setTextColor(if (w.minimized && !Themes.current.bevelled) Palette.TASKBAR_TEXT_DIM else Palette.TASKBAR_TEXT)
             if (isFront && Themes.current.titleBold) setTypeface(typeface, Typeface.BOLD)
             textSize = 13f
             isSingleLine = true
@@ -209,6 +209,9 @@ class Taskbar(
         // The close entry apart from the others, as in a window's own menu.
         showPopupMenu(button, at[0].toFloat(), at[1].toFloat(), entries.dropLast(1) + null + entries.last())
     }
+
+    /** The tint of an icon on the bar: the theme's [ThemeColors.taskbarIcon], or [usual]. */
+    private fun barTint(usual: Int?): Int? = Themes.current.colors.taskbarIcon.takeIf { it != 0 } ?: usual
 
     private fun iconButton(icon: Int, desc: Int, tint: Int? = null, onClick: (View) -> Unit) = ImageButton(context).apply {
         setThemedIcon(icon, tint)

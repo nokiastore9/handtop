@@ -10,6 +10,7 @@ import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.Gravity
 import android.graphics.drawable.StateListDrawable
+import org.handtop.desktop.R
 
 /**
  * The classic look: gray bevelled 3D surfaces, a blue title on the active window, black
@@ -64,6 +65,12 @@ object ClassicTheme : Theme(
         innerLight = 0xFFDFDFDF.toInt(),
         shadow = 0xFF808080.toInt(),
         darkShadow = 0xFF0A0A0A.toInt(),
+        taskbarText = 0xFF000000.toInt(),
+        taskbarTextDim = 0xFF000000.toInt(),
+        taskbarIcon = 0,
+        iconTint = 0,
+        titleGlyph = 0,
+        onAccent = 0xFFFFFFFF.toInt(),
     ),
 ) {
     override val animations = false
@@ -72,6 +79,10 @@ object ClassicTheme : Theme(
     override val tintIcons = false
     override val roundedCorners = false
     override val bevelled = true
+    override val light = false
+    override val titleCentered = false
+    override val dialogStyle = R.style.HandTop_ClassicDialog
+    override val calendarStyle = R.style.HandTop_ClassicCalendar
 
     override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
         context.bevel(Bevel.RAISED)

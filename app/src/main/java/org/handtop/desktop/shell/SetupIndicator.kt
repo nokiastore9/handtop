@@ -59,7 +59,7 @@ class SetupIndicator(context: Context, onClick: () -> Unit) : LinearLayout(conte
             state.running -> {
                 visibility = View.VISIBLE
                 spinner.visibility = View.VISIBLE
-                label.setTextColor(Palette.TEXT)
+                label.setTextColor(Palette.TASKBAR_TEXT)
                 label.text = context.getString(R.string.setup_taskbar, state.position, state.steps.size)
             }
             state.failed -> {
