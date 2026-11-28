@@ -17,6 +17,15 @@ dates of the earlier ones are when they were finished.
 - The on-screen keyboard sees the text around the caret in GTK and Qt programs (Wayland): it can
   autocorrect, suggest and capitalize from the context, and a word it corrects is replaced at
   once instead of being erased key by key.
+- Desktop widgets: a clock, the weather and Linux's processor and memory. Add them from the
+  desktop's menu (long press or right click on the wallpaper → Add widget…), drag them anywhere on
+  the icons' grid, each in the look of the theme; none is there until you add it.
+  - Clock: time and date; 24- or 12-hour and seconds in its settings; a tap shows the calendar.
+  - Weather (Open-Meteo): now, the next hours and the place, by the phone's approximate location
+    or a city you pick; a tap opens the 7-day forecast. Only coordinates rounded to about a
+    kilometre leave the phone; no account or key.
+  - Linux: the processor and memory Linux uses (with HandTop), every 2 seconds; a tap opens
+    Linux System.
 - Two more themes, in Settings → Desktop → Theme:
   - **Soft**: light windows whose title bar is the window's own colour, the title centered,
     round gray title buttons, rounded corners and shadows, a dark taskbar. Linux programs keep

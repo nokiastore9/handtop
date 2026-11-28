@@ -62,6 +62,8 @@ HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs
 
 - Desktop with wallpapers (9 built-in or your own picture) and shortcuts you can add, remove and drag;
   taskbar with clock, start menu, notifications
+- **Desktop widgets**: a clock, the weather (Open-Meteo, by location or a city) and Linux's processor
+  and memory, added from the desktop's menu and dragged anywhere, in the look of the theme
 - **Themes** (Settings → Desktop → Theme): Modern (dark, translucent); Classic — gray 3D windows,
   menus and controls, its own colour icons, no shadows, blur or animations; Soft — light windows,
   centered titles, round title buttons, a dark taskbar; Glossy — blue gradient title bars and

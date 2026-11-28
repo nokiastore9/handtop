@@ -35,6 +35,7 @@ import org.handtop.desktop.widgets.WidgetKind
 import org.handtop.desktop.widgets.WidgetView
 import org.handtop.desktop.widgets.Widgets
 import org.handtop.desktop.widgets.widgetView
+import org.handtop.desktop.widgets.weather.WeatherStore
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -181,7 +182,11 @@ class DesktopIcons(
             add(MenuEntry(context.getString(R.string.widget_settings)) { view.showSettings() })
             add(null)
         }
-        add(MenuEntry(context.getString(R.string.widget_remove), tint = Palette.CLOSE_HOVER) { Widgets.remove(context, view.kind) })
+        add(MenuEntry(context.getString(R.string.widget_remove), tint = Palette.CLOSE_HOVER) {
+            Widgets.remove(context, view.kind)
+            // Added again later, the weather starts afresh: not with the last place's forecast.
+            if (view.kind == WidgetKind.WEATHER) WeatherStore.clear(context)
+        })
     })
 
     /** Every cell taken now by icons and by the widgets other than [except]. */
