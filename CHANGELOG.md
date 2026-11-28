@@ -17,6 +17,14 @@ dates of the earlier ones are when they were finished.
 - The on-screen keyboard sees the text around the caret in GTK and Qt programs (Wayland): it can
   autocorrect, suggest and capitalize from the context, and a word it corrects is replaced at
   once instead of being erased key by key.
+- Two more themes, in Settings → Desktop → Theme:
+  - **Soft**: light windows whose title bar is the window's own colour, the title centered,
+    round gray title buttons, rounded corners and shadows, a dark taskbar. Linux programs keep
+    their own look.
+  - **Glossy**: blue gradient title bars with rounded tops, a blue taskbar with a green Start
+    button, beige bevelled controls with blue selection, colour icons. Linux programs (GTK 2,
+    GTK 3, GTK 4 and libadwaita, Qt and KDE) get the classic theme in the same beige and blue.
+  Every text in both reads at 4.5 : 1 or better against its background.
 
 ### Fixes
 
