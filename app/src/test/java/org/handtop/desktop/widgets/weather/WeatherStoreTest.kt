@@ -48,6 +48,15 @@ class WeatherStoreTest {
     }
 
     @Test
+    fun theWidgetsOwnUnitWins() {
+        // "c" or "f" chosen in the widget's settings, whatever the phone says; none: as in Android.
+        assertFalse(WeatherUnits.fahrenheit("c", "fahrenhe", "US"))
+        assertTrue(WeatherUnits.fahrenheit("f", "celsius", "RU"))
+        assertTrue(WeatherUnits.fahrenheit(null, null, "US"))
+        assertFalse(WeatherUnits.fahrenheit(null, "celsius", "US"))
+    }
+
+    @Test
     fun temperatureText() {
         assertEquals("+3°", WeatherUnits.degrees(3.1))
         assertEquals("−2°", WeatherUnits.degrees(-2.4))

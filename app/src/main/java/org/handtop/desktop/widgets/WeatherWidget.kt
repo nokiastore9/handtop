@@ -83,6 +83,7 @@ class WeatherWidget(context: Context, host: WidgetHost) : WidgetView(context, Wi
     private fun byCity() = settings()["mode"] == "city"
 
     private fun fahrenheit() = WeatherUnits.fahrenheit(
+        settings()["unit"],
         runCatching { LocalePreferences.getTemperatureUnit() }.getOrNull(),
         Locale.getDefault().country,
     )
@@ -219,6 +220,17 @@ class WeatherWidget(context: Context, host: WidgetHost) : WidgetView(context, Wi
                 fillSettings(column, done)
             }
         })
+        // Degrees: as in Android, or the widget's own. The forecast is fetched again in them.
+        val units = listOf(null, "c", "f")
+        column.addView(context.choices(
+            listOf(context.getString(R.string.widget_weather_units_system), "°C", "°F"),
+            null,
+            units.indexOf(settings()["unit"]).coerceAtLeast(0),
+        ) { pick ->
+            Widgets.setSetting(context, kind, "unit", units[pick])
+            refresh()
+            fillSettings(column, done)
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dpi(8) })
         if (!city) return
         val results = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val field = EditText(context).apply {

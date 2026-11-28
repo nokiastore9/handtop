@@ -32,6 +32,13 @@ object WeatherUnits {
         else -> country.uppercase() in FAHRENHEIT_COUNTRIES
     }
 
+    /** The widget's own choice ([setting]: "c" or "f") first; without one, as in Android. */
+    fun fahrenheit(setting: String?, preference: String?, country: String): Boolean = when (setting) {
+        "f" -> true
+        "c" -> false
+        else -> fahrenheit(preference, country)
+    }
+
     /** "+3°", "−2°", "0°". */
     fun degrees(t: Double): String {
         val n = t.roundToInt()

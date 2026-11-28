@@ -22,7 +22,8 @@ dates of the earlier ones are when they were finished.
   the icons' grid, each in the look of the theme; none is there until you add it.
   - Clock: time and date; 24- or 12-hour and seconds in its settings; a tap shows the calendar.
   - Weather (Open-Meteo): now, the next hours and the place, by the phone's approximate location
-    or a city you pick; a tap opens the 7-day forecast. Only coordinates rounded to about a
+    or a city you pick, in °C or °F (as in Android or chosen in its settings); a tap opens the
+    7-day forecast. Only coordinates rounded to about a
     kilometre leave the phone; no account or key.
   - Linux: the processor and memory Linux uses (with HandTop), every 2 seconds; a tap opens
     Linux System.

@@ -336,4 +336,5 @@
     <string name="widget_weather_search">Название города</string>
     <string name="widget_weather_nothing_found">Ничего не найдено</string>
     <string name="widget_weather_source">Данные: Open-Meteo.com</string>
+    <string name="widget_weather_units_system">Градусы как в Android</string>
 </resources>
