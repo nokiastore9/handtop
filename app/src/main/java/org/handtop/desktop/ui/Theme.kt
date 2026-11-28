@@ -3,6 +3,10 @@ package org.handtop.desktop.ui
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
+import android.view.Gravity
+import android.graphics.drawable.LayerDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.InsetDrawable
 
 /** The themes HandTop can wear; [key] is how the choice is stored. */
@@ -89,6 +93,20 @@ class ThemeColors(
     val taskbarWarning: Int,
     /** The quieter second line under a choice, and a field's hint, in the classic controls. */
     val noteText: Int,
+)
+
+/**
+ * The colours of a desktop widget's content in a theme: text, quieter text, a meter's track
+ * and its two fills (processor, memory), and [under]: what the text sits on — the card's
+ * colour, or each stop of its gradient (a translucent one over the wallpaper).
+ */
+class WidgetColors(
+    val text: Int,
+    val textDim: Int,
+    val track: Int,
+    val cpu: Int,
+    val memory: Int,
+    val under: IntArray,
 )
 
 /**
@@ -182,6 +200,24 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
 
     /** Hover and press feedback over a dark surface: the taskbar and the wallpaper. */
     open fun darkFeedback(context: Context): Drawable? = context.selectableBackground()
+
+    // ---- desktop widgets ----
+
+    abstract val widgetColors: WidgetColors
+
+    /** The card a desktop widget sits on, on the wallpaper. */
+    abstract fun widgetBackground(context: Context): Drawable
+
+    /**
+     * A widget's meter: its track and a [fill] that shows as far as the drawable's level
+     * (0..10000), as a progress bar's layers.
+     */
+    open fun widgetMeter(context: Context, fill: Int): Drawable {
+        val r = context.dp(3f)
+        val track = GradientDrawable().apply { setColor(widgetColors.track); cornerRadius = r }
+        val bar = ClipDrawable(GradientDrawable().apply { setColor(fill); cornerRadius = r }, Gravity.START, ClipDrawable.HORIZONTAL)
+        return LayerDrawable(arrayOf(track, bar)).apply { setId(1, android.R.id.progress) }
+    }
 }
 
 /**

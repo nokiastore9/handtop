@@ -3,6 +3,7 @@ package org.handtop.desktop.ui
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -165,6 +166,27 @@ object ClassicTheme : Theme(
     override fun toolButton(context: Context): Drawable = StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_pressed), InsetDrawable(context.bevel(Bevel.PRESSED), context.dpi(2)))
         addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
+    }
+
+    override val widgetColors = WidgetColors(
+        text = 0xFF000000.toInt(),
+        textDim = 0xFF000000.toInt(),
+        track = 0xFFFFFFFF.toInt(),
+        cpu = 0xFF000080.toInt(),
+        memory = 0xFF000080.toInt(),
+        under = intArrayOf(FACE),
+    )
+
+    override fun widgetBackground(context: Context): Drawable = context.bevel(Bevel.RAISED)
+
+    /** A sunken white field filled with navy, square. */
+    override fun widgetMeter(context: Context, fill: Int): Drawable {
+        val bar = ClipDrawable(ColorDrawable(fill), Gravity.START, ClipDrawable.HORIZONTAL)
+        val e = context.dpi(2)
+        return LayerDrawable(arrayOf(context.bevel(Bevel.SUNKEN, widgetColors.track), bar)).apply {
+            setLayerInset(1, e, e, e, e)
+            setId(1, android.R.id.progress)
+        }
     }
 }
 

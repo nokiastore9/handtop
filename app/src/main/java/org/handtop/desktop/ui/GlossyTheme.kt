@@ -3,6 +3,7 @@ package org.handtop.desktop.ui
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ClipDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -224,6 +225,49 @@ object GlossyTheme : Theme(
 
     private fun barState(context: Context, color: Int): Drawable =
         InsetDrawable(roundedRect(color, context.dp(3f)), context.dpi(2), context.dpi(5), context.dpi(2), context.dpi(5))
+
+    override val widgetColors = WidgetColors(
+        text = 0xFF000000.toInt(),
+        textDim = 0xFF444444.toInt(),
+        track = 0xFFFFFFFF.toInt(),
+        cpu = 0xFF316AC5.toInt(),
+        memory = 0xFF316AC5.toInt(),
+        under = intArrayOf(0xFFFFFFFF.toInt(), 0xFFECE9D8.toInt()),
+    )
+
+    /** White fading to beige, a thin blue edge, and the title bar's blue in a strip along the top. */
+    override fun widgetBackground(context: Context): Drawable {
+        val r = context.dp(6f)
+        val card = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, widgetColors.under).apply {
+            cornerRadius = r
+            setStroke(context.dpi(1), MENU_BORDER)
+        }
+        val strip = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, TITLE_ACTIVE_STOPS).apply {
+            cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+        }
+        return LayerDrawable(arrayOf(card, strip)).apply {
+            setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
+            setLayerHeight(1, context.dpi(5))
+        }
+    }
+
+    /** A white field with a gray edge, filled with a blue gradient. */
+    override fun widgetMeter(context: Context, fill: Int): Drawable {
+        val field = GradientDrawable().apply {
+            setColor(widgetColors.track)
+            setStroke(context.dpi(1), 0xFFACA899.toInt())
+            cornerRadius = context.dp(2f)
+        }
+        val gradient = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0xFF5A91F0.toInt(), fill)).apply {
+            cornerRadius = context.dp(1f)
+        }
+        val bar = ClipDrawable(gradient, Gravity.START, ClipDrawable.HORIZONTAL)
+        return LayerDrawable(arrayOf(field, bar)).apply {
+            val e = context.dpi(1)
+            setLayerInset(1, e, e, e, e)
+            setId(1, android.R.id.progress)
+        }
+    }
 
     /** [a] moved [t] of the way to [b]. */
     private fun mix(a: Int, b: Int, t: Float): Int {

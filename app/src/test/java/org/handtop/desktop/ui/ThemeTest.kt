@@ -262,6 +262,23 @@ class ThemeTest {
         for (s in listOf(BAR_PRESSED, BAR_HOVER, BAR_ON)) assertReadable("bar button", colors.taskbarIcon, s)
     }
 
+    @Test
+    fun widgetTextReadsInEveryTheme() {
+        for (t in listOf(ModernTheme, ClassicTheme, SoftTheme, GlossyTheme)) with(t.widgetColors) {
+            assertTrue(under.isNotEmpty())
+            for (bg in under) {
+                assertReadable("${t.id} widget text", text, bg)
+                assertReadable("${t.id} widget dim", textDim, bg)
+            }
+        }
+    }
+
+    @Test
+    fun modernWidgetCardIsDarkGlass() = with(ModernTheme.widgetColors) {
+        assertEquals(0xB30F1420.toInt(), under.single())
+        assertEquals(0xFFFFFFFF.toInt(), text)
+    }
+
     // ---- readability (WCAG 2 contrast) ----
 
     /** Relative luminance of an opaque ARGB colour. */

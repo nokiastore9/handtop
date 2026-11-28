@@ -136,4 +136,17 @@ object ModernTheme : Theme(
 
     override fun toolButton(context: Context): Drawable =
         context.selectableBackground() ?: ColorDrawable(Color.TRANSPARENT)
+
+    /** Dark glass: white text reads on it over any wallpaper, light pictures too. */
+    override val widgetColors = WidgetColors(
+        text = 0xFFFFFFFF.toInt(),
+        textDim = 0xFFDDE2EA.toInt(),
+        track = 0x2EFFFFFF,
+        cpu = 0xFF4F8CFF.toInt(),
+        memory = 0xFF46C46E.toInt(),
+        under = intArrayOf(0xB30F1420.toInt()),
+    )
+
+    override fun widgetBackground(context: Context): Drawable =
+        roundedRect(0xB30F1420.toInt(), context.dp(12f), 0x29FFFFFF, context.dpi(1))
 }

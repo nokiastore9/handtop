@@ -163,6 +163,17 @@ object SoftTheme : Theme(
 
     override fun darkFeedback(context: Context): Drawable = lightFeedback(context)
 
+    override val widgetColors = WidgetColors(
+        text = 0xFF1F1F23.toInt(),
+        textDim = 0xFF6A6A6F.toInt(),
+        track = 0x14000000,
+        cpu = 0xFF2A68C8.toInt(),
+        memory = 0xFF2F8F4E.toInt(),
+        under = intArrayOf(0xF5FAFAFB.toInt()),
+    )
+
+    override fun widgetBackground(context: Context): Drawable = roundedRect(0xF5FAFAFB.toInt(), context.dp(14f))
+
     private fun lightFeedback(context: Context) = StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_pressed), roundedRect(FEEDBACK_PRESSED, context.dp(8f)))
         addState(intArrayOf(android.R.attr.state_hovered), roundedRect(FEEDBACK_HOVER, context.dp(8f)))
