@@ -51,6 +51,7 @@ class WeatherWidget(context: Context, host: WidgetHost) : WidgetView(context, Wi
     private val status = label(11f, dim = true)
 
     private var active = false
+    private var shown: WeatherState? = null
     private var forecast: Forecast? = null
     private var fetchedMs = 0L
     private val every30 = Runnable { refresh() }
@@ -105,24 +106,23 @@ class WeatherWidget(context: Context, host: WidgetHost) : WidgetView(context, Wi
         if (s["mode"] == "city") {
             val lat = s["lat"]?.toDoubleOrNull()
             val lon = s["lon"]?.toDoubleOrNull()
-            if (lat == null || lon == null) return render(needsCity = true)
+            if (lat == null || lon == null) return render(WeatherState.NeedsCity)
             fetchIfNeeded(lat, lon, s["city"])
         } else {
-            if (!WeatherLocation.allowed(context)) return render(needsCity = true)
+            if (!WeatherLocation.allowed(context)) return render(noLocation())
             WeatherLocation.locate(context) { location ->
-                if (location == null) {
-                    render(needsCity = WeatherStore.cached(context) == null)
-                    return@locate
-                }
-                fetchIfNeeded(location.latitude, location.longitude, null)
+                if (location == null) render(noLocation())
+                else fetchIfNeeded(location.latitude, location.longitude, null)
             }
         }
     }
 
+    private fun noLocation() = WeatherStore.withoutLocation(WeatherStore.cached(context) != null, online())
+
     private fun fetchIfNeeded(lat: Double, lon: Double, cityName: String?) {
         val f = fahrenheit()
         val cached = WeatherStore.cached(context)
-        val samePlace = cached != null && OpenMeteo.round(cached.lat) == OpenMeteo.round(lat) && OpenMeteo.round(cached.lon) == OpenMeteo.round(lon) && cached.fahrenheit == f
+        val samePlace = cached != null && OpenMeteo.samePlace(cached.lat, cached.lon, lat, lon) && cached.fahrenheit == f
         if (samePlace && !WeatherStore.needsRefresh(System.currentTimeMillis(), cached!!.fetchedMs)) return render()
         render() // what there is, while fetching
         val app = context.applicationContext
@@ -143,12 +143,13 @@ class WeatherWidget(context: Context, host: WidgetHost) : WidgetView(context, Wi
         }
     }
 
-    private fun render(needsCity: Boolean = false) {
+    /** Shows the cached forecast, or [forced] (why there is none). */
+    private fun render(forced: WeatherState? = null) {
         val cached = WeatherStore.cached(context)
         forecast = cached?.let { runCatching { OpenMeteo.parseForecast(it.json) }.getOrNull() }
         fetchedMs = cached?.fetchedMs ?: 0
-        val state = if (needsCity && forecast == null) WeatherState.NeedsCity
-        else WeatherStore.state(forecast, cached?.fetchedMs, online(), System.currentTimeMillis())
+        val state = forced ?: WeatherStore.state(forecast, cached?.fetchedMs, online(), System.currentTimeMillis())
+        shown = state
         when (state) {
             is WeatherState.Ready -> {
                 val f = state.forecast
@@ -180,11 +181,10 @@ class WeatherWidget(context: Context, host: WidgetHost) : WidgetView(context, Wi
     }
 
     override fun onTap() {
+        // "Choose a city" opens the settings, whatever led to it.
+        if (shown == WeatherState.NeedsCity) return showSettings()
         val f = forecast
-        if (f == null) {
-            if (!byCity() && !WeatherLocation.allowed(context)) showSettings() else refresh()
-            return
-        }
+        if (f == null) return refresh()
         host.openWindow(WeatherContent(context, f, WeatherStore.place(context), fetchedMs), context.getString(R.string.weather_title), R.drawable.weather_partly)
     }
 

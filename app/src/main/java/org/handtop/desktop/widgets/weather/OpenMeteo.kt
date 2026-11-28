@@ -32,6 +32,10 @@ object OpenMeteo {
     /** How many of the next hours the widget shows. */
     const val HOURS = 3
 
+    /** Two fixes within 0.05° (about 5 km) are the same place for the weather. */
+    fun samePlace(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Boolean =
+        kotlin.math.abs(lat1 - lat2) <= 0.05 && kotlin.math.abs(lon1 - lon2) <= 0.05
+
     /** [c] to a hundredth of a degree. */
     fun round(c: Double): Double = (c * 100).roundToLong() / 100.0 + 0.0
 

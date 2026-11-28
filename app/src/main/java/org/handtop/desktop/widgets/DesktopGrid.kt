@@ -22,7 +22,8 @@ object DesktopGrid {
     /**
      * Lays out [iconCells] (each icon's saved cell, null for none) and [widgets] on a grid of
      * [columns] by [rows]. A saved place that does not fit is not forgotten: the inputs are not
-     * changed, so on a larger screen things go back where they were.
+     * changed, so on a larger screen things go back where they were. A widget with no room left
+     * (counting the icons still to place) is put over the top left corner.
      */
     fun layOut(columns: Int, rows: Int, iconCells: List<Cell?>, widgets: List<PlacedWidget>): Layout {
         val taken = HashSet<Cell>()
@@ -30,13 +31,18 @@ object DesktopGrid {
         iconCells.forEachIndexed { i, cell ->
             if (cell != null && cell.column in 0 until columns && cell.row in 0 until rows && taken.add(cell)) icons[i] = cell
         }
+        val unplacedIcons = icons.count { it == null }
         val placed = widgets.map { w ->
             val saved = w.cell
             val at = when {
                 saved != null && fits(columns, rows, w.kind.size, saved, taken) -> saved
                 saved != null -> nearest(columns, rows, w.kind.size, saved, taken)
                 else -> firstFree(columns, rows, w.kind.size, taken)
-            } ?: firstFree(columns, rows, w.kind.size, taken) ?: Cell(0, 0)
+            } ?: firstFree(columns, rows, w.kind.size, taken)
+            // The icons still to place need cells too: a widget that would leave them too few
+            // goes over the top left corner instead, taking none, rather than push icons off.
+            val left = columns * rows - taken.size - w.kind.size.columns * w.kind.size.rows
+            if (at == null || left < unplacedIcons) return@map Cell(0, 0)
             taken += cellsOf(at, w.kind.size)
             at
         }

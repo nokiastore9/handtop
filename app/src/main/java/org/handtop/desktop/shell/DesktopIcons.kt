@@ -210,6 +210,8 @@ class DesktopIcons(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN && event.buttonState and MotionEvent.BUTTON_SECONDARY != 0) {
+            rawX = event.rawX
+            rawY = event.rawY
             menu = showPopupMenu(this, event.rawX, event.rawY, desktopMenu())
             return true
         }

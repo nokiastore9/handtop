@@ -32,6 +32,14 @@ class WeatherStoreTest {
     }
 
     @Test
+    fun withoutALocationTheWidgetSaysWhy() {
+        // Something cached: show it. Nothing, online: ask for a city. Nothing, offline: the network is the problem.
+        assertEquals(null, WeatherStore.withoutLocation(hasCache = true, online = false))
+        assertEquals(WeatherState.NeedsCity, WeatherStore.withoutLocation(hasCache = false, online = true))
+        assertEquals(WeatherState.NoDataYet(offline = true), WeatherStore.withoutLocation(hasCache = false, online = false))
+    }
+
+    @Test
     fun units() {
         assertTrue(WeatherUnits.fahrenheit(null, "US"))
         assertFalse(WeatherUnits.fahrenheit(null, "RU"))

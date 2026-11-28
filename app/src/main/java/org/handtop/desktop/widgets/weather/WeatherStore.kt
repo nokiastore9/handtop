@@ -54,6 +54,16 @@ object WeatherStore {
 
     fun needsRefresh(nowMs: Long, fetchedMs: Long?): Boolean = fetchedMs == null || nowMs - fetchedMs >= REFRESH_MS
 
+    /**
+     * Without a location: null to show what is cached; otherwise ask for a city, unless the
+     * phone is offline — then the network is what is missing.
+     */
+    fun withoutLocation(hasCache: Boolean, online: Boolean): WeatherState? = when {
+        hasCache -> null
+        online -> WeatherState.NeedsCity
+        else -> WeatherState.NoDataYet(offline = true)
+    }
+
     fun state(cached: Forecast?, fetchedMs: Long?, online: Boolean, nowMs: Long): WeatherState =
         if (cached == null || fetchedMs == null) WeatherState.NoDataYet(offline = !online)
         else WeatherState.Ready(cached, fetchedMs, stale = !online || needsRefresh(nowMs, fetchedMs))

@@ -7,11 +7,13 @@ import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
+import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -30,7 +32,22 @@ object WeatherLocation {
     fun allowed(context: Context) =
         context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
-    /** The approximate location, or null (no permission, location off, no fix): last known, or one new fix. */
+    /**
+     * Where to ask for the location among the [enabled] providers: the network one; without it
+     * (phones without Google services), the fused one or GPS, which coarse access may use since
+     * Android 12 (sdk 31).
+     */
+    fun provider(enabled: Set<String>, sdk: Int): String? = when {
+        LocationManager.NETWORK_PROVIDER in enabled -> LocationManager.NETWORK_PROVIDER
+        sdk >= 31 && "fused" in enabled -> "fused"
+        sdk >= 31 && LocationManager.GPS_PROVIDER in enabled -> LocationManager.GPS_PROVIDER
+        else -> null
+    }
+
+    /**
+     * The approximate location, or null (no permission, location off, no fix in 30 seconds):
+     * a recent last known one, or one new fix, answered once.
+     */
     @SuppressLint("MissingPermission")
     fun locate(context: Context, onResult: (Location?) -> Unit) {
         if (!allowed(context)) return onResult(null)
@@ -39,15 +56,11 @@ object WeatherLocation {
             .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
             .maxByOrNull { it.time }
         if (last != null && System.currentTimeMillis() - last.time < FRESH_MS) return onResult(last)
-        if (!runCatching { lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) }.getOrDefault(false)) return onResult(last)
+        val provider = provider(runCatching { lm.getProviders(true).toSet() }.getOrDefault(emptySet()), Build.VERSION.SDK_INT)
+            ?: return onResult(last)
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                lm.getCurrentLocation(LocationManager.NETWORK_PROVIDER, null, context.mainExecutor) { onResult(it ?: last) }
-            } else {
-                @Suppress("DEPRECATION")
-                lm.requestSingleUpdate(LocationManager.NETWORK_PROVIDER, object : LocationListener {
-                    override fun onLocationChanged(location: Location) = onResult(location)
-                }, Looper.getMainLooper())
+            LocationManagerCompat.getCurrentLocation(lm, provider, null as CancellationSignal?, ContextCompat.getMainExecutor(context)) {
+                onResult(it ?: last)
             }
         } catch (_: Exception) {
             onResult(last)
@@ -55,8 +68,11 @@ object WeatherLocation {
     }
 
     /** The town at [lat], [lon] in the phone's language, or null. */
-    fun placeName(context: Context, lat: Double, lon: Double, onResult: (String?) -> Unit) {
+    fun placeName(context: Context, latitude: Double, longitude: Double, onResult: (String?) -> Unit) {
         if (!Geocoder.isPresent()) return onResult(null)
+        // Like Open-Meteo, the phone's geocoder (often a server) gets the rounded point only.
+        val lat = OpenMeteo.round(latitude)
+        val lon = OpenMeteo.round(longitude)
         val geocoder = Geocoder(context, Locale.getDefault())
         val pick = { list: List<Address>? -> list?.firstOrNull()?.let { it.locality ?: it.subAdminArea ?: it.adminArea } }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

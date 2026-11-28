@@ -2,6 +2,7 @@ package org.handtop.desktop.widgets
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.TypedValue
 import android.widget.FrameLayout
 import android.widget.TextView
 import org.handtop.desktop.ui.Themes
@@ -51,8 +52,9 @@ abstract class WidgetView(context: Context, val kind: WidgetKind, protected val 
     abstract fun onTap()
 
     /** A line of text in the widget's colours. */
-    protected fun label(sizeSp: Float, dim: Boolean = false) = TextView(context).apply {
-        textSize = sizeSp
+    protected fun label(size: Float, dim: Boolean = false) = TextView(context).apply {
+        // In dp, not sp: the card is a fixed number of cells, a larger Android font would not fit.
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, size)
         setTextColor(if (dim) colors.textDim else colors.text)
         isSingleLine = true
         ellipsize = android.text.TextUtils.TruncateAt.END

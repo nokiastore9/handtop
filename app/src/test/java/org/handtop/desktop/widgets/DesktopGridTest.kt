@@ -78,6 +78,27 @@ class DesktopGridTest {
         assertEquals(Cell(0, 0), DesktopGrid.layOut(3, 1, List(3) { Cell(it, 0) }, listOf(clock)).widgets[0])
 
     @Test
+    fun aFullDesktopOfUnplacedIconsKeepsEveryIconOnScreen() {
+        // A fresh desktop (or after "Arrange icons"): no icon has a saved cell.
+        val small = DesktopGrid.layOut(3, 1, List(3) { null }, listOf(clock))
+        assertTrue(small.icons.all { it.column < 3 && it.row < 1 })
+        assertEquals(Cell(0, 0), small.widgets[0]) // over the icons, to be moved
+        for (n in listOf(30, 31, 32)) {
+            val l = DesktopGrid.layOut(8, 4, List(n) { null }, listOf(clock))
+            assertTrue("$n icons", l.icons.all { it.column < 8 && it.row < 4 })
+            assertEquals("$n icons", n, l.icons.toSet().size)
+        }
+    }
+
+    @Test
+    fun aWidgetWithRoomStillTakesIt() {
+        // 29 unplaced icons + a 3-cell clock fill 32 cells exactly: no overlap needed.
+        val l = DesktopGrid.layOut(8, 4, List(29) { null }, listOf(clock))
+        assertTrue(l.icons.all { it.column < 8 })
+        assertTrue(l.icons.none { it in DesktopGrid.cellsOf(l.widgets[0], clock.kind.size) })
+    }
+
+    @Test
     fun fitsRejectsTakenAndOffGrid() {
         assertFalse(DesktopGrid.fits(8, 4, CellSize(3, 1), Cell(6, 0), emptySet()))
         assertFalse(DesktopGrid.fits(8, 4, CellSize(3, 1), Cell(0, 0), setOf(Cell(2, 0))))

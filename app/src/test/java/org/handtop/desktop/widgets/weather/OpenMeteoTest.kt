@@ -25,6 +25,15 @@ class OpenMeteoTest {
     }
 
     @Test
+    fun nearbyFixesAreTheSamePlace() {
+        // A fix a few dozen metres away across a hundredth-of-a-degree line is still here.
+        assertTrue(OpenMeteo.samePlace(55.7549, 37.6149, 55.7551, 37.6151))
+        assertTrue(OpenMeteo.samePlace(55.75, 37.61, 55.79, 37.65))
+        assertFalse(OpenMeteo.samePlace(55.75, 37.61, 55.85, 37.61))
+        assertFalse(OpenMeteo.samePlace(55.75, 37.61, 48.85, 2.35))
+    }
+
+    @Test
     fun forecastUrlSendsOnlyRoundedCoordinates() {
         val url = OpenMeteo.forecastUrl(55.75583, 37.6173, fahrenheit = false)
         assertTrue(url, url.startsWith("https://api.open-meteo.com/v1/forecast?"))

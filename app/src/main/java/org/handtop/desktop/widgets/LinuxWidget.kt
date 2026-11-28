@@ -69,12 +69,16 @@ class LinuxWidget(context: Context, host: WidgetHost) : WidgetView(context, Widg
 
     private var active = false
     private var last: LinuxSampler.Sample? = null
+    /** Bumped on every start or stop: a sample still on its way from an older run is dropped. */
+    private var generation = 0
     private val tick = object : Runnable {
         override fun run() {
             if (!active) return
+            val run = generation
             EXECUTOR.execute {
                 val sample = try { sampler.sample() } catch (_: Exception) { null }
                 post {
+                    if (run != generation) return@post
                     if (sample != null) show(sample)
                     if (active) postDelayed(this, INTERVAL_MS)
                 }
@@ -138,6 +142,7 @@ class LinuxWidget(context: Context, host: WidgetHost) : WidgetView(context, Widg
 
     override fun onActive(active: Boolean) {
         this.active = active
+        generation++
         removeCallbacks(tick)
         if (active) {
             last = null
