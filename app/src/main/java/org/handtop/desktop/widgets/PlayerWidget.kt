@@ -13,6 +13,7 @@ import android.media.session.MediaController
 import android.media.session.PlaybackState
 import android.os.Build
 import android.os.SystemClock
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -81,9 +82,9 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
     private val message = label(13f)
     private val allow = TextView(context).apply {
         setText(R.string.widget_player_open_access)
-        textSize = 12f
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12f)
         setTextColor(colors.text)
-        background = roundedRect(colors.track, dp(8f))
+        background = roundedRect(colors.track, if (Themes.current.roundedCorners) dp(8f) else 0f)
         setPadding(dpi(10), dpi(4), dpi(10), dpi(4))
         setOnClickListener { openAccessSettings() }
     }
@@ -95,8 +96,19 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
     private var active = false
     private var lastShown: String? = null
     private var shown: MediaController? = null
+    private var shownId: String? = null
     private var coverKey: String? = null
+    /** The shown track's length, read with its metadata (which carries the artwork) once per change. */
+    private var total = 0L
+    private val appNames = HashMap<String, String>()
     private var seeking = false
+    /** The session a drag on the bar started on: the seek goes there, whatever shows meanwhile. */
+    private var seekTarget: MediaController? = null
+    /** Whether notification access was there at the last look: it is watched while shown. */
+    private var granted = false
+    private val accessListener: () -> Unit = {
+        if (active && Notifications.isAccessGranted(context) != granted) onActive(true)
+    }
     private val tick = object : Runnable {
         override fun run() {
             updateTime()
@@ -142,17 +154,20 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
         next.setOnClickListener { control { it.transportControls.skipToNext() } }
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
-                if (fromUser) elapsed.text = MediaTime.format(progress.toLong() * duration() / SEEK_MAX)
+                if (fromUser) elapsed.text = MediaTime.format(progress.toLong() * total / SEEK_MAX)
             }
 
             override fun onStartTrackingTouch(bar: SeekBar) {
                 seeking = true
+                seekTarget = shown
             }
 
             override fun onStopTrackingTouch(bar: SeekBar) {
                 seeking = false
-                val position = bar.progress.toLong() * duration() / SEEK_MAX
-                control { it.transportControls.seekTo(position) }
+                val position = bar.progress.toLong() * total / SEEK_MAX
+                val target = seekTarget ?: shown
+                seekTarget = null
+                if (target != null) runCatching { target.transportControls.seekTo(position) }
             }
         })
         showMessage(R.string.widget_player_nothing, access = false)
@@ -177,26 +192,41 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
     override fun onActive(active: Boolean) {
         this.active = active
         removeCallbacks(tick)
+        Notifications.removeListener(accessListener)
         if (!active) {
             sessions.stop()
             return
         }
-        if (!Notifications.isAccessGranted(context)) return showMessage(R.string.widget_player_no_access, access = true)
+        Notifications.addListener(accessListener)
+        granted = Notifications.isAccessGranted(context)
+        if (!granted) {
+            sessions.stop()
+            return showMessage(R.string.widget_player_no_access, access = true)
+        }
         val watching = sessions.start { render() }
         if (!watching) showMessage(R.string.widget_player_no_access, access = true)
     }
 
     private fun render() {
-        val pkg = MediaPick.choose(sessions.infos(), lastShown)
-        val c = sessions.controllers.firstOrNull { it.packageName == pkg }
+        val id = MediaPick.choose(sessions.infos(), lastShown)
+        val c = sessions.controllers.firstOrNull { MediaSessions.idOf(it) == id }
+        // Another session now: a drag on the bar is over.
+        if (seeking && id != shownId) seeking = false
         shown = c
+        shownId = id
         removeCallbacks(tick)
-        if (c == null) return showMessage(R.string.widget_player_nothing, access = false)
-        lastShown = pkg
+        if (c == null) {
+            // Access taken away while shown: the list empties; say why rather than "nothing".
+            val access = !Notifications.isAccessGranted(context)
+            return showMessage(if (access) R.string.widget_player_no_access else R.string.widget_player_nothing, access)
+        }
+        lastShown = id
         content.visibility = VISIBLE
         messageBox.visibility = GONE
 
+        // Read once per change: the metadata carries the artwork.
         val metadata = runCatching { c.metadata }.getOrNull()
+        total = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.coerceAtLeast(0) ?: 0L
         val state = runCatching { c.playbackState }.getOrNull()
         val appName = appName(c.packageName)
         val name = MediaPick.title(metadata?.getString(MediaMetadata.METADATA_KEY_TITLE), appName)
@@ -206,12 +236,12 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
         artist.visibility = if (by.isNullOrBlank()) GONE else VISIBLE
         app.text = appName
 
-        val key = c.packageName + "\u0000" + name
+        val art = metadata?.let {
+            it.getBitmap(MediaMetadata.METADATA_KEY_ART) ?: it.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: it.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        }
+        val key = MediaPick.coverKey(c.packageName, name, art?.width)
         if (key != coverKey) {
             coverKey = key
-            val art = metadata?.let {
-                it.getBitmap(MediaMetadata.METADATA_KEY_ART) ?: it.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: it.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-            }
             if (art != null) cover.setImageBitmap(scaled(art))
             else cover.setImageDrawable(runCatching { context.packageManager.getApplicationIcon(c.packageName) }.getOrNull())
         }
@@ -221,22 +251,19 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
         playIcon.setImageResource(if (playing) R.drawable.player_pause else R.drawable.player_play)
         prev.alpha = if (actions and PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L) 1f else 0.35f
         next.alpha = if (actions and PlaybackState.ACTION_SKIP_TO_NEXT != 0L) 1f else 0.35f
-        val hasLength = duration() > 0
+        val hasLength = total > 0
         seek.visibility = if (hasLength) VISIBLE else INVISIBLE
         elapsed.visibility = seek.visibility
         length.visibility = seek.visibility
-        seek.isEnabled = MediaTime.canSeek(actions)
+        // Not in the middle of a drag: a disabled bar would drop the rest of the gesture.
+        if (!seeking) seek.isEnabled = MediaTime.canSeek(actions)
         updateTime()
         if (playing && active) postDelayed(tick, 1_000)
     }
 
-    private fun duration(): Long =
-        runCatching { shown?.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) }.getOrNull()?.coerceAtLeast(0) ?: 0L
-
     /** The bar and the times, from the session's last reported position. */
     private fun updateTime() {
         val c = shown ?: return
-        val total = duration()
         if (total <= 0 || seeking) return
         val state = runCatching { c.playbackState }.getOrNull() ?: return
         val now = MediaTime.position(state.position, state.lastPositionUpdateTime, state.playbackSpeed, MediaSessions.isPlaying(c), SystemClock.elapsedRealtime(), total)
@@ -253,10 +280,12 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
         allow.visibility = if (access) VISIBLE else GONE
     }
 
-    private fun appName(pkg: String): String = runCatching {
-        val pm = context.packageManager
-        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-    }.getOrDefault(pkg)
+    private fun appName(pkg: String): String = appNames.getOrPut(pkg) {
+        runCatching {
+            val pm = context.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        }.getOrDefault(pkg)
+    }
 
     private fun scaled(art: Bitmap): Bitmap {
         val size = dpi(56)

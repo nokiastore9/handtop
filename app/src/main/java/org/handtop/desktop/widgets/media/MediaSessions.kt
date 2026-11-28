@@ -63,7 +63,7 @@ class MediaSessions(context: Context) {
     }
 
     /** The sessions for choosing ([MediaPick.choose]). */
-    fun infos(): List<SessionInfo> = controllers.map { SessionInfo(it.packageName, isPlaying(it)) }
+    fun infos(): List<SessionInfo> = controllers.map { SessionInfo(idOf(it), it.packageName, isPlaying(it)) }
 
     private fun watch(list: List<MediaController>) {
         // One callback per session: the old ones go first.
@@ -99,6 +99,9 @@ class MediaSessions(context: Context) {
     }
 
     companion object {
+        /** A session's identity: its token, the same for every controller of that session. */
+        fun idOf(c: MediaController): String = runCatching { c.sessionToken.hashCode().toString() }.getOrDefault(c.packageName)
+
         fun isPlaying(c: MediaController): Boolean = runCatching {
             val state = c.playbackState?.state
             state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING

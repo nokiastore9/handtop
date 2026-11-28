@@ -2,8 +2,11 @@ package org.handtop.desktop.widgets.media
 
 import java.util.Locale
 
-/** A media session as the choice needs it: its app, and whether it plays (or buffers) now. */
-data class SessionInfo(val pkg: String, val playing: Boolean)
+/**
+ * A media session as the choice needs it: which session ([id]: two tabs of one browser are two),
+ * its app, and whether it plays (or buffers) now.
+ */
+data class SessionInfo(val id: String, val pkg: String, val playing: Boolean)
 
 /** Which session the player widget shows, apart from Android. */
 object MediaPick {
@@ -13,10 +16,16 @@ object MediaPick {
      * shown last while it is there (paused, it stays); otherwise the first; none for no sessions.
      */
     fun choose(sessions: List<SessionInfo>, lastShown: String?): String? {
-        sessions.firstOrNull { it.playing }?.let { return it.pkg }
-        if (lastShown != null && sessions.any { it.pkg == lastShown }) return lastShown
-        return sessions.firstOrNull()?.pkg
+        sessions.firstOrNull { it.playing }?.let { return it.id }
+        if (lastShown != null && sessions.any { it.id == lastShown }) return lastShown
+        return sessions.firstOrNull()?.id
     }
+
+    /**
+     * What the cover is drawn from: a new key, a new cover. The artwork's width is part of it —
+     * apps often send the title first and the artwork a moment later, with the same title.
+     */
+    fun coverKey(pkg: String, title: String, artWidth: Int?): String = "$pkg\u0000$title\u0000${artWidth ?: -1}"
 
     /** The title, or the app's name for a session without one. */
     fun title(title: String?, appName: String): String = title?.takeIf { it.isNotBlank() } ?: appName
