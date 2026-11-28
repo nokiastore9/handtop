@@ -27,6 +27,14 @@ import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.ui.showPopupMenu
+import org.handtop.desktop.widgets.DesktopGrid
+import org.handtop.desktop.widgets.Layout
+import org.handtop.desktop.widgets.PlacedWidget
+import org.handtop.desktop.widgets.WidgetHost
+import org.handtop.desktop.widgets.WidgetKind
+import org.handtop.desktop.widgets.WidgetView
+import org.handtop.desktop.widgets.Widgets
+import org.handtop.desktop.widgets.widgetView
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -38,6 +46,9 @@ import kotlin.math.roundToInt
  * A tap (a click) opens a shortcut; pressing it and moving drags it to another cell (onto
  * another shortcut, the two swap). A long press or a right click opens its menu, and on the
  * empty wallpaper, the desktop's menu.
+ *
+ * The user's widgets share the grid, each on a block of cells (see [DesktopGrid]): they drag
+ * the same way, land only where they fit, and an icon dropped on one goes back.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class DesktopIcons(
@@ -45,6 +56,7 @@ class DesktopIcons(
     private val open: (Shortcut) -> Unit,
     /** The desktop's menu (a long press or a right click on the wallpaper). */
     private val desktopMenu: () -> List<MenuEntry?>,
+    private val widgetHost: WidgetHost,
 ) : ViewGroup(context) {
 
     private val cellWidth = dpi(92)
@@ -59,6 +71,13 @@ class DesktopIcons(
     private var placed: List<Cell> = emptyList()
     private var columns = 1
     private var rows = 1
+
+    // The widgets: in the order stored, their views (kept across reloads), their top left cells.
+    private var widgets: List<PlacedWidget> = emptyList()
+    private val widgetViews = LinkedHashMap<WidgetKind, WidgetView>()
+    private var widgetPlaced: List<Cell> = emptyList()
+    /** The desktop is on screen: widgets refresh. */
+    private var active = false
 
     // Where the last touch went down, for menus opened by a long press.
     private var rawX = 0f
@@ -83,6 +102,8 @@ class DesktopIcons(
     private val gestures = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent) = true
         override fun onLongPress(e: MotionEvent) {
+            rawX = e.rawX
+            rawY = e.rawY
             menu = showPopupMenu(this@DesktopIcons, e.rawX, e.rawY, desktopMenu())
         }
     })
@@ -96,11 +117,14 @@ class DesktopIcons(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         Shortcuts.addListener(listener)
+        Widgets.addListener(listener)
         reload()
     }
 
     override fun onDetachedFromWindow() {
         Shortcuts.removeListener(listener)
+        Widgets.removeListener(listener)
+        widgetViews.values.forEach { it.onActive(false) }
         super.onDetachedFromWindow()
     }
 
@@ -109,6 +133,70 @@ class DesktopIcons(
         removeAllViews()
         shortcuts = Shortcuts.load(context)
         for (shortcut in shortcuts) addView(item(shortcut))
+        widgets = Widgets.load(context)
+        val kinds = widgets.map { it.kind }.toSet()
+        (widgetViews.keys - kinds).forEach { widgetViews.remove(it)?.onActive(false) }
+        for (w in widgets) addView(widgetViews.getOrPut(w.kind) { widgetView(context, w.kind, widgetHost).also { setUpWidget(it) } })
+        updateActive()
+    }
+
+    // ---- widgets ----
+
+    /** The desktop came on screen or went away: widgets refresh only while it is shown. */
+    fun setActive(active: Boolean) {
+        this.active = active
+        updateActive()
+    }
+
+    private fun updateActive() = widgetViews.values.forEach { it.onActive(active && isAttachedToWindow) }
+
+    /** The kinds not on the desktop yet. */
+    fun addableWidgets(): List<WidgetKind> = WidgetKind.entries.filter { k -> widgets.none { it.kind == k } }
+
+    /** Puts [kind] on the first free place that fits (from the top right). */
+    fun addWidget(kind: WidgetKind) {
+        Widgets.add(context, kind, DesktopGrid.firstFree(columns, rows, kind.size, takenCells(except = null)))
+    }
+
+    /** "Add widget…": the kinds not on the desktop yet, where the desktop's menu was. */
+    fun showAddWidgetMenu() {
+        menu = showPopupMenu(this, rawX, rawY, addableWidgets().map { kind ->
+            MenuEntry(context.getString(widgetName(kind))) { addWidget(kind) }
+        })
+    }
+
+    private fun setUpWidget(view: WidgetView) {
+        view.setOnClickListener { view.onTap() }
+        view.setOnLongClickListener {
+            menu = showWidgetMenu(view, rawX, rawY)
+            true
+        }
+        view.setOnTouchListener { v, e -> itemTouch(v, e) { x, y -> showWidgetMenu(view, x, y) } }
+    }
+
+    private fun showWidgetMenu(view: WidgetView, x: Float, y: Float) = showPopupMenu(this, x, y, buildList {
+        if (view.hasSettings) {
+            add(MenuEntry(context.getString(R.string.widget_settings)) { view.showSettings() })
+            add(null)
+        }
+        add(MenuEntry(context.getString(R.string.widget_remove), tint = Palette.CLOSE_HOVER) { Widgets.remove(context, view.kind) })
+    })
+
+    /** Every cell taken now by icons and by the widgets other than [except]. */
+    private fun takenCells(except: WidgetKind?): Set<Cell> {
+        val taken = HashSet<Cell>(placed)
+        widgets.forEachIndexed { j, w ->
+            if (w.kind != except) widgetPlaced.getOrNull(j)?.let { taken += DesktopGrid.cellsOf(it, w.kind.size) }
+        }
+        return taken
+    }
+
+    private fun widgetCells(): Set<Cell> = takenCells(except = null) - placed.toSet()
+
+    /** The widget a child is, or null for an icon. */
+    private fun widgetOf(view: View): PlacedWidget? {
+        val j = indexOfChild(view) - shortcuts.size
+        return if (j >= 0) widgets.getOrNull(j) else null
     }
 
     // ---- the wallpaper itself ----
@@ -136,7 +224,7 @@ class DesktopIcons(
                 true
             }
         }
-        item.setOnTouchListener { view, e -> itemTouch(view, shortcut, e) }
+        item.setOnTouchListener { view, e -> itemTouch(view, e) { x, y -> showMenu(shortcut, x, y) } }
         val icon = ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
         val label = TextView(context).apply {
             // On the wallpaper, whatever the theme: light text with a shadow.
@@ -175,14 +263,14 @@ class DesktopIcons(
      * Before the item's own handling (tap, long press): a right click opens the menu, and a
      * press that moves becomes a drag, which takes the rest of the gesture.
      */
-    private fun itemTouch(view: View, shortcut: Shortcut, e: MotionEvent): Boolean {
+    private fun itemTouch(view: View, e: MotionEvent, showItemMenu: (Float, Float) -> PopupWindow): Boolean {
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 rawX = e.rawX
                 rawY = e.rawY
                 pressOpenedMenu = e.buttonState and MotionEvent.BUTTON_SECONDARY != 0
                 if (pressOpenedMenu) {
-                    menu = showMenu(shortcut, e.rawX, e.rawY)
+                    menu = showItemMenu(e.rawX, e.rawY)
                     return true
                 }
             }
@@ -221,7 +309,9 @@ class DesktopIcons(
     private fun moveDrag(view: View, e: MotionEvent) {
         view.translationX = e.rawX - dragStartX
         view.translationY = e.rawY - dragStartY
-        dropCell = cellAt(view.left + view.translationX + view.width / 2f, view.top + view.translationY + view.height / 2f)
+        // A widget lands by its top left cell, an icon by its middle.
+        dropCell = if (widgetOf(view) != null) cellAt(view.left + view.translationX + cellWidth / 2f, view.top + view.translationY + cellHeight / 2f)
+        else cellAt(view.left + view.translationX + view.width / 2f, view.top + view.translationY + view.height / 2f)
         invalidate()
     }
 
@@ -236,7 +326,14 @@ class DesktopIcons(
             view.translationX = 0f; view.translationY = 0f; view.translationZ = 0f; view.alpha = 1f
         }
         invalidate()
-        if (!drop || target == null || index < 0 || index >= placed.size) return
+        if (!drop || target == null || index < 0) return
+        val widget = widgetOf(view)
+        if (widget != null) {
+            // Only where it fits whole and covers nothing; otherwise it goes back.
+            if (DesktopGrid.fits(columns, rows, widget.kind.size, target, takenCells(except = widget.kind))) Widgets.move(context, widget.kind, target)
+            return
+        }
+        if (index >= placed.size || target in widgetCells()) return // not onto a widget
         val from = placed[index]
         if (target == from) return
         // Every shortcut keeps the cell it is in now, so nothing else moves; whatever sat in
@@ -277,20 +374,35 @@ class DesktopIcons(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val cell = { size: Int -> MeasureSpec.makeMeasureSpec(size, MeasureSpec.EXACTLY) }
-        for (i in 0 until childCount) getChildAt(i).measure(cell(cellWidth), cell(cellHeight))
+        for (i in 0 until childCount) {
+            val w = widgets.getOrNull(i - shortcuts.size)?.kind?.size
+            if (w == null) getChildAt(i).measure(cell(cellWidth), cell(cellHeight))
+            else getChildAt(i).measure(cell(widthOf(w.columns)), cell(heightOf(w.rows)))
+        }
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         rows = rowsFor(b - t)
         columns = ((r - l - paddingLeft - paddingRight + gap) / (cellWidth + gap)).coerceAtLeast(1)
-        placed = place(columns, rows)
+        val layout = layOut(columns, rows)
+        placed = layout.icons
+        widgetPlaced = layout.widgets
         placed.forEachIndexed { i, cell ->
             val x = paddingLeft + cell.column * (cellWidth + gap)
             val y = paddingTop + cell.row * (cellHeight + gap)
             getChildAt(i)?.layout(x, y, x + cellWidth, y + cellHeight)
         }
+        widgetPlaced.forEachIndexed { j, cell ->
+            val size = widgets[j].kind.size
+            val x = paddingLeft + cell.column * (cellWidth + gap)
+            val y = paddingTop + cell.row * (cellHeight + gap)
+            getChildAt(shortcuts.size + j)?.layout(x, y, x + widthOf(size.columns), y + heightOf(size.rows))
+        }
     }
+
+    private fun widthOf(columns: Int) = columns * cellWidth + (columns - 1) * gap
+    private fun heightOf(rows: Int) = rows * cellHeight + (rows - 1) * gap
 
     private fun rowsFor(height: Int) = ((height - paddingTop - paddingBottom + gap) / (cellHeight + gap)).coerceAtLeast(1)
 
@@ -302,45 +414,42 @@ class DesktopIcons(
     fun blockWidth(height: Int): Int {
         if (width <= 0 || shortcuts.isEmpty()) return 0
         val columns = ((width - paddingLeft - paddingRight + gap) / (cellWidth + gap)).coerceAtLeast(1)
-        val used = place(columns, rowsFor(height)).map { it.column }.toSet()
+        val used = layOut(columns, rowsFor(height)).icons.map { it.column }.toSet()
         var last = -1
         while (last + 1 in used) last++
         return if (last < 0) 0 else paddingLeft + (last + 1) * (cellWidth + gap) + dpi(16)
     }
 
-    /**
-     * The cell of every shortcut: its own when it fits this screen and is free, otherwise the
-     * first free one. A cell that does not fit (a smaller screen) is not forgotten: on a
-     * larger screen the shortcut goes back there.
-     */
-    private fun place(columns: Int, rows: Int): List<Cell> {
+    /** Where icons and widgets go on a grid of [columns] by [rows] (see [DesktopGrid]). */
+    private fun layOut(columns: Int, rows: Int): Layout {
         val saved = Shortcuts.cells(context)
-        val taken = HashSet<Cell>()
-        val result = arrayOfNulls<Cell>(shortcuts.size)
-        shortcuts.forEachIndexed { i, s ->
-            val cell = saved[Shortcuts.key(s)] ?: return@forEachIndexed
-            if (cell.column < columns && cell.row < rows && taken.add(cell)) result[i] = cell
-        }
-        var next = 0
-        return result.mapIndexed { _, cell ->
-            cell ?: run {
-                while (Cell(next / rows, next % rows) in taken) next++
-                Cell(next / rows, next % rows).also { taken += it }
-            }
-        }
+        return DesktopGrid.layOut(columns, rows, shortcuts.map { saved[Shortcuts.key(it)] }, widgets)
     }
 
     override fun onDraw(canvas: Canvas) {
         val cell = dropCell ?: return
+        val view = dragging ?: return
+        // Where the dragged thing would land; nothing where it cannot (it would go back).
+        val widget = widgetOf(view)
+        val size = widget?.kind?.size
+        if (widget != null && !DesktopGrid.fits(columns, rows, widget.kind.size, cell, takenCells(except = widget.kind))) return
+        if (widget == null && cell in widgetCells()) return
         val x = paddingLeft + cell.column * (cellWidth + gap).toFloat()
         val y = paddingTop + cell.row * (cellHeight + gap).toFloat()
-        dropRect.set(x, y, x + cellWidth, y + cellHeight)
+        dropRect.set(x, y, x + (size?.let { widthOf(it.columns) } ?: cellWidth), y + (size?.let { heightOf(it.rows) } ?: cellHeight))
         if (Themes.current.roundedCorners) canvas.drawRoundRect(dropRect, dp(10f), dp(10f), dropPaint)
         else canvas.drawRect(dropRect, dropOutline) // classic: nothing translucent, just an outline
     }
 
     companion object {
         private const val FOLDER_COLOR = 0xFFFFC857.toInt()
+
+        /** A widget kind's name. */
+        fun widgetName(kind: WidgetKind): Int = when (kind) {
+            WidgetKind.CLOCK -> R.string.widget_clock
+            WidgetKind.WEATHER -> R.string.widget_weather
+            WidgetKind.LINUX -> R.string.widget_linux
+        }
 
         /** Icon and name of one of HandTop's own shortcuts. */
         fun builtIn(id: String): Pair<Int, Int> = when (id) {

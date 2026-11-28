@@ -28,12 +28,9 @@ import android.text.format.DateFormat
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-import android.widget.CalendarView
-import android.view.ContextThemeWrapper
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.PopupWindow
 import android.widget.TextClock
 import android.widget.TextView
 import androidx.annotation.RequiresApi
@@ -43,12 +40,9 @@ import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.ui.Palette
 import org.handtop.desktop.ui.setBarIcon
-import org.handtop.desktop.ui.applyTheme
 import org.handtop.desktop.ui.Themes
-import org.handtop.desktop.ui.Popups
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
-import org.handtop.desktop.ui.hideSystemBarsOfWindow
 import org.handtop.desktop.ui.roundedRect
 import org.handtop.desktop.ui.selectableBackground
 import java.util.Locale
@@ -399,28 +393,10 @@ class StatusArea(context: Context) : LinearLayout(context) {
         }
     }
 
-    private fun showCalendar(anchor: View) {
-        // Android's calendar takes its colours from the context's theme: dark text on the
-        // classic gray panel, light text on the modern dark one.
-        val style = Themes.current.calendarStyle
-        val themed = if (style != 0) ContextThemeWrapper(context, style) else context
-        val calendar = CalendarView(themed)
-        val popup = PopupWindow(calendar, WRAP_CONTENT, WRAP_CONTENT, true)
-        popup.applyTheme(context, Themes.current.panel(context, 14f), 20f)
-        popup.isOutsideTouchable = true
-        // Just above the taskbar, at the right edge, like a desktop tray calendar.
-        val loc = IntArray(2)
-        anchor.getLocationInWindow(loc)
-        val fromBottom = anchor.rootView.height - loc[1] + dpi(6)
-        popup.showAtLocation(anchor, Gravity.BOTTOM or Gravity.END, dpi(6), fromBottom)
-        Popups.track(popup)
-        calendar.hideSystemBarsOfWindow()
-    }
-
     // ---- views ----
 
     private fun clock(): View {
-        val box = group(R.string.status_calendar) { showCalendar(it) }
+        val box = group(R.string.status_calendar) { showCalendarPopup(it) }
         box.orientation = VERTICAL
         box.gravity = Gravity.CENTER
         box.setPadding(dpi(10), 0, dpi(14), 0)

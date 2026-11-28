@@ -81,14 +81,16 @@ import org.handtop.desktop.wayland.Toplevel
 import org.handtop.desktop.wayland.WaylandServer
 import org.handtop.desktop.wayland.WaylandWindowContent
 import org.handtop.desktop.wm.DesktopArea
+import org.handtop.desktop.widgets.WidgetHost
 import org.handtop.desktop.wm.DesktopWindow
+import org.handtop.desktop.wm.WindowContent
 
 /**
  * The whole desktop lives in this single activity: wallpaper with icons, the window
  * area and the taskbar. It handles every config change itself (rotation, DeX switch,
  * keyboard plug) so windows and shell sessions are never torn down.
  */
-class DesktopActivity : Activity(), WaylandServer.Host {
+class DesktopActivity : Activity(), WaylandServer.Host, WidgetHost {
 
     private lateinit var root: FrameLayout
     private lateinit var column: LinearLayout
@@ -201,7 +203,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             }
         }
 
-        icons = DesktopIcons(this, open = { openShortcut(it) }, desktopMenu = { desktopMenu() })
+        icons = DesktopIcons(this, open = { openShortcut(it) }, desktopMenu = { desktopMenu() }, widgetHost = this)
         area.iconsWidth = { icons.blockWidth(it) }
         launchpad = Launchpad(
             this,
@@ -296,6 +298,24 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         super.onResume()
         // Back from Android settings (e.g. storage permission): show the new state.
         area.windows.forEach { (it.content as? SettingsContent)?.refresh() }
+        icons.setActive(true)
+    }
+
+    override fun onPause() {
+        icons.setActive(false)
+        super.onPause()
+    }
+
+    // ---- what desktop widgets need ----
+
+    override fun openLinuxSystem() = openLinuxSetup()
+
+    override fun openWindow(content: WindowContent, title: String, icon: Int) {
+        area.addWindow(DesktopWindow(this, area, content, title, icon))
+    }
+
+    override fun requestLocation(onResult: (Boolean) -> Unit) {
+        onResult(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
 
     private fun keepScreenOn(on: Boolean) {
@@ -408,6 +428,7 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         if (LinuxEnv.isInstalled(this)) {
             items += MenuEntry(getString(R.string.desktop_add_program), R.drawable.ic_apps) { openLinuxApps(pick = true) }
         }
+        items += MenuEntry(getString(R.string.widget_add), R.drawable.ic_home, icons.addableWidgets().isNotEmpty()) { icons.showAddWidgetMenu() }
         items += MenuEntry(getString(R.string.desktop_restore_icons), R.drawable.ic_home, Shortcuts.missingBuiltIns(this).isNotEmpty()) {
             Shortcuts.restoreBuiltIns(this)
         }

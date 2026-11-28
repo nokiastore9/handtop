@@ -301,4 +301,16 @@
         <item quantity="many">Удалить %d объектов? Это нельзя отменить.</item>
         <item quantity="other">Удалить %d объекта? Это нельзя отменить.</item>
     </plurals>
+    <!-- Desktop widgets -->
+    <string name="widget_add">Добавить виджет…</string>
+    <string name="widget_clock">Часы</string>
+    <string name="widget_weather">Погода</string>
+    <string name="widget_linux">Linux</string>
+    <string name="widget_settings">Настроить…</string>
+    <string name="widget_remove">Убрать с рабочего стола</string>
+    <string name="widget_clock_system">Как в Android</string>
+    <string name="widget_clock_24">24 часа</string>
+    <string name="widget_clock_12">12 часов</string>
+    <string name="widget_clock_no_seconds">Без секунд</string>
+    <string name="widget_clock_seconds">С секундами</string>
 </resources>

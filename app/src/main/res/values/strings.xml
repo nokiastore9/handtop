@@ -291,4 +291,16 @@
         <item quantity="one">Delete %d item? This cannot be undone.</item>
         <item quantity="other">Delete %d items? This cannot be undone.</item>
     </plurals>
+    <!-- Desktop widgets -->
+    <string name="widget_add">Add widget…</string>
+    <string name="widget_clock">Clock</string>
+    <string name="widget_weather">Weather</string>
+    <string name="widget_linux">Linux</string>
+    <string name="widget_settings">Settings…</string>
+    <string name="widget_remove">Remove from desktop</string>
+    <string name="widget_clock_system">As in Android</string>
+    <string name="widget_clock_24">24-hour</string>
+    <string name="widget_clock_12">12-hour</string>
+    <string name="widget_clock_no_seconds">No seconds</string>
+    <string name="widget_clock_seconds">Seconds</string>
 </resources>
