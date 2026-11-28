@@ -117,4 +117,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidsvg)
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

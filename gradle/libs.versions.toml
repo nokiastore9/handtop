@@ -17,6 +17,8 @@ androidx-annotation = { group = "androidx.annotation", name = "annotation", vers
 androidsvg = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
 # JVM unit tests.
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+# The real org.json for JVM unit tests (Android's is a stub there).
+org-json = { group = "org.json", name = "json", version = "20240303" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
