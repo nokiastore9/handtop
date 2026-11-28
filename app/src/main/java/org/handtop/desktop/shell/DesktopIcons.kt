@@ -156,6 +156,8 @@ class DesktopIcons(
     /** Puts [kind] on the first free place that fits (from the top right). */
     fun addWidget(kind: WidgetKind) {
         Widgets.add(context, kind, DesktopGrid.firstFree(columns, rows, kind.size, takenCells(except = null)))
+        // The weather goes by location: Android asks once; either way the widget then refreshes.
+        if (kind == WidgetKind.WEATHER) widgetHost.requestLocation { widgetViews[kind]?.onActive(active && isAttachedToWindow) }
     }
 
     /** "Add widget…": the kinds not on the desktop yet, where the desktop's menu was. */

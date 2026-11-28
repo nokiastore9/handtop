@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The weather widget: the approximate location only, asked when the widget is added. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Optional: share the phone's storage with Linux as /sdcard (granted in Settings). -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 

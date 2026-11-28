@@ -20,7 +20,7 @@ class ClassicIconsTest {
         // A light theme tints the white icons dark; the coloured ones must keep their colours.
         val white = Regex("(?i)#(FF)?FFFFFF|@android:color/white|#0+")
         val coloured = File("src/main/res/drawable").listFiles()!!
-            .filter { it.name.startsWith("ic_") && it.name.endsWith(".xml") }
+            .filter { (it.name.startsWith("ic_") || it.name.startsWith("weather_")) && it.name.endsWith(".xml") }
             .filter { f -> Regex("(?:fill|stroke)Color=\"([^\"]+)\"").findAll(f.readText()).any { !white.matches(it.groupValues[1]) } }
             .map { it.name.removeSuffix(".xml") }.toSet()
         val known = COLOURED_ICONS.map { id -> R.drawable::class.java.fields.first { it.getInt(null) == id }.name }.toSet()

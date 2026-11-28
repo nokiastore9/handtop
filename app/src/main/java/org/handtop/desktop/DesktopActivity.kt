@@ -314,8 +314,21 @@ class DesktopActivity : Activity(), WaylandServer.Host, WidgetHost {
         area.addWindow(DesktopWindow(this, area, content, title, icon))
     }
 
+    /** Waiting for Android's location dialog. */
+    private var locationAnswer: ((Boolean) -> Unit)? = null
+
+    /** Only the approximate location is asked for: enough for the weather. */
     override fun requestLocation(onResult: (Boolean) -> Unit) {
-        onResult(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) return onResult(true)
+        locationAnswer = onResult
+        requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), REQUEST_LOCATION)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_LOCATION) return
+        locationAnswer?.invoke(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+        locationAnswer = null
     }
 
     private fun keepScreenOn(on: Boolean) {
@@ -707,6 +720,7 @@ class DesktopActivity : Activity(), WaylandServer.Host, WidgetHost {
     private companion object {
         const val STATE_SETTINGS_OPEN = "settings_open"
         const val REQUEST_WALLPAPER = 2
+        const val REQUEST_LOCATION = 3
         /** Height of the key row above the on-screen keyboard. */
         const val LINUX_KEYS_DP = 40
 

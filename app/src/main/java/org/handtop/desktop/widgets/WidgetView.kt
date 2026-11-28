@@ -2,10 +2,8 @@ package org.handtop.desktop.widgets
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.TextView
-import org.handtop.desktop.R
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
@@ -64,18 +62,6 @@ abstract class WidgetView(context: Context, val kind: WidgetKind, protected val 
 /** The view for [kind]. */
 fun widgetView(context: Context, kind: WidgetKind, host: WidgetHost): WidgetView = when (kind) {
     WidgetKind.CLOCK -> ClockWidget(context, host)
+    WidgetKind.WEATHER -> WeatherWidget(context, host)
     WidgetKind.LINUX -> LinuxWidget(context, host)
-    else -> PlaceholderWidget(context, kind, host)
-}
-
-/** A widget not built yet: its name, nothing else. */
-@SuppressLint("ViewConstructor")
-private class PlaceholderWidget(context: Context, kind: WidgetKind, host: WidgetHost) : WidgetView(context, kind, host) {
-    init {
-        addView(label(14f).apply {
-            setText(if (kind == WidgetKind.WEATHER) R.string.widget_weather else R.string.widget_linux)
-        }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER))
-    }
-
-    override fun onTap() {}
 }

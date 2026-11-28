@@ -22,7 +22,12 @@ object ClassicIcons {
 }
 
 /** HandTop's icons that have colours of their own: a theme's [ThemeColors.iconTint] leaves them alone. */
-internal val COLOURED_ICONS = setOf(R.drawable.ic_files, R.drawable.ic_linux)
+internal val COLOURED_ICONS = setOf(
+    R.drawable.ic_files, R.drawable.ic_linux,
+    R.drawable.weather_clear, R.drawable.weather_clear_night, R.drawable.weather_partly, R.drawable.weather_partly_night,
+    R.drawable.weather_cloudy, R.drawable.weather_fog, R.drawable.weather_drizzle, R.drawable.weather_rain,
+    R.drawable.weather_snow, R.drawable.weather_thunder,
+)
 
 /**
  * One of HandTop's icons in the current theme: the white icon tinted [tint] (or the theme's

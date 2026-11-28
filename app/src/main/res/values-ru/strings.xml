@@ -318,4 +318,22 @@
     <string name="widget_linux_not_installed">Linux не установлен</string>
     <string name="widget_linux_not_running">Linux не запущен</string>
     <string name="widget_gb">ГБ</string>
+    <string name="weather_clear">Ясно</string>
+    <string name="weather_partly">Переменная облачность</string>
+    <string name="weather_cloudy">Облачно</string>
+    <string name="weather_fog">Туман</string>
+    <string name="weather_drizzle">Морось</string>
+    <string name="weather_rain">Дождь</string>
+    <string name="weather_snow">Снег</string>
+    <string name="weather_thunder">Гроза</string>
+    <string name="weather_title">Погода</string>
+    <string name="widget_weather_updated">Обновлено в %1$s</string>
+    <string name="widget_weather_no_data">Погоды пока нет</string>
+    <string name="widget_weather_offline">Нет сети</string>
+    <string name="widget_weather_need_city">Укажите город</string>
+    <string name="widget_weather_by_location">По местоположению</string>
+    <string name="widget_weather_city">Город</string>
+    <string name="widget_weather_search">Название города</string>
+    <string name="widget_weather_nothing_found">Ничего не найдено</string>
+    <string name="widget_weather_source">Данные: Open-Meteo.com</string>
 </resources>
