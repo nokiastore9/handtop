@@ -198,7 +198,7 @@ class WeatherWidget(context: Context, host: WidgetHost) : WidgetView(context, Wi
             orientation = LinearLayout.VERTICAL
             setPadding(dpi(20), dpi(8), dpi(20), 0)
         }
-        val dialog = showDialog(context.dialogBuilder().setTitle(R.string.widget_weather).setView(column).setNegativeButton(android.R.string.cancel, null))
+        val dialog = showDialog(context.dialogBuilder().setTitle(R.string.widget_weather).setView(column).setPositiveButton(android.R.string.ok, null))
         fillSettings(column) { dialog.dismiss() }
     }
 
