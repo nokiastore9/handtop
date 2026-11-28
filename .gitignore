@@ -19,3 +19,6 @@ keystore.properties
 
 # Linux theme build cache (tools/linux-theme/build.py)
 tools/linux-theme/.cache/
+
+# Local tool state (mockups, plan ledgers)
+.superpowers/
