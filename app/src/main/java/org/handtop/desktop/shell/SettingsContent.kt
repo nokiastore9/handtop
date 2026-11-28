@@ -583,7 +583,11 @@ class SettingsContent(
     }
 
     private fun themeChoices(): View {
-        val themes = listOf(ThemeId.MODERN to R.string.theme_modern, ThemeId.CLASSIC to R.string.theme_classic)
+        val themes = listOf(
+            ThemeId.MODERN to R.string.theme_modern,
+            ThemeId.CLASSIC to R.string.theme_classic,
+            ThemeId.SOFT to R.string.theme_soft,
+        )
         return context.choices(
             labels = themes.map { context.getString(it.second) },
             sublabels = null,

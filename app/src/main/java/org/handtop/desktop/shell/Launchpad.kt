@@ -36,6 +36,7 @@ import org.handtop.desktop.ui.styleMenuText
 import org.handtop.desktop.ui.styleField
 import org.handtop.desktop.ui.pushButton
 import org.handtop.desktop.ui.bevel
+import org.handtop.desktop.ui.Theme
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.Bevel
 import org.handtop.desktop.ui.dp
@@ -84,16 +85,7 @@ class Launchpad(
         isFocusable = true
         isFocusableInTouchMode = true
         defaultFocusHighlightEnabled = false
-        // Over a blurred desktop (Android 12+) a light veil is enough and lets its colours
-        // through; over a sharp one, the icons need a darker one to stand out.
-        setBackgroundColor(
-            when {
-                // Classic: an opaque gray surface, nothing shows through.
-                Themes.current.bevelled -> Palette.WINDOW_BG
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> 0x990B1023.toInt()
-                else -> 0xD90B1023.toInt()
-            },
-        )
+        setBackgroundColor(veil(Themes.current, blurred = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S))
 
         val column = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -107,7 +99,7 @@ class Launchpad(
             gravity = Gravity.CENTER
             setTextColor(Palette.TEXT)
             setHintTextColor(Palette.TEXT_DIM)
-            background = roundedRect(0x26FFFFFF, dp(20f))
+            background = roundedRect(fill(), dp(20f))
             setPadding(dpi(16), dpi(9), dpi(16), dpi(9))
             // The keyboard stays below the grid: no full-screen text box in landscape.
             styleField()
@@ -305,7 +297,8 @@ class Launchpad(
             if (Themes.current.bevelled) styleMenuText(enabled = true)
             else {
                 setTextColor(Palette.TEXT)
-                setShadowLayer(dp(3f), 0f, dp(1f), Color.BLACK)
+                // Dark text on a light veil needs no shadow.
+                if (!Themes.current.light) setShadowLayer(dp(3f), 0f, dp(1f), Color.BLACK)
             }
             setPadding(0, dpi(8), 0, 0)
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -314,7 +307,7 @@ class Launchpad(
 
     /** For a program that ships no icon: a plain program window (a terminal for terminal programs). */
     private fun noIcon(app: LinuxApp) = FrameLayout(context).apply {
-        background = if (Themes.current.bevelled) context.bevel(Bevel.RAISED) else roundedRect(0x26FFFFFF, dp(14f))
+        background = if (Themes.current.bevelled) context.bevel(Bevel.RAISED) else roundedRect(fill(), dp(14f))
         addView(ImageView(context).apply {
             setThemedIcon(if (app.terminal) R.drawable.ic_terminal else R.drawable.ic_app_generic, Palette.TEXT_SOFT)
         }, LayoutParams(iconPx * 3 / 5, iconPx * 3 / 5, Gravity.CENTER))
@@ -384,5 +377,24 @@ class Launchpad(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         backdropTaps.onTouchEvent(event)
         return true
+    }
+
+    /** The search field's and an icon-less tile's fill: a light tint, or a dark one on a light theme. */
+    private fun fill(): Int = if (Themes.current.light) Palette.CHIP else 0x26FFFFFF
+
+    companion object {
+        /**
+         * What covers the desktop behind the programs: over a blurred desktop (Android 12+) a
+         * thin veil is enough and lets its colours through; over a sharp one, the icons need a
+         * thicker one to stand out. Light themes cover it with their window colour, almost
+         * opaque: their dark names must read over the darkest wallpaper. The classic look hides
+         * it under an opaque surface.
+         */
+        fun veil(theme: Theme, blurred: Boolean): Int = when {
+            theme.bevelled -> theme.colors.windowBg
+            theme.light -> (theme.colors.windowBg and 0xFFFFFF) or (if (blurred) 0xF2000000.toInt() else 0xF7000000.toInt())
+            blurred -> 0x990B1023.toInt()
+            else -> 0xD90B1023.toInt()
+        }
     }
 }

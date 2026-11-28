@@ -7,7 +7,8 @@ import android.graphics.drawable.Drawable
 /** The themes HandTop can wear; [key] is how the choice is stored. */
 enum class ThemeId(val key: String) {
     MODERN("modern"),
-    CLASSIC("classic");
+    CLASSIC("classic"),
+    SOFT("soft");
 
     companion object {
         /** The stored theme, Modern for nothing stored or anything unknown. */
@@ -192,5 +193,6 @@ object Themes {
     private fun of(id: ThemeId): Theme = when (id) {
         ThemeId.MODERN -> ModernTheme
         ThemeId.CLASSIC -> ClassicTheme
+        ThemeId.SOFT -> SoftTheme
     }
 }

@@ -1,6 +1,7 @@
 package org.handtop.desktop.ui
 
 import org.handtop.desktop.R
+import org.handtop.desktop.shell.Launchpad
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -112,6 +113,69 @@ class ThemeTest {
         assertEquals(1.0, contrast(0xFF808080.toInt(), 0xFF808080.toInt()), 0.001)
         // Half-transparent black over white is mid gray.
         assertEquals(0xFF7F7F7F.toInt(), over(0x80000000.toInt(), 0xFFFFFFFF.toInt()))
+    }
+
+    @Test
+    fun softKey() {
+        assertEquals(ThemeId.SOFT, ThemeId.fromKey("soft"))
+        assertEquals("soft", ThemeId.SOFT.key)
+    }
+
+    @Test
+    fun softIsLightRoundedAndCentered() = with(SoftTheme) {
+        assertTrue(light); assertFalse(bevelled); assertTrue(titleCentered); assertTrue(titleBold)
+        assertTrue(tintIcons); assertTrue(roundedCorners); assertTrue(shadows); assertTrue(blur); assertTrue(animations)
+        assertFalse(startLabel); assertFalse(startMenuBand); assertFalse(embossDisabled)
+        assertEquals(0, dialogStyle); assertEquals(0, calendarStyle)
+    }
+
+    @Test
+    fun softColoursAreTheSpecs() = with(SoftTheme.colors) {
+        assertEquals(0xFFEBEBED.toInt(), titleActive)
+        assertEquals(0xFFF4F4F5.toInt(), titleInactive)
+        assertEquals(0xFF1F1F23.toInt(), titleTextActive)
+        assertEquals(0xFF6E6E73.toInt(), titleTextInactive)
+        assertEquals(0xFFFAFAFB.toInt(), windowBg)
+        assertEquals(0xFFF0F0F2.toInt(), sidebarBg)
+        assertEquals(0xFFEBEBED.toInt(), barBg)
+        assertEquals(0xFFFFFFFF.toInt(), menuBg)
+        assertEquals(0xFF1F1F23.toInt(), text)
+        assertEquals(0xFF6A6A6F.toInt(), textDim)
+        assertEquals(0xFF2A68C8.toInt(), accent)
+        assertEquals(0xFFF2F2F7.toInt(), taskbarText)
+        assertEquals(0xFFE4E4E7.toInt(), keyBarBg)
+    }
+
+    @Test
+    fun softIsReadable() = with(SoftTheme.colors) {
+        for (bg in listOf(windowBg, sidebarBg, barBg, menuBg, card)) {
+            assertReadable("text", text, bg)
+            assertReadable("textDim", textDim, bg)
+            assertReadable("accent", accent, bg)
+        }
+        assertReadable("taskbarText", taskbarText, taskbar)
+        assertReadable("taskbarTextDim", taskbarTextDim, taskbar)
+        assertReadable("taskbarIcon", taskbarIcon, taskbar)
+        assertReadable("selection", selectionText, over(selection, windowBg))
+        assertReadable("title", titleTextActive, titleActive)
+        assertReadable("inactive title", titleTextInactive, titleInactive, 3.0)
+        assertReadable("onAccent", onAccent, accent)
+        assertReadable("warning", warning, windowBg)
+    }
+
+    @Test
+    fun softLaunchpadVeilIsLight() {
+        // The programs' names (dark text) read on it over any desktop, dark or light.
+        for (blurred in listOf(true, false)) {
+            val veil = Launchpad.veil(SoftTheme, blurred)
+            assertTrue(luminance(over(veil, 0xFF000000.toInt())) > 0.4)
+            assertReadable("launchpad", SoftTheme.colors.text, veil)
+            assertReadable("launchpad dim", SoftTheme.colors.textDim, veil)
+        }
+        // The other themes keep theirs.
+        assertEquals(0x990B1023.toInt(), Launchpad.veil(ModernTheme, blurred = true))
+        assertEquals(0xD90B1023.toInt(), Launchpad.veil(ModernTheme, blurred = false))
+        assertEquals(ClassicTheme.colors.windowBg, Launchpad.veil(ClassicTheme, blurred = true))
     }
 
     // ---- readability (WCAG 2 contrast) ----
