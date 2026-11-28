@@ -32,6 +32,8 @@ class WidgetsJsonTest {
         assertEquals(CellSize(3, 1), WidgetKind.CLOCK.size)
         assertEquals(CellSize(3, 2), WidgetKind.WEATHER.size)
         assertEquals(CellSize(3, 1), WidgetKind.LINUX.size)
+        assertEquals(CellSize(3, 2), WidgetKind.PLAYER.size)
+        assertEquals(WidgetKind.PLAYER, WidgetKind.fromKey("player"))
         assertEquals(WidgetKind.WEATHER, WidgetKind.fromKey("weather"))
         assertEquals(null, WidgetKind.fromKey("nope"))
     }

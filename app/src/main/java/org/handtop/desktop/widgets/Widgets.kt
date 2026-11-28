@@ -10,7 +10,8 @@ import java.util.concurrent.CopyOnWriteArraySet
 enum class WidgetKind(val key: String, val size: CellSize) {
     CLOCK("clock", CellSize(3, 1)),
     WEATHER("weather", CellSize(3, 2)),
-    LINUX("linux", CellSize(3, 1));
+    LINUX("linux", CellSize(3, 1)),
+    PLAYER("player", CellSize(3, 2));
 
     companion object {
         fun fromKey(key: String?): WidgetKind? = entries.firstOrNull { it.key == key }

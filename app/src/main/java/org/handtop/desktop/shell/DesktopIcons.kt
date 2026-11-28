@@ -458,6 +458,7 @@ class DesktopIcons(
             WidgetKind.CLOCK -> R.string.widget_clock
             WidgetKind.WEATHER -> R.string.widget_weather
             WidgetKind.LINUX -> R.string.widget_linux
+            WidgetKind.PLAYER -> R.string.widget_player
         }
 
         /** Icon and name of one of HandTop's own shortcuts. */

@@ -327,4 +327,12 @@
     <string name="widget_weather_nothing_found">Nothing found</string>
     <string name="widget_weather_source">Data: Open-Meteo.com</string>
     <string name="widget_weather_units_system">Degrees as in Android</string>
+    <string name="widget_player">Player</string>
+    <string name="widget_player_nothing">Nothing is playing</string>
+    <string name="widget_player_no_access">Needs access to notifications</string>
+    <string name="widget_player_open_access">Allow…</string>
+    <string name="player_previous">Previous</string>
+    <string name="player_play_pause">Play or pause</string>
+    <string name="player_next">Next</string>
+    <string name="player_switch">Another app</string>
 </resources>

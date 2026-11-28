@@ -337,4 +337,12 @@
     <string name="widget_weather_nothing_found">Ничего не найдено</string>
     <string name="widget_weather_source">Данные: Open-Meteo.com</string>
     <string name="widget_weather_units_system">Градусы как в Android</string>
+    <string name="widget_player">Плеер</string>
+    <string name="widget_player_nothing">Ничего не играет</string>
+    <string name="widget_player_no_access">Нужен доступ к уведомлениям</string>
+    <string name="widget_player_open_access">Разрешить…</string>
+    <string name="player_previous">Предыдущий</string>
+    <string name="player_play_pause">Играть или пауза</string>
+    <string name="player_next">Следующий</string>
+    <string name="player_switch">Другое приложение</string>
 </resources>

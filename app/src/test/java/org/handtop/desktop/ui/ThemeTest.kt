@@ -274,6 +274,12 @@ class ThemeTest {
     }
 
     @Test
+    fun playGlyphShowsOnTheAccent() {
+        // The player's ⏯ is a white glyph on a circle of the accent: a symbol, 3 : 1 (WCAG non-text).
+        for (t in listOf(ModernTheme, ClassicTheme, SoftTheme, GlossyTheme)) assertReadable("${t.id} play", 0xFFFFFFFF.toInt(), t.colors.accent, 3.0)
+    }
+
+    @Test
     fun modernWidgetCardIsDarkGlass() = with(ModernTheme.widgetColors) {
         assertEquals(0xB30F1420.toInt(), under.single())
         assertEquals(0xFFFFFFFF.toInt(), text)

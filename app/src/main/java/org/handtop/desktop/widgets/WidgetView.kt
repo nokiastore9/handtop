@@ -66,4 +66,5 @@ fun widgetView(context: Context, kind: WidgetKind, host: WidgetHost): WidgetView
     WidgetKind.CLOCK -> ClockWidget(context, host)
     WidgetKind.WEATHER -> WeatherWidget(context, host)
     WidgetKind.LINUX -> LinuxWidget(context, host)
+    WidgetKind.PLAYER -> PlayerWidget(context, host)
 }
