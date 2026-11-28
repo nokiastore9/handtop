@@ -448,7 +448,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dpi(8), 0, dpi(8), 0)
-        background = context.selectableBackground()
+        background = Themes.current.darkFeedback(context)
         tooltipText = context.getString(tooltip)
         setOnClickListener(onClick)
     }

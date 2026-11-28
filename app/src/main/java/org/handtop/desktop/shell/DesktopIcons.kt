@@ -128,7 +128,8 @@ class DesktopIcons(
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dpi(6), dpi(8), dpi(6), dpi(4))
-            background = context.selectableBackground()
+            // On the wallpaper, whatever the theme: feedback that shows over a dark picture.
+            background = Themes.current.darkFeedback(context)
             setOnClickListener { open(shortcut) }
             setOnLongClickListener {
                 menu = showMenu(shortcut, rawX, rawY)

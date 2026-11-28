@@ -97,6 +97,24 @@ class ThemeTest {
     }
 
     @Test
+    fun barWarningAndNotesAreTodaysInModernAndClassic() {
+        for (t in listOf(ModernTheme, ClassicTheme)) assertEquals(t.colors.warning, t.colors.taskbarWarning)
+        assertEquals(ModernTheme.colors.textDim, ModernTheme.colors.noteText)
+        assertEquals(ClassicTheme.colors.shadow, ClassicTheme.colors.noteText)
+    }
+
+    @Test
+    fun colouredIconsKeepTheirColoursOnTheBar() {
+        // Soft tints the bar's white icons light; the red Linux terminal and the yellow folder stay as they are.
+        assertEquals(null, barIconTint(SoftTheme.colors, R.drawable.ic_linux, null))
+        assertEquals(null, barIconTint(SoftTheme.colors, R.drawable.ic_files, null))
+        assertEquals(SoftTheme.colors.taskbarIcon, barIconTint(SoftTheme.colors, R.drawable.ic_settings, null))
+        // Modern keeps the usual tint.
+        assertEquals(0xFF123456.toInt(), barIconTint(ModernTheme.colors, R.drawable.ic_apps, 0xFF123456.toInt()))
+        assertEquals(null, barIconTint(ModernTheme.colors, R.drawable.ic_settings, null))
+    }
+
+    @Test
     fun modernAndClassicKeepTheirBaseAndTitles() {
         for (t in listOf(ModernTheme, ClassicTheme)) {
             assertFalse(t.light)
@@ -162,6 +180,16 @@ class ThemeTest {
         assertReadable("inactive title", titleTextInactive, titleInactive, 3.0)
         assertReadable("onAccent", onAccent, accent)
         assertReadable("warning", warning, windowBg)
+        assertReadable("taskbarWarning", taskbarWarning, taskbar)
+        assertReadable("noteText", noteText, windowBg)
+        assertReadable("keyOn", keyOn, keyBarBg)
+    }
+
+    @Test
+    fun softFeedbackShowsOnTheDarkBar() = with(SoftTheme) {
+        // Hover and press on the taskbar and the wallpaper: light, not the light base's dark ripple.
+        assertTrue(contrast(over(FEEDBACK_HOVER, colors.taskbar), over(colors.taskbar, 0xFF000000.toInt())) >= 1.2)
+        assertTrue(contrast(over(FEEDBACK_PRESSED, colors.taskbar), over(colors.taskbar, 0xFF000000.toInt())) >= 1.5)
     }
 
     @Test
@@ -226,7 +254,12 @@ class ThemeTest {
             assertReadable("selection", selectionText, selection)
             assertReadable("onAccent", onAccent, accent)
             for (s in TASKBAR_STOPS + TRAY_STOPS) assertReadable("taskbarTextDim", taskbarTextDim, s)
+            for (s in TASKBAR_STOPS) assertReadable("taskbarWarning", taskbarWarning, s)
+            for (bg in listOf(windowBg, field)) assertReadable("noteText", noteText, bg)
+            assertReadable("keyOn", keyOn, keyBarBg)
         }
+        // The bar's buttons, pressed, hovered or on (the touchpad), keep their white glyph readable.
+        for (s in listOf(BAR_PRESSED, BAR_HOVER, BAR_ON)) assertReadable("bar button", colors.taskbarIcon, s)
     }
 
     // ---- readability (WCAG 2 contrast) ----

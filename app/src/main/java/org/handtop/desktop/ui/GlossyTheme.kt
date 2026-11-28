@@ -47,7 +47,7 @@ object GlossyTheme : Theme(
         batteryLow = 0xFFE5484D.toInt(),
         batteryCharging = 0xFF46C46E.toInt(),
         keyBarBg = 0xFFECE9D8.toInt(),
-        keyOn = 0xFF316AC5.toInt(),
+        keyOn = 0xFF2B5FB3.toInt(),
         windowBg = 0xFFECE9D8.toInt(),
         sidebarBg = 0xFFFFFFFF.toInt(),
         barBg = 0xFFECE9D8.toInt(),
@@ -68,6 +68,8 @@ object GlossyTheme : Theme(
         iconTint = 0,
         titleGlyph = 0xFFFFFFFF.toInt(),
         onAccent = 0xFFFFFFFF.toInt(),
+        taskbarWarning = 0xFFFFF2B3.toInt(),
+        noteText = 0xFF5F5B4E.toInt(),
     ),
 ) {
     /** The active title bar, top to bottom. */
@@ -86,6 +88,11 @@ object GlossyTheme : Theme(
     private val TITLE_BUTTON = 0xFF2A6FE8.toInt()
     private val CLOSE_BUTTON = 0xFFC8441E.toInt()
     private val MENU_BORDER = 0xFF0A54CC.toInt()
+
+    /** A taskbar tool button pressed, under the pointer, or on (the touchpad): blue, the glyph stays white. */
+    val BAR_PRESSED = TASK_BUTTON_FRONT
+    val BAR_HOVER = TASK_BUTTON
+    val BAR_ON = TASK_BUTTON_FRONT
 
     override val animations = true
     override val blur = false
@@ -205,6 +212,18 @@ object GlossyTheme : Theme(
         addState(intArrayOf(android.R.attr.state_pressed), InsetDrawable(context.bevel(Bevel.PRESSED), context.dpi(2)))
         addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
     }
+
+    /** On the blue bar a beige bevel would hide the white glyph: blue states instead. */
+    override fun barButton(context: Context): Drawable = StateListDrawable().apply {
+        addState(intArrayOf(android.R.attr.state_pressed), barState(context, BAR_PRESSED))
+        addState(intArrayOf(android.R.attr.state_hovered), barState(context, BAR_HOVER))
+        addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
+    }
+
+    override fun barButtonOn(context: Context): Drawable = barState(context, BAR_ON)
+
+    private fun barState(context: Context, color: Int): Drawable =
+        InsetDrawable(roundedRect(color, context.dp(3f)), context.dpi(2), context.dpi(5), context.dpi(2), context.dpi(5))
 
     /** [a] moved [t] of the way to [b]. */
     private fun mix(a: Int, b: Int, t: Float): Int {

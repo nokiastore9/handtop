@@ -57,3 +57,13 @@ fun ImageView.setBarIcon(@DrawableRes res: Int, usual: Int? = null) {
     val color = Themes.current.colors.taskbarIcon
     if (color != 0) setGlyph(res, color) else setThemedIcon(res, usual)
 }
+
+/**
+ * The tint of icon [res] on the taskbar: the theme's [ThemeColors.taskbarIcon] when it has one,
+ * except for the coloured icons, which keep their colours; otherwise [usual].
+ */
+fun barIconTint(colors: ThemeColors, @DrawableRes res: Int, usual: Int?): Int? = when {
+    colors.taskbarIcon == 0 -> usual
+    res in COLOURED_ICONS -> null
+    else -> colors.taskbarIcon
+}

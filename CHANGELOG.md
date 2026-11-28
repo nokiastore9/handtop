@@ -24,7 +24,8 @@ dates of the earlier ones are when they were finished.
   - **Glossy**: blue gradient title bars with rounded tops, a blue taskbar with a green Start
     button, beige bevelled controls with blue selection, colour icons. Linux programs (GTK 2,
     GTK 3, GTK 4 and libadwaita, Qt and KDE) get the classic theme in the same beige and blue.
-  Every text in both reads at 4.5 : 1 or better against its background.
+  Their colours are tested for readable text: 4.5 : 1 contrast or better on the windows, menus
+  and the taskbar.
 
 ### Fixes
 

@@ -71,6 +71,8 @@ object ClassicTheme : Theme(
         iconTint = 0,
         titleGlyph = 0,
         onAccent = 0xFFFFFFFF.toInt(),
+        taskbarWarning = 0xFFA00000.toInt(),
+        noteText = 0xFF808080.toInt(),
     ),
 ) {
     override val animations = false

@@ -3,6 +3,7 @@ package org.handtop.desktop.ui
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.InsetDrawable
 
 /** The themes HandTop can wear; [key] is how the choice is stored. */
 enum class ThemeId(val key: String) {
@@ -84,6 +85,10 @@ class ThemeColors(
     val titleGlyph: Int,
     /** Text on an [accent] fill (a chosen chip). */
     val onAccent: Int,
+    /** A warning on the taskbar itself (Linux setup failed). */
+    val taskbarWarning: Int,
+    /** The quieter second line under a choice, and a field's hint, in the classic controls. */
+    val noteText: Int,
 )
 
 /**
@@ -167,6 +172,16 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
 
     /** A flat icon button (taskbar, toolbars): only its press shows. */
     abstract fun toolButton(context: Context): Drawable
+
+    /** A tool button on the taskbar (start, programs, keyboard): its press shows in the bar's colours. */
+    open fun barButton(context: Context): Drawable = toolButton(context)
+
+    /** The keyboard button while the touchpad is on, for themes whose icons cannot change colour. */
+    open fun barButtonOn(context: Context): Drawable =
+        InsetDrawable(context.bevel(Bevel.PRESSED), context.dpi(2), context.dpi(5), context.dpi(2), context.dpi(5))
+
+    /** Hover and press feedback over a dark surface: the taskbar and the wallpaper. */
+    open fun darkFeedback(context: Context): Drawable? = context.selectableBackground()
 }
 
 /**

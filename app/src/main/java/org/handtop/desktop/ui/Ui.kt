@@ -89,6 +89,7 @@ object Palette {
     val STATUS_ICON_OFF: Int get() = Themes.current.colors.statusIconOff
     val TASKBAR_TEXT: Int get() = Themes.current.colors.taskbarText
     val TASKBAR_TEXT_DIM: Int get() = Themes.current.colors.taskbarTextDim
+    val TASKBAR_WARNING: Int get() = Themes.current.colors.taskbarWarning
     val ON_ACCENT: Int get() = Themes.current.colors.onAccent
     val CHIP: Int get() = Themes.current.colors.chip
     val CARD: Int get() = Themes.current.colors.card

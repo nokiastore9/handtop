@@ -11,6 +11,7 @@ import android.widget.TextView
 import org.handtop.desktop.R
 import org.handtop.desktop.linux.LinuxSetup
 import org.handtop.desktop.ui.Palette
+import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
 
@@ -30,7 +31,7 @@ class SetupIndicator(context: Context, onClick: () -> Unit) : LinearLayout(conte
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dpi(10), 0, dpi(10), 0)
-        background = context.selectableBackground()
+        background = Themes.current.darkFeedback(context)
         isFocusable = false
         setOnClickListener { onClick() }
         spinner.indeterminateTintList = ColorStateList.valueOf(Palette.ACCENT)
@@ -65,7 +66,7 @@ class SetupIndicator(context: Context, onClick: () -> Unit) : LinearLayout(conte
             state.failed -> {
                 visibility = View.VISIBLE
                 spinner.visibility = View.GONE
-                label.setTextColor(Palette.WARNING)
+                label.setTextColor(Palette.TASKBAR_WARNING)
                 label.text = "⚠ " + context.getString(R.string.setup_taskbar_failed)
             }
             else -> visibility = View.GONE

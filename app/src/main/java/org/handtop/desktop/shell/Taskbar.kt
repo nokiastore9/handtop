@@ -21,6 +21,7 @@ import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.barIconTint
 import org.handtop.desktop.ui.setBarIcon
 import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.showPopupMenu
@@ -103,7 +104,7 @@ class Taskbar(
         setOnClickListener { onStart(it) }
         addView(ImageView(context).apply {
             setImageResource(R.drawable.ic_handtop)
-            setColorFilter(barTint(Palette.ACCENT)!!)
+            setColorFilter(barIconTint(Themes.current.colors, R.drawable.ic_handtop, Palette.ACCENT)!!)
         }, LayoutParams(dpi(20), dpi(20)))
         addView(TextView(context).apply {
             setText(R.string.start_menu)
@@ -137,8 +138,7 @@ class Taskbar(
             if (on) keyboardButton.setColorFilter(Palette.ACCENT) else keyboardButton.setBarIcon(R.drawable.ic_keyboard)
         } else {
             // A colour icon can't change colour: the classic button stays pressed in instead.
-            keyboardButton.background = if (on) InsetDrawable(context.bevel(Bevel.PRESSED), dpi(2), dpi(5), dpi(2), dpi(5))
-            else Themes.current.toolButton(context)
+            keyboardButton.background = if (on) Themes.current.barButtonOn(context) else Themes.current.barButton(context)
         }
     }
 
@@ -155,7 +155,7 @@ class Taskbar(
             // The background first: a bevel brings its own padding, which would replace ours.
             background = Themes.current.taskButton(context, isFront, w.minimized)
             setPadding(dpi(10), 0, dpi(12), 0)
-            if (Themes.current.shadows) foreground = context.selectableBackground()
+            if (Themes.current.shadows) foreground = Themes.current.darkFeedback(context)
             tooltipText = w.title
             setOnClickListener {
                 onWindowButton()
@@ -167,7 +167,7 @@ class Taskbar(
         }
         val icon = ImageView(context).apply {
             val bitmap = w.iconBitmap
-            if (bitmap != null) setImageBitmap(bitmap) else setThemedIcon(w.iconRes, barTint(null))
+            if (bitmap != null) setImageBitmap(bitmap) else setThemedIcon(w.iconRes, barIconTint(Themes.current.colors, w.iconRes, null))
             alpha = if (w.minimized) 0.6f else 1f
         }
         item.addView(icon, LayoutParams(dpi(20), dpi(20)))
@@ -212,15 +212,12 @@ class Taskbar(
         showPopupMenu(button, at[0].toFloat(), at[1].toFloat(), entries.dropLast(1) + null + entries.last())
     }
 
-    /** The tint of an icon on the bar: the theme's [ThemeColors.taskbarIcon], or [usual]. */
-    private fun barTint(usual: Int?): Int? = Themes.current.colors.taskbarIcon.takeIf { it != 0 } ?: usual
-
     private fun iconButton(icon: Int, desc: Int, tint: Int? = null, onClick: (View) -> Unit) = ImageButton(context).apply {
         setThemedIcon(icon, tint)
         contentDescription = context.getString(desc)
         tooltipText = contentDescription
         scaleType = ImageView.ScaleType.CENTER
-        background = Themes.current.toolButton(context)
+        background = Themes.current.barButton(context)
         isFocusable = false
         setOnClickListener(onClick)
     }

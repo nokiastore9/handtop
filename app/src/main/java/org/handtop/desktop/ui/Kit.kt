@@ -87,7 +87,7 @@ fun EditText.styleField() {
     val c = Themes.current.colors
     background = context.bevel(Bevel.SUNKEN, c.field)
     setTextColor(c.text)
-    setHintTextColor(c.shadow)
+    setHintTextColor(c.noteText)
     setPadding(context.dpi(8), context.dpi(6), context.dpi(8), context.dpi(6))
 }
 
@@ -220,7 +220,7 @@ private fun Context.radioItem(label: CharSequence, sub: CharSequence?, chosen: B
     if (sub != null) addView(TextView(context).apply {
         text = sub
         textSize = 11f
-        setTextColor(Themes.current.colors.shadow)
+        setTextColor(Themes.current.colors.noteText)
         setPadding(dpi(5), 0, 0, 0)
     })
 }

@@ -62,6 +62,8 @@ object ModernTheme : Theme(
         iconTint = 0,
         titleGlyph = 0,
         onAccent = 0xFFE6EAF2.toInt(),
+        taskbarWarning = 0xFFFFB454.toInt(),
+        noteText = 0xFF8A94A8.toInt(),
     ),
 ) {
     override val animations = true

@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.StateListDrawable
 import android.view.Gravity
@@ -45,7 +46,7 @@ object SoftTheme : Theme(
         batteryLow = 0xFFE5484D.toInt(),
         batteryCharging = 0xFF46C46E.toInt(),
         keyBarBg = 0xFFE4E4E7.toInt(),
-        keyOn = 0xFF2A68C8.toInt(),
+        keyOn = 0xFF2560BA.toInt(),
         windowBg = 0xFFFAFAFB.toInt(),
         sidebarBg = 0xFFF0F0F2.toInt(),
         barBg = 0xFFEBEBED.toInt(),
@@ -66,6 +67,8 @@ object SoftTheme : Theme(
         iconTint = 0xFF3A3A40.toInt(),
         titleGlyph = 0,
         onAccent = 0xFFFFFFFF.toInt(),
+        taskbarWarning = 0xFFFFB454.toInt(),
+        noteText = 0xFF6A6A6F.toInt(),
     ),
 ) {
     override val animations = true
@@ -79,6 +82,10 @@ object SoftTheme : Theme(
 
     /** The gray of a title button at rest. */
     private const val BUTTON = 0xFFDEDEE1.toInt()
+
+    /** Hover and press over the dark taskbar and the wallpaper (the light base's ripple is dark). */
+    const val FEEDBACK_HOVER = 0x1FFFFFFF
+    const val FEEDBACK_PRESSED = 0x40FFFFFF
 
     override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
         GradientDrawable().apply {
@@ -150,4 +157,15 @@ object SoftTheme : Theme(
 
     override fun toolButton(context: Context): Drawable =
         context.selectableBackground() ?: ColorDrawable(Color.TRANSPARENT)
+
+    override fun barButton(context: Context): Drawable =
+        InsetDrawable(lightFeedback(context), context.dpi(2), context.dpi(4), context.dpi(2), context.dpi(4))
+
+    override fun darkFeedback(context: Context): Drawable = lightFeedback(context)
+
+    private fun lightFeedback(context: Context) = StateListDrawable().apply {
+        addState(intArrayOf(android.R.attr.state_pressed), roundedRect(FEEDBACK_PRESSED, context.dp(8f)))
+        addState(intArrayOf(android.R.attr.state_hovered), roundedRect(FEEDBACK_HOVER, context.dp(8f)))
+        addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
+    }
 }
