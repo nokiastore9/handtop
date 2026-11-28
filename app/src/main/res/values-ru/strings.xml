@@ -344,5 +344,4 @@
     <string name="player_previous">Предыдущий</string>
     <string name="player_play_pause">Играть или пауза</string>
     <string name="player_next">Следующий</string>
-    <string name="player_switch">Другое приложение</string>
 </resources>

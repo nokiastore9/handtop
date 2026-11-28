@@ -9,30 +9,14 @@ data class SessionInfo(val pkg: String, val playing: Boolean)
 object MediaPick {
 
     /**
-     * The one to show: the app the user picked with ⇄ while it is there; otherwise one that
-     * plays (in Android's order, recent first); otherwise the one shown last while it is there
-     * (paused, it stays); otherwise the first; none for no sessions.
+     * The one to show: one that plays (in Android's order, recent first); otherwise the one
+     * shown last while it is there (paused, it stays); otherwise the first; none for no sessions.
      */
-    fun choose(sessions: List<SessionInfo>, picked: String?, lastShown: String?): String? {
-        if (picked != null && sessions.any { it.pkg == picked }) return picked
+    fun choose(sessions: List<SessionInfo>, lastShown: String?): String? {
         sessions.firstOrNull { it.playing }?.let { return it.pkg }
         if (lastShown != null && sessions.any { it.pkg == lastShown }) return lastShown
         return sessions.firstOrNull()?.pkg
     }
-
-    /** ⇄: the session after [current], round the list; the first when [current] is not in it. */
-    fun next(sessions: List<SessionInfo>, current: String?): String? {
-        if (sessions.isEmpty()) return null
-        val i = sessions.indexOfFirst { it.pkg == current }
-        return sessions[(i + 1) % sessions.size].pkg
-    }
-
-    /**
-     * The ⇄ pick after session [pkg] changed: another app that starts playing ends it (the
-     * widget shows what plays now); anything else keeps it.
-     */
-    fun pickAfterChange(picked: String?, pkg: String, wasPlaying: Boolean, nowPlaying: Boolean): String? =
-        if (picked != null && pkg != picked && !wasPlaying && nowPlaying) null else picked
 
     /** The title, or the app's name for a session without one. */
     fun title(title: String?, appName: String): String = title?.takeIf { it.isNotBlank() } ?: appName

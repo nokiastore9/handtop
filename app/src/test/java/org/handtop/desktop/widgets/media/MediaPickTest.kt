@@ -15,40 +15,19 @@ class MediaPickTest {
     private val seekTo = 1L shl 8
 
     @Test
-    fun playingWinsWithoutAPick() = assertEquals(yt.pkg, MediaPick.choose(listOf(ym, yt), null, null))
+    fun playingWinsWithoutAPick() = assertEquals(yt.pkg, MediaPick.choose(listOf(ym, yt), null))
 
     @Test
-    fun aPickHolds() = assertEquals(ym.pkg, MediaPick.choose(listOf(yt, ym), ym.pkg, yt.pkg))
+    fun pausedLastShownStays() = assertEquals(ym.pkg, MediaPick.choose(listOf(SessionInfo("a", false), ym), ym.pkg))
 
     @Test
-    fun chooseSkipsAPickThatIsGone() = assertEquals(yt.pkg, MediaPick.choose(listOf(yt), ym.pkg, null))
+    fun firstWhenNothingElse() = assertEquals("a", MediaPick.choose(listOf(SessionInfo("a", false), ym), "gone"))
 
     @Test
-    fun pausedLastShownStays() = assertEquals(ym.pkg, MediaPick.choose(listOf(SessionInfo("a", false), ym), null, ym.pkg))
+    fun aPlayingAppWinsOverThePausedOneShown() = assertEquals(yt.pkg, MediaPick.choose(listOf(ym, yt), ym.pkg))
 
     @Test
-    fun firstWhenNothingElse() = assertEquals("a", MediaPick.choose(listOf(SessionInfo("a", false), ym), null, "gone"))
-
-    @Test
-    fun noneWhenEmpty() = assertNull(MediaPick.choose(emptyList(), "x", "y"))
-
-    @Test
-    fun nextCycles() {
-        val list = listOf(yt, ym, SessionInfo("c", false))
-        assertEquals(ym.pkg, MediaPick.next(list, yt.pkg))
-        assertEquals(yt.pkg, MediaPick.next(list, "c"))
-        assertEquals(yt.pkg, MediaPick.next(list, null))
-        assertNull(MediaPick.next(emptyList(), null))
-    }
-
-    @Test
-    fun anotherAppStartingDropsThePick() {
-        assertNull(MediaPick.pickAfterChange(ym.pkg, yt.pkg, wasPlaying = false, nowPlaying = true))
-        assertEquals(ym.pkg, MediaPick.pickAfterChange(ym.pkg, yt.pkg, wasPlaying = true, nowPlaying = true)) // a position update
-        assertEquals(ym.pkg, MediaPick.pickAfterChange(ym.pkg, ym.pkg, wasPlaying = false, nowPlaying = true)) // the picked one itself
-        assertEquals(ym.pkg, MediaPick.pickAfterChange(ym.pkg, yt.pkg, wasPlaying = true, nowPlaying = false)) // another one paused
-        assertNull(MediaPick.pickAfterChange(null, yt.pkg, wasPlaying = false, nowPlaying = true))
-    }
+    fun noneWhenEmpty() = assertNull(MediaPick.choose(emptyList(), "y"))
 
     @Test
     fun titleFallsBackToTheAppName() {

@@ -32,8 +32,8 @@ import org.handtop.desktop.widgets.media.MediaTime
 
 /**
  * What plays through Android's media sessions (YouTube in the background, music apps, later
- * HandTop's own player): cover, title, artist, the app, a seek bar with the time, ⏮ ⏯ ⏭, and ⇄
- * between apps playing at once. A tap opens the app. Watches sessions only while shown.
+ * HandTop's own player): cover, title, artist, the app, a seek bar with the time, ⏮ ⏯ ⏭. With
+ * several apps, the one playing now. A tap opens the app. Watches sessions only while shown.
  */
 @SuppressLint("ViewConstructor")
 class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, WidgetKind.PLAYER, host) {
@@ -48,7 +48,6 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
     }
     private val title = label(13f).apply { setTypeface(typeface, Typeface.BOLD) }
     private val artist = label(11f, dim = true)
-    private val switch = glyph(R.drawable.player_switch, R.string.player_switch, colors.textDim, 16)
     private val app = label(10f, dim = true)
     private val seek = SeekBar(context).apply {
         max = SEEK_MAX
@@ -60,6 +59,11 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
         }
         splitTrack = false
         setPadding(dpi(6), 0, dpi(6), 0)
+        // A thin track in a taller touch area.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            minHeight = dpi(5)
+            maxHeight = dpi(5)
+        }
     }
     private val elapsed = label(10f, dim = true)
     private val length = label(10f, dim = true)
@@ -89,7 +93,6 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
     }
 
     private var active = false
-    private var picked: String? = null
     private var lastShown: String? = null
     private var shown: MediaController? = null
     private var coverKey: String? = null
@@ -112,12 +115,7 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
                 orientation = LinearLayout.VERTICAL
                 addView(title)
                 addView(artist)
-                addView(LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    addView(switch, LinearLayout.LayoutParams(dpi(22), dpi(18)).apply { marginEnd = dpi(2) })
-                    addView(app)
-                }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dpi(2) })
+                addView(app, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dpi(2) })
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         content.addView(seek, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpi(20)).apply { topMargin = dpi(4) })
@@ -142,10 +140,6 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
         play.setOnClickListener { control { c -> if (MediaSessions.isPlaying(c)) c.transportControls.pause() else c.transportControls.play() } }
         prev.setOnClickListener { control { it.transportControls.skipToPrevious() } }
         next.setOnClickListener { control { it.transportControls.skipToNext() } }
-        switch.setOnClickListener {
-            picked = MediaPick.next(sessions.infos(), lastShown)
-            render()
-        }
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
                 if (fromUser) elapsed.text = MediaTime.format(progress.toLong() * duration() / SEEK_MAX)
@@ -188,17 +182,12 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
             return
         }
         if (!Notifications.isAccessGranted(context)) return showMessage(R.string.widget_player_no_access, access = true)
-        val watching = sessions.start { started ->
-            if (started != null) picked = MediaPick.pickAfterChange(picked, started, wasPlaying = false, nowPlaying = true)
-            render()
-        }
+        val watching = sessions.start { render() }
         if (!watching) showMessage(R.string.widget_player_no_access, access = true)
     }
 
     private fun render() {
-        val infos = sessions.infos()
-        if (picked != null && infos.none { it.pkg == picked }) picked = null
-        val pkg = MediaPick.choose(infos, picked, lastShown)
+        val pkg = MediaPick.choose(sessions.infos(), lastShown)
         val c = sessions.controllers.firstOrNull { it.packageName == pkg }
         shown = c
         removeCallbacks(tick)
@@ -216,7 +205,6 @@ class PlayerWidget(context: Context, host: WidgetHost) : WidgetView(context, Wid
         artist.text = by.orEmpty()
         artist.visibility = if (by.isNullOrBlank()) GONE else VISIBLE
         app.text = appName
-        switch.visibility = if (infos.size > 1) VISIBLE else GONE
 
         val key = c.packageName + "\u0000" + name
         if (key != coverKey) {
