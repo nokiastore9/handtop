@@ -313,4 +313,9 @@
     <string name="widget_clock_12">12 часов</string>
     <string name="widget_clock_no_seconds">Без секунд</string>
     <string name="widget_clock_seconds">С секундами</string>
+    <string name="widget_linux_cpu">Процессор</string>
+    <string name="widget_linux_memory">Память</string>
+    <string name="widget_linux_not_installed">Linux не установлен</string>
+    <string name="widget_linux_not_running">Linux не запущен</string>
+    <string name="widget_gb">ГБ</string>
 </resources>

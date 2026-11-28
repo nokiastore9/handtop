@@ -93,7 +93,6 @@ object LinuxEnv {
      * running under proot shows in /proc.
      */
     private fun killLinuxProcesses(context: Context) {
-        val nativeDir = context.applicationInfo.nativeLibraryDir
         val self = android.os.Process.myPid()
         var killed = 0
         for (dir in File("/proc").listFiles() ?: emptyArray()) {
@@ -104,7 +103,7 @@ object LinuxEnv {
             } catch (_: Exception) {
                 continue
             }
-            if (exe == "$nativeDir/libproot.so" || exe == "$nativeDir/libproot-loader.so") {
+            if (isProotExe(context, exe)) {
                 try {
                     Os.kill(pid, OsConstants.SIGKILL)
                     killed++
@@ -114,6 +113,12 @@ object LinuxEnv {
             }
         }
         if (killed > 0) Log.i("HandTopLinux", "stopped $killed Linux processes")
+    }
+
+    /** Whether [exe] (a /proc/<pid>/exe link) is proot or its loader: a Linux process of this app. */
+    fun isProotExe(context: Context, exe: String): Boolean {
+        val nativeDir = context.applicationInfo.nativeLibraryDir
+        return exe == "$nativeDir/libproot.so" || exe == "$nativeDir/libproot-loader.so"
     }
 
     /**

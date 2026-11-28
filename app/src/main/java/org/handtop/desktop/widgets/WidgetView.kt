@@ -64,6 +64,7 @@ abstract class WidgetView(context: Context, val kind: WidgetKind, protected val 
 /** The view for [kind]. */
 fun widgetView(context: Context, kind: WidgetKind, host: WidgetHost): WidgetView = when (kind) {
     WidgetKind.CLOCK -> ClockWidget(context, host)
+    WidgetKind.LINUX -> LinuxWidget(context, host)
     else -> PlaceholderWidget(context, kind, host)
 }
 

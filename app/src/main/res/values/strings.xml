@@ -303,4 +303,9 @@
     <string name="widget_clock_12">12-hour</string>
     <string name="widget_clock_no_seconds">No seconds</string>
     <string name="widget_clock_seconds">Seconds</string>
+    <string name="widget_linux_cpu">Processor</string>
+    <string name="widget_linux_memory">Memory</string>
+    <string name="widget_linux_not_installed">Linux is not installed</string>
+    <string name="widget_linux_not_running">Linux is not running</string>
+    <string name="widget_gb">GB</string>
 </resources>
