@@ -27,6 +27,9 @@ dates of the earlier ones are when they were finished.
     kilometre leave the phone; no account or key.
   - Linux: the processor and memory Linux uses (with HandTop), every 2 seconds; a tap opens
     Linux System.
+  - Player: what plays in Android apps (YouTube in the background, music apps) with its cover,
+    a seek bar with the time and previous / play-pause / next; a tap opens the app. It uses the
+    notification access HandTop already asks for.
 - Two more themes, in Settings → Desktop → Theme:
   - **Soft**: light windows whose title bar is the window's own colour, the title centered,
     round gray title buttons, rounded corners and shadows, a dark taskbar. Linux programs keep
