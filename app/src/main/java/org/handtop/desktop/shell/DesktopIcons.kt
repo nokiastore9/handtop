@@ -150,11 +150,12 @@ class DesktopIcons(
         when (shortcut) {
             is Shortcut.BuiltIn -> {
                 val (drawable, name) = builtIn(shortcut.id)
-                icon.setThemedIcon(drawable)
+                icon.setThemedIcon(drawable, onWallpaper = true)
                 label.setText(name)
             }
             is Shortcut.LinuxProgram -> {
-                icon.setThemedIcon(R.drawable.ic_app_generic, Palette.TEXT_SOFT) // until its own icon is read
+                // Until its own icon is read; white on a light theme's wallpaper, whose gray is dark.
+                icon.setThemedIcon(R.drawable.ic_app_generic, if (Themes.current.light) null else Palette.TEXT_SOFT, onWallpaper = true)
                 label.text = shortcut.name
                 loadLinuxIcon(shortcut, icon)
             }

@@ -21,16 +21,20 @@ object ClassicIcons {
     fun forBase(@DrawableRes res: Int): Int = map[res] ?: res
 }
 
+/** HandTop's icons that have colours of their own: a theme's [ThemeColors.iconTint] leaves them alone. */
+internal val COLOURED_ICONS = setOf(R.drawable.ic_files, R.drawable.ic_linux)
+
 /**
  * One of HandTop's icons in the current theme: the white icon tinted [tint] (or the theme's
  * [ThemeColors.iconTint], or as it is) in the modern look, the colour icon untinted in the
- * classic one.
+ * classic one. An icon [onWallpaper] (the desktop's) stays white, whatever the theme.
  */
-fun ImageView.setThemedIcon(@DrawableRes res: Int, tint: Int? = null) {
+fun ImageView.setThemedIcon(@DrawableRes res: Int, tint: Int? = null, onWallpaper: Boolean = false) {
     imageTintList = null
     if (Themes.current.tintIcons) {
         setImageResource(res)
-        val color = tint ?: Themes.current.colors.iconTint.takeIf { it != 0 }
+        val themeTint = Themes.current.colors.iconTint.takeIf { it != 0 && !onWallpaper && res !in COLOURED_ICONS }
+        val color = tint ?: themeTint
         if (color != null) setColorFilter(color) else clearColorFilter()
     } else {
         setImageResource(ClassicIcons.forBase(res))
