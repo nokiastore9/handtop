@@ -119,6 +119,11 @@
     <string name="settings_touchpad_check">Экран как тачпад</string>
     <string name="settings_touchpad_on">Включён</string>
     <string name="settings_touchpad_off">Выключен</string>
+    <string name="settings_linux_keys_title">Клавиши над клавиатурой</string>
+    <string name="settings_linux_keys_text">Пока экранная клавиатура печатает в программу Linux, над ней строка клавиш, которых на ней нет: Esc, Tab, Ctrl, Alt, Shift, стрелки, Home, End, Page Up, Page Down и Delete. Ctrl, Alt и Shift действуют на следующую клавишу — из строки или букву с клавиатуры (Ctrl, затем S — сохранить). У терминала свои клавиши.</string>
+    <string name="settings_linux_keys_check">Клавиши над клавиатурой</string>
+    <string name="settings_linux_keys_on">Включены</string>
+    <string name="settings_linux_keys_off">Выключены</string>
     <string name="touchpad_off">Снова управление касанием</string>
     <string name="launchpad_nothing">Ничего не найдено по запросу «%1$s»</string>
     <string name="wallpaper_title">Обои</string>

@@ -10,6 +10,13 @@ dates of the earlier ones are when they were finished.
 - Drag and drop works with X11 programs too: drop files from Files or a Wayland program into an
   X11 window (Thunar and other programs running under X11), and drag files out of an X11
   program into Files, a Wayland program or another X11 window.
+- Keys the phone keyboard lacks, for Linux programs: while the on-screen keyboard types into a
+  Linux window, a row above it has Esc, Tab, Ctrl, Alt, Shift, the arrows, Home, End, Page Up,
+  Page Down and Delete. Ctrl, Alt and Shift hold for the next key, from the row or a letter on
+  the keyboard (Ctrl, then S: save). Settings → Display turns the row off.
+- The on-screen keyboard sees the text around the caret in GTK and Qt programs (Wayland): it can
+  autocorrect, suggest and capitalize from the context, and a word it corrects is replaced at
+  once instead of being erased key by key.
 
 ### Fixes
 

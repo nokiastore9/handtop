@@ -114,6 +114,7 @@ class WaylandWindowContent(
         requestFocus()
         server.textInputs.addListener(textInputListener)
         server.textInputs.addCommitListener(textInputCommitListener)
+        server.keyLatch.addListener(latchListener)
         server.seat.setKeyboardFocus(toplevel.surface)
         sendState()
     }
@@ -134,6 +135,17 @@ class WaylandWindowContent(
     private var menuSinceFieldLost = false
     private val textInputListener: () -> Unit = { textInputChanged() }
     private val textInputCommitListener: () -> Unit = { textInputCommitted() }
+    /** The keyboard's connection now, told where the program's caret is. */
+    private var connection: WaylandInputConnection? = null
+    /** Ctrl or Alt latched on the key row: the keyboard sends plain keys meanwhile. */
+    private var keysOnly = false
+    private val latchListener: () -> Unit = {
+        val now = server.keyLatch.holdsShortcut()
+        if (now != keysOnly) {
+            keysOnly = now
+            if (isFocused) imm?.restartInput(this)
+        }
+    }
 
     // The last finger tap, to tell whether the program answered it with a text field.
     private var tapAt = 0L
@@ -163,8 +175,9 @@ class WaylandWindowContent(
     private fun ownTextInput() = server.textInputs.active()?.takeIf { it.client === toplevel.client }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
-        WaylandInputConnection.editorInfo(outAttrs, server.textInputs.active())
-        return WaylandInputConnection(this, server)
+        keysOnly = server.keyLatch.holdsShortcut()
+        WaylandInputConnection.editorInfo(outAttrs, server.textInputs.active(), keysOnly)
+        return WaylandInputConnection(this, server).also { connection = it }
     }
 
     /** Taskbar keyboard button. */
@@ -255,6 +268,7 @@ class WaylandWindowContent(
     /** The program answered something soon after a tap: maybe its field, a moment later. */
     private fun textInputCommitted() {
         val input = ownTextInput()
+        if (input != null && isFocused) imm?.let { connection?.reportSelection(it) }
         if (KeyboardPolicy.restoresField(tapActivated, fieldWhenDeactivated, tapRestored, input)) {
             // The window's own field came back with the focus: the tap is measured from here.
             tapRestored = true
@@ -302,6 +316,7 @@ class WaylandWindowContent(
         fieldWhenDeactivated = ownTextInput() != null
         server.textInputs.removeListener(textInputListener)
         server.textInputs.removeCommitListener(textInputCommitListener)
+        server.keyLatch.removeListener(latchListener)
         removeCallbacks(checkTapAnswer)
         awaitingTapAnswer = false
         keyboardRequested = false
@@ -321,6 +336,8 @@ class WaylandWindowContent(
 
     override fun onClosed() {
         server.textInputs.removeListener(textInputListener)
+        server.textInputs.removeCommitListener(textInputCommitListener)
+        server.keyLatch.removeListener(latchListener)
         popupLayer.unregister(this)
         if (toplevel.view === this) toplevel.view = null
         toplevel.surface.onCommit = null

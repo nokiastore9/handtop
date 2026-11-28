@@ -123,6 +123,11 @@
     <string name="settings_touchpad_check">Use the screen as a touchpad</string>
     <string name="settings_touchpad_on">On</string>
     <string name="settings_touchpad_off">Off</string>
+    <string name="settings_linux_keys_title">Keys above the keyboard</string>
+    <string name="settings_linux_keys_text">While the on-screen keyboard types into a Linux program, a row of keys it lacks shows above it: Esc, Tab, Ctrl, Alt, Shift, the arrows, Home, End, Page Up, Page Down and Delete. Ctrl, Alt and Shift hold for the next key, from the row or a letter on the keyboard (Ctrl, then S: save). The terminal has keys of its own.</string>
+    <string name="settings_linux_keys_check">Keys above the keyboard</string>
+    <string name="settings_linux_keys_on">On</string>
+    <string name="settings_linux_keys_off">Off</string>
     <string name="touchpad_off">Touch control again</string>
     <string name="launchpad_nothing">Nothing found for “%1$s”</string>
     <string name="wallpaper_title">Wallpaper</string>

@@ -89,6 +89,9 @@ HandTop needs Android 8.0 or newer on a 64-bit ARM phone. GPU acceleration needs
   files in Android apps (`handtop-open`)
 - **On-screen keyboard only when you touch a text field**, as on Android: not when a window opens
   with its field active or a program moves the focus
+- **Keys the phone keyboard lacks** above it in Linux programs (Esc, Tab, Ctrl, Alt, Shift,
+  arrows, Home/End, Page Up/Down, Delete; Ctrl then a letter makes a shortcut), and the keyboard
+  sees the text around the caret in GTK and Qt programs for autocorrection and suggestions
 - Phone storage in Linux as `/sdcard` (optional "All files access")
 - Settings in categories: display, desktop, notifications, Linux, graphics and sound, Android
 - Android Terminal (the system shell), several terminals at once

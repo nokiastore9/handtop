@@ -45,6 +45,7 @@ import org.handtop.desktop.shell.AboutContent
 import org.handtop.desktop.shell.BackAction
 import org.handtop.desktop.shell.DesktopIcons
 import org.handtop.desktop.shell.Launchpad
+import org.handtop.desktop.shell.LinuxKeysBar
 import org.handtop.desktop.shell.SettingsContent
 import org.handtop.desktop.shell.Shortcut
 import org.handtop.desktop.shell.Shortcuts
@@ -93,6 +94,11 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private lateinit var column: LinearLayout
     private lateinit var area: DesktopArea
     private lateinit var taskbar: Taskbar
+    /** Keys phone keyboards lack, above the on-screen keyboard while it types into a Linux program. */
+    private lateinit var linuxKeys: LinuxKeysBar
+    /** The on-screen keyboard is up, and how much of the usual desktop it covers. */
+    private var imeUp = false
+    private var imeCover = 0
     private lateinit var wallpaper: WallpaperDrawable
     /** The wallpaper as a layer of its own, so the launchpad can blur it with the rest. */
     private lateinit var wallpaperView: View
@@ -174,7 +180,11 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             onApps = { if (launchpad.isOpen) launchpad.close() else openLinuxApps() },
             onWindowButton = { launchpad.close() },
         )
-        area.listener = taskbar
+        area.listener = DesktopArea.Listener {
+            taskbar.onWindowsChanged()
+            updateLinuxKeys()
+        }
+        linuxKeys = LinuxKeysBar(this, WaylandServer.get(this)).apply { visibility = View.GONE }
         // Folders dragged from a file manager onto the desktop become shortcuts.
         area.setOnDragListener { _, e ->
             val drag = e.localState as? FileDrag ?: return@setOnDragListener false
@@ -210,9 +220,12 @@ class DesktopActivity : Activity(), WaylandServer.Host {
         column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(desktop, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+            addView(linuxKeys, LinearLayout.LayoutParams(MATCH_PARENT, dpi(LINUX_KEYS_DP)))
             addView(taskbar, LinearLayout.LayoutParams(MATCH_PARENT, dpi(48)))
         }
         root = FrameLayout(this).apply { addView(column) }
+        // The keyboard follows the focus: so does the key row (a search field over a Linux window).
+        root.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> updateLinuxKeys() }
         setContentView(root)
         touchpad = Touchpad(root) { x, y -> taskbar.isKeyboardButtonAt(x, y) }
         root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> touchpad.resize() }
@@ -232,7 +245,9 @@ class DesktopActivity : Activity(), WaylandServer.Host {
             column.setPadding(bars.left, bars.top, bars.right, if (imeVisible) ime.bottom else bars.bottom)
             // While typing on a phone every pixel counts: hide the taskbar.
             taskbar.visibility = if (imeVisible) View.GONE else View.VISIBLE
-            area.keyboardCover = if (imeVisible) (ime.bottom - bars.bottom - taskbar.layoutParams.height).coerceAtLeast(0) else 0
+            imeUp = imeVisible
+            imeCover = ime.bottom - bars.bottom - taskbar.layoutParams.height
+            updateLinuxKeys()
             WindowInsetsCompat.CONSUMED
         }
 
@@ -439,6 +454,17 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+
+    /**
+     * The key row shows while the on-screen keyboard types into a Linux program's window (not
+     * the terminal, it has its own keys, nor HandTop's own fields), unless turned off in Settings.
+     */
+    private fun updateLinuxKeys() {
+        val show = imeUp && LinuxKeysBar.enabled(this) && currentFocus is WaylandWindowContent
+        val visibility = if (show) View.VISIBLE else View.GONE
+        if (linuxKeys.visibility != visibility) linuxKeys.visibility = visibility
+        area.keyboardCover = if (imeUp) (imeCover + if (show) dpi(LINUX_KEYS_DP) else 0).coerceAtLeast(0) else 0
+    }
 
     /** A long press on the keyboard button: the screen as a touchpad, or back to touch. */
     private fun toggleTouchpad() {
@@ -658,6 +684,8 @@ class DesktopActivity : Activity(), WaylandServer.Host {
     private companion object {
         const val STATE_SETTINGS_OPEN = "settings_open"
         const val REQUEST_WALLPAPER = 2
+        /** Height of the key row above the on-screen keyboard. */
+        const val LINUX_KEYS_DP = 40
 
         /** The touchpad was on: it stays on when the activity is re-created. */
         var touchpadWanted = false

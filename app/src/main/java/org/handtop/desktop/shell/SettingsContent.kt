@@ -113,6 +113,17 @@ class SettingsContent(
         toggleTouchpad()
         refreshTouchpad()
     }
+    private val linuxKeys = OnOff(
+        context,
+        checkLabel = context.getString(R.string.settings_linux_keys_check),
+        statusOn = context.getString(R.string.settings_linux_keys_on),
+        statusOff = context.getString(R.string.settings_linux_keys_off),
+        turnOn = context.getString(R.string.settings_gpu_turn_on),
+        turnOff = context.getString(R.string.settings_gpu_turn_off),
+    ) {
+        LinuxKeysBar.setEnabled(context, !LinuxKeysBar.enabled(context))
+        refreshTouchpad()
+    }
     private val restoreIconsButton = context.pushButton()
     private val desktopListener: () -> Unit = { refreshDesktop() }
     private val gpuButton = context.pushButton()
@@ -204,6 +215,11 @@ class SettingsContent(
             addView(group(R.string.settings_touchpad_title).apply {
                 addView(body(R.string.settings_touchpad_text))
                 addView(touchpad)
+            })
+            // Keys phone keyboards lack, above the keyboard while it types into a Linux program.
+            addView(group(R.string.settings_linux_keys_title).apply {
+                addView(body(R.string.settings_linux_keys_text))
+                addView(linuxKeys)
             })
         }
 
@@ -454,6 +470,7 @@ class SettingsContent(
 
     fun refreshTouchpad() {
         touchpad.set(touchpadOn())
+        linuxKeys.set(LinuxKeysBar.enabled(context))
     }
 
     private fun refreshDesktop() {
@@ -628,7 +645,7 @@ class SettingsContent(
         LinearLayout.LayoutParams.WRAP_CONTENT,
     )
 
-    private companion object {
+    companion object {
         const val PREFS = "settings"
         const val KEY_CATEGORY = "category"
         /** Narrower than this, the list and a page take turns. */

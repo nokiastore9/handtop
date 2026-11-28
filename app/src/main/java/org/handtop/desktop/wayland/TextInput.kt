@@ -1,11 +1,6 @@
 package org.handtop.desktop.wayland
 
 import android.text.InputType
-import android.view.KeyCharacterMap
-import android.view.KeyEvent
-import android.view.View
-import android.view.inputmethod.BaseInputConnection
-import android.view.inputmethod.EditorInfo
 
 /**
  * zwp_text_input_v3: how a Linux program takes text from an input method — here Android's
@@ -101,11 +96,16 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
     var cursorHeight = 0
         private set
 
+    /** What the program last said is around its caret; null when it does not say. */
+    var surrounding: SurroundingText? = null
+        private set
+
     private var pendingEnabled = false
     private var pendingHint = 0
     private var pendingPurpose = 0
     private var pendingCursorY = 0
     private var pendingCursorHeight = 0
+    private var pendingSurrounding: SurroundingText? = null
     /** Number of commit requests received; echoed in done so the client can match state. */
     var commits = 0
         private set
@@ -117,9 +117,15 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
                 pendingEnabled = true
                 pendingHint = 0
                 pendingPurpose = 0
+                pendingSurrounding = null
             }
             2 -> pendingEnabled = false // disable
-            3 -> { r.string(); r.int(); r.int() } // set_surrounding_text (keyboards get no context yet)
+            3 -> { // set_surrounding_text(text, cursor, anchor): byte offsets into the text
+                val text = r.string() ?: ""
+                val cursor = r.int()
+                val anchor = r.int()
+                pendingSurrounding = SurroundingText(text, cursor, anchor)
+            }
             4 -> r.uint() // set_text_change_cause
             5 -> { pendingHint = r.uint(); pendingPurpose = r.uint() } // set_content_type
             6 -> { // set_cursor_rectangle(x, y, width, height)
@@ -141,6 +147,7 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
         contentPurpose = pendingPurpose
         cursorY = pendingCursorY
         cursorHeight = pendingCursorHeight
+        surrounding = pendingSurrounding
         // Only real changes reach the keyboard (programs commit on every cursor move).
         if (changed) client.server.textInputs.changed()
         client.server.textInputs.committed()
@@ -174,6 +181,27 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
         done()
     }
 
+    /**
+     * Deletes [beforeBytes] before the caret and [afterBytes] after it (UTF-8 bytes). A
+     * composition in progress is sent again: without it the program would drop it.
+     */
+    fun deleteSurrounding(beforeBytes: Int, afterBytes: Int, preedit: String? = null) {
+        event(4) { uint(beforeBytes); uint(afterBytes) }
+        if (preedit != null) {
+            val end = preedit.toByteArray().size
+            event(2) { string(preedit); int(end); int(end) }
+        }
+        done()
+    }
+
+    /** Text the program already has around the caret becomes a composition again. */
+    fun recompose(region: SurroundingText.Region) {
+        event(4) { uint(region.beforeBytes); uint(region.afterBytes) }
+        val end = region.text.toByteArray().size
+        event(2) { string(region.text); int(end); int(end) }
+        done()
+    }
+
     private fun done() {
         event(5) { uint(commits) }
         client.flush()
@@ -193,8 +221,10 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
         private const val PURPOSE_PIN = 9
         private const val PURPOSE_TERMINAL = 13
         // content_hint
+        private const val HINT_SPELLCHECK = 0x2
         private const val HINT_AUTO_CAPITALIZATION = 0x4
         private const val HINT_HIDDEN_TEXT = 0x40
+        private const val HINT_SENSITIVE_DATA = 0x80
         private const val HINT_MULTILINE = 0x200
 
         /** Android input type for what the program said its text field holds. */
@@ -204,8 +234,11 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
                 return InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
                     InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             }
-            val hint = input.contentHint
-            return when (input.contentPurpose) {
+            return inputTypeFor(input.contentPurpose, input.contentHint)
+        }
+
+        fun inputTypeFor(purpose: Int, hint: Int): Int {
+            return when (purpose) {
                 PURPOSE_DIGITS, PURPOSE_NUMBER -> InputType.TYPE_CLASS_NUMBER
                 PURPOSE_PIN -> InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
                 PURPOSE_PHONE -> InputType.TYPE_CLASS_PHONE
@@ -218,83 +251,17 @@ class TextInput(client: Client, id: Int) : Resource(client, id, 1) {
                     InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                 else -> {
                     var type = InputType.TYPE_CLASS_TEXT
-                    if (hint and HINT_HIDDEN_TEXT != 0) type = type or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                    type = type or when {
+                        hint and HINT_HIDDEN_TEXT != 0 -> InputType.TYPE_TEXT_VARIATION_PASSWORD
+                        hint and HINT_SENSITIVE_DATA != 0 -> InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                        hint and HINT_SPELLCHECK != 0 -> InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
+                        else -> 0
+                    }
                     if (hint and HINT_MULTILINE != 0) type = type or InputType.TYPE_TEXT_FLAG_MULTI_LINE
                     if (hint and HINT_AUTO_CAPITALIZATION != 0) type = type or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
                     type
                 }
             }
-        }
-    }
-}
-
-/**
- * Android keyboard → Linux program. With an enabled text input, text and compositions go
- * through it (any language, word predictions); without one, text is typed as US-layout keys.
- */
-class WaylandInputConnection(view: View, private val server: WaylandServer) : BaseInputConnection(view, false) {
-
-    private var composing: String? = null
-    private val active get() = server.textInputs.active()
-
-    override fun commitText(text: CharSequence, newCursorPosition: Int): Boolean {
-        composing = null
-        val input = active
-        if (input != null) input.commitString(text.toString()) else typeAsKeys(text)
-        return true
-    }
-
-    override fun setComposingText(text: CharSequence, newCursorPosition: Int): Boolean {
-        composing = text.toString()
-        active?.preedit(text.toString()) // without a text input it is typed when finished
-        return true
-    }
-
-    override fun finishComposingText(): Boolean {
-        val text = composing ?: return true
-        composing = null
-        val input = active
-        if (input != null) input.commitString(text) else typeAsKeys(text)
-        return true
-    }
-
-    override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-        repeat(beforeLength) { tap(KeyEvent.KEYCODE_DEL) }
-        repeat(afterLength) { tap(KeyEvent.KEYCODE_FORWARD_DEL) }
-        return true
-    }
-
-    override fun sendKeyEvent(event: KeyEvent): Boolean {
-        server.seat.key(event)
-        return true
-    }
-
-    override fun performEditorAction(actionCode: Int): Boolean {
-        tap(KeyEvent.KEYCODE_ENTER)
-        return true
-    }
-
-    override fun getTextBeforeCursor(n: Int, flags: Int): CharSequence = ""
-    override fun getTextAfterCursor(n: Int, flags: Int): CharSequence = ""
-
-    private fun tap(keyCode: Int) {
-        server.seat.key(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-        server.seat.key(KeyEvent(KeyEvent.ACTION_UP, keyCode))
-    }
-
-    /** Text as key presses of the virtual keyboard map (letters, digits, punctuation, Enter). */
-    private fun typeAsKeys(text: CharSequence) {
-        val events = keyMap.getEvents(text.toString().toCharArray()) ?: return
-        for (e in events) server.seat.key(e)
-    }
-
-    companion object {
-        private val keyMap: KeyCharacterMap by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }
-
-        fun editorInfo(out: EditorInfo, input: TextInput?) {
-            out.inputType = TextInput.inputTypeFor(input)
-            out.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN or EditorInfo.IME_FLAG_NO_EXTRACT_UI or
-                EditorInfo.IME_ACTION_NONE
         }
     }
 }

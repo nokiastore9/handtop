@@ -54,6 +54,8 @@ class WaylandServer private constructor(private val app: Context) {
     val clipboard = Clipboard(this, app)
     val dnd = DragAndDrop(this)
     val textInputs = TextInputs(this)
+    /** Ctrl, Alt and Shift latched on HandTop's key row above the on-screen keyboard. */
+    val keyLatch = KeyLatch()
     /** XKB keymap text sent to clients, NUL-terminated as libxkbcommon expects. */
     val keymap: ByteArray = app.assets.open("keymap-us.xkb").use { it.readBytes() } + byteArrayOf(0)
 
