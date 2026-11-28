@@ -86,7 +86,7 @@ object SoftTheme : Theme(
             cornerRadius = if (floating) context.dp(12f) else 0f
         }
 
-    override fun titleBar(context: Context, active: Boolean): Drawable? = null
+    override fun titleBar(context: Context, active: Boolean, floating: Boolean): Drawable? = null
 
     /** A round button of 24 dp in the middle of the title button's area; close is no different. */
     override fun titleButton(context: Context, close: Boolean, checked: Boolean): Drawable = StateListDrawable().apply {

@@ -33,6 +33,7 @@ import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
 import org.handtop.desktop.ui.ThemeColors
+import org.handtop.desktop.ui.setGlyph
 import org.handtop.desktop.ui.setThemedIcon
 
 /**
@@ -202,7 +203,7 @@ class DesktopWindow(
         val theme = Themes.current
         val floating = mode == Mode.NORMAL
         background = theme.windowFrame(context, isActiveWindow, floating)
-        titleBar.background = theme.titleBar(context, isActiveWindow)
+        titleBar.background = theme.titleBar(context, isActiveWindow, floating)
         val pad = if (floating) border else 0
         setPadding(pad, pad, pad, pad)
         titleView.setTextColor(if (isActiveWindow) Palette.TITLE_TEXT_ACTIVE else Palette.TITLE_TEXT_INACTIVE)
@@ -227,10 +228,7 @@ class DesktopWindow(
     /** A title button's glyph: in the theme's [ThemeColors.titleGlyph] colour when it has one (the white icon, tinted). */
     private fun ImageView.setTitleGlyph(@DrawableRes icon: Int) {
         val glyph = Themes.current.colors.titleGlyph
-        if (glyph == 0) return setThemedIcon(icon)
-        imageTintList = null
-        setImageResource(icon)
-        setColorFilter(glyph)
+        if (glyph == 0) setThemedIcon(icon) else setGlyph(icon, glyph)
     }
 
     // ---- dragging by the title bar ----

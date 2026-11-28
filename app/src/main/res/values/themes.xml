@@ -31,4 +31,15 @@
     <style name="HandTop.ClassicCalendar" parent="@android:style/Theme.Material.Light">
         <item name="android:colorAccent">#FF000080</item>
     </style>
+
+    <!-- The same for the glossy theme, in its blue. -->
+    <style name="HandTop.GlossyDialog" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">#FF316AC5</item>
+        <item name="android:textColorPrimary">#FF000000</item>
+        <item name="android:textColorSecondary">#FF000000</item>
+    </style>
+
+    <style name="HandTop.GlossyCalendar" parent="@android:style/Theme.Material.Light">
+        <item name="android:colorAccent">#FF316AC5</item>
+    </style>
 </resources>

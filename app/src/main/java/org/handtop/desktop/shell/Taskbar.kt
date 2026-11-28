@@ -21,6 +21,7 @@ import org.handtop.desktop.ui.bevel
 import org.handtop.desktop.ui.dp
 import org.handtop.desktop.ui.dpi
 import org.handtop.desktop.ui.selectableBackground
+import org.handtop.desktop.ui.setBarIcon
 import org.handtop.desktop.ui.setThemedIcon
 import org.handtop.desktop.ui.showPopupMenu
 import org.handtop.desktop.wm.DesktopArea
@@ -63,7 +64,7 @@ class Taskbar(
         startButton = if (theme.startLabel) labelledStartButton() else iconButton(R.drawable.ic_handtop, R.string.start_menu, Palette.ACCENT) { onStart(it) }
         addView(startButton, LayoutParams(if (theme.startLabel) LayoutParams.WRAP_CONTENT else dpi(52), LayoutParams.MATCH_PARENT))
         // The Linux programs, as GNOME's "Show Applications".
-        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps, barTint(Palette.TEXT_SOFT)) { onApps() },
+        addView(iconButton(R.drawable.ic_apps, R.string.app_linux_apps) { onApps() }.apply { setBarIcon(R.drawable.ic_apps, Palette.TEXT_SOFT) },
             LayoutParams(dpi(44), LayoutParams.MATCH_PARENT))
 
         strip.orientation = HORIZONTAL
@@ -76,7 +77,8 @@ class Taskbar(
 
         addView(SetupIndicator(context) { onSetup() }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
 
-        keyboardButton = iconButton(R.drawable.ic_keyboard, R.string.action_keyboard, barTint(null)) { onKeyboard() }.apply {
+        keyboardButton = iconButton(R.drawable.ic_keyboard, R.string.action_keyboard) { onKeyboard() }.apply {
+            setBarIcon(R.drawable.ic_keyboard)
             setOnLongClickListener {
                 onKeyboardLong()
                 true
@@ -132,7 +134,7 @@ class Taskbar(
     /** The keyboard button shows whether the touchpad is on. */
     fun showTouchpad(on: Boolean) {
         if (Themes.current.tintIcons) {
-            if (on) keyboardButton.setColorFilter(Palette.ACCENT) else keyboardButton.clearColorFilter()
+            if (on) keyboardButton.setColorFilter(Palette.ACCENT) else keyboardButton.setBarIcon(R.drawable.ic_keyboard)
         } else {
             // A colour icon can't change colour: the classic button stays pressed in instead.
             keyboardButton.background = if (on) InsetDrawable(context.bevel(Bevel.PRESSED), dpi(2), dpi(5), dpi(2), dpi(5))

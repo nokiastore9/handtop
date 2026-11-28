@@ -79,7 +79,7 @@ object ModernTheme : Theme(
             cornerRadius = if (floating) context.dp(10f) else 0f
         }
 
-    override fun titleBar(context: Context, active: Boolean): Drawable? = null
+    override fun titleBar(context: Context, active: Boolean, floating: Boolean): Drawable? = null
 
     override fun titleButton(context: Context, close: Boolean, checked: Boolean): Drawable = when {
         close -> StateListDrawable().apply {

@@ -2,6 +2,7 @@ package org.handtop.desktop.ui
 
 import org.handtop.desktop.R
 import org.handtop.desktop.shell.Launchpad
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -176,6 +177,56 @@ class ThemeTest {
         assertEquals(0x990B1023.toInt(), Launchpad.veil(ModernTheme, blurred = true))
         assertEquals(0xD90B1023.toInt(), Launchpad.veil(ModernTheme, blurred = false))
         assertEquals(ClassicTheme.colors.windowBg, Launchpad.veil(ClassicTheme, blurred = true))
+    }
+
+    @Test
+    fun glossyKey() {
+        assertEquals(ThemeId.GLOSSY, ThemeId.fromKey("glossy"))
+        assertEquals("glossy", ThemeId.GLOSSY.key)
+    }
+
+    @Test
+    fun glossyIsBevelledWithColourIcons() = with(GlossyTheme) {
+        assertTrue(bevelled); assertFalse(light); assertFalse(tintIcons); assertFalse(roundedCorners)
+        assertTrue(animations); assertFalse(blur); assertFalse(shadows)
+        assertTrue(titleBold); assertFalse(titleCentered); assertFalse(embossDisabled)
+        assertTrue(startMenuBand); assertTrue(startLabel)
+        assertEquals(R.style.HandTop_GlossyDialog, dialogStyle)
+        assertEquals(R.style.HandTop_GlossyCalendar, calendarStyle)
+    }
+
+    @Test
+    fun glossyColoursAreTheSpecs() = with(GlossyTheme.colors) {
+        assertEquals(0xFFECE9D8.toInt(), face)
+        assertEquals(0xFFFFFFFF.toInt(), light)
+        assertEquals(0xFFF5F4EA.toInt(), innerLight)
+        assertEquals(0xFFACA899.toInt(), shadow)
+        assertEquals(0xFF716F64.toInt(), darkShadow)
+        assertEquals(0xFF316AC5.toInt(), selection)
+        assertEquals(0xFFFFFFFF.toInt(), selectionText)
+        assertEquals(0xFF000000.toInt(), text)
+        assertEquals(0xFFFFFFFF.toInt(), titleGlyph)
+        assertEquals(0xFFFFFFFF.toInt(), taskbarText)
+        assertArrayEquals(intArrayOf(0xFF2A72E0.toInt(), 0xFF0A58CE.toInt(), 0xFF0846B0.toInt()), GlossyTheme.TITLE_ACTIVE_STOPS)
+    }
+
+    @Test
+    fun glossyIsReadableAtEveryStop() = with(GlossyTheme) {
+        val white = 0xFFFFFFFF.toInt()
+        for (s in TITLE_ACTIVE_STOPS + TASKBAR_STOPS + START_STOPS + TRAY_STOPS) assertReadable("stop #%08X".format(s), white, s)
+        for (s in TITLE_INACTIVE_STOPS) assertReadable("inactive title", colors.titleTextInactive, s, 3.0)
+        assertReadable("task button", colors.taskbarText, TASK_BUTTON)
+        assertReadable("front", colors.taskbarText, TASK_BUTTON_FRONT)
+        assertReadable("minimized", colors.taskbarText, TASK_BUTTON_MINIMIZED, 3.0)
+        with(colors) {
+            for (bg in listOf(windowBg, sidebarBg, barBg, menuBg, card, face, field)) {
+                assertReadable("text", text, bg)
+                assertReadable("textDim", textDim, bg)
+            }
+            assertReadable("selection", selectionText, selection)
+            assertReadable("onAccent", onAccent, accent)
+            for (s in TASKBAR_STOPS + TRAY_STOPS) assertReadable("taskbarTextDim", taskbarTextDim, s)
+        }
     }
 
     // ---- readability (WCAG 2 contrast) ----

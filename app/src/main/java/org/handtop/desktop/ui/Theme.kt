@@ -8,7 +8,8 @@ import android.graphics.drawable.Drawable
 enum class ThemeId(val key: String) {
     MODERN("modern"),
     CLASSIC("classic"),
-    SOFT("soft");
+    SOFT("soft"),
+    GLOSSY("glossy");
 
     companion object {
         /** The stored theme, Modern for nothing stored or anything unknown. */
@@ -116,8 +117,8 @@ abstract class Theme(val id: ThemeId, val colors: ThemeColors) {
     /** The frame around a window: [floating] is false when maximized or snapped to a side. */
     abstract fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable
 
-    /** The title bar's own background, or null to let the frame show through. */
-    abstract fun titleBar(context: Context, active: Boolean): Drawable?
+    /** The title bar's own background, or null to let the frame show through; [floating] as for [windowFrame]. */
+    abstract fun titleBar(context: Context, active: Boolean, floating: Boolean): Drawable?
 
     /** A button of the title bar: minimize, maximize, close ([close]), or a toggle that is on ([checked]). */
     abstract fun titleButton(context: Context, close: Boolean, checked: Boolean = false): Drawable
@@ -194,5 +195,6 @@ object Themes {
         ThemeId.MODERN -> ModernTheme
         ThemeId.CLASSIC -> ClassicTheme
         ThemeId.SOFT -> SoftTheme
+        ThemeId.GLOSSY -> GlossyTheme
     }
 }

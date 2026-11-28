@@ -42,7 +42,7 @@ import org.handtop.desktop.R
 import org.handtop.desktop.notify.NotificationCenter
 import org.handtop.desktop.notify.Notifications
 import org.handtop.desktop.ui.Palette
-import org.handtop.desktop.ui.setThemedIcon
+import org.handtop.desktop.ui.setBarIcon
 import org.handtop.desktop.ui.applyTheme
 import org.handtop.desktop.ui.Themes
 import org.handtop.desktop.ui.Popups
@@ -82,7 +82,7 @@ class StatusArea(context: Context) : LinearLayout(context) {
     // Notifications: icons of the latest ones, a bell with the count; opens the center.
     private val notificationCenter = (context as? Activity)?.let { NotificationCenter(it) }
     private val notifyIcons = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-    private val bell = ImageView(context).apply { setThemedIcon(R.drawable.ic_bell, Palette.TASKBAR_TEXT) }
+    private val bell = ImageView(context).apply { setBarIcon(R.drawable.ic_bell, Palette.TASKBAR_TEXT) }
     private val badge = TextView(context)
     private val notifyGroup: LinearLayout
     private val notificationsListener: () -> Unit = { refreshNotifications() }

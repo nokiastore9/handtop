@@ -41,3 +41,19 @@ fun ImageView.setThemedIcon(@DrawableRes res: Int, tint: Int? = null, onWallpape
         clearColorFilter()
     }
 }
+
+/** The white icon [res] in [color], whatever the theme: title buttons and taskbar icons of themes that colour them. */
+fun ImageView.setGlyph(@DrawableRes res: Int, color: Int) {
+    imageTintList = null
+    setImageResource(res)
+    setColorFilter(color)
+}
+
+/**
+ * An icon on the taskbar: in the theme's [ThemeColors.taskbarIcon] when it has one (a colour
+ * icon would not show on its bar), otherwise as [setThemedIcon] with [usual].
+ */
+fun ImageView.setBarIcon(@DrawableRes res: Int, usual: Int? = null) {
+    val color = Themes.current.colors.taskbarIcon
+    if (color != 0) setGlyph(res, color) else setThemedIcon(res, usual)
+}

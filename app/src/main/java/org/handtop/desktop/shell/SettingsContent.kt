@@ -587,6 +587,7 @@ class SettingsContent(
             ThemeId.MODERN to R.string.theme_modern,
             ThemeId.CLASSIC to R.string.theme_classic,
             ThemeId.SOFT to R.string.theme_soft,
+            ThemeId.GLOSSY to R.string.theme_glossy,
         )
         return context.choices(
             labels = themes.map { context.getString(it.second) },

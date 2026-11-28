@@ -53,7 +53,7 @@ object LinuxTheme {
     /** The variables Linux programs get for [theme]. */
     fun environment(theme: ThemeId): List<String> = when (theme) {
         ThemeId.MODERN, ThemeId.SOFT -> emptyList()
-        ThemeId.CLASSIC -> listOf(
+        ThemeId.CLASSIC, ThemeId.GLOSSY -> listOf(
             "QT_QPA_PLATFORMTHEME=kde",
             "KDE_SESSION_VERSION=6",
             "XDG_CONFIG_DIRS=$DIR/xdg:/etc/xdg",

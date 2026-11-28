@@ -87,7 +87,7 @@ object ClassicTheme : Theme(
     override fun windowFrame(context: Context, active: Boolean, floating: Boolean): Drawable =
         context.bevel(Bevel.RAISED)
 
-    override fun titleBar(context: Context, active: Boolean): Drawable? = GradientDrawable(
+    override fun titleBar(context: Context, active: Boolean, floating: Boolean): Drawable? = GradientDrawable(
         GradientDrawable.Orientation.LEFT_RIGHT,
         if (active) intArrayOf(colors.titleActive, colors.titleActiveEnd)
         else intArrayOf(colors.titleInactive, colors.titleInactiveEnd),
